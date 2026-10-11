@@ -76,6 +76,11 @@ func (s *Service) Create(input CreateInput) (*siteconnectiondomain.Connection, e
 		roundingMode = "none"
 	}
 
+	syncWholesalePrice := true
+	if input.SyncWholesalePrice != nil {
+		syncWholesalePrice = *input.SyncWholesalePrice
+	}
+
 	conn := &siteconnectiondomain.Connection{
 		Name:               strings.TrimSpace(input.Name),
 		BaseURL:            strings.TrimRight(strings.TrimSpace(input.BaseURL), "/"),
@@ -90,6 +95,7 @@ func (s *Service) Create(input CreateInput) (*siteconnectiondomain.Connection, e
 		PriceMarkupPercent: decimal.NewFromFloat(input.PriceMarkupPercent),
 		PriceRoundingMode:  roundingMode,
 		AutoSyncPrice:      input.AutoSyncPrice,
+		SyncWholesalePrice: syncWholesalePrice,
 	}
 
 	if err := s.connRepo.Create(conn); err != nil {
@@ -156,6 +162,10 @@ func (s *Service) Update(id uint, input UpdateInput) (*siteconnectiondomain.Conn
 	}
 	if input.AutoSyncPrice != nil {
 		conn.AutoSyncPrice = *input.AutoSyncPrice
+	}
+
+	if input.SyncWholesalePrice != nil {
+		conn.SyncWholesalePrice = *input.SyncWholesalePrice
 	}
 
 	if err := s.connRepo.Update(conn); err != nil {

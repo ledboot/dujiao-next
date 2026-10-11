@@ -14,6 +14,7 @@ type CreateInput struct {
 	PriceMarkupPercent float64 `json:"price_markup_percent"`
 	PriceRoundingMode  string  `json:"price_rounding_mode"`
 	AutoSyncPrice      bool    `json:"auto_sync_price"`
+	SyncWholesalePrice *bool   `json:"sync_wholesale_price"`
 }
 
 // UpdateInput 更新对接连接输入。
@@ -30,6 +31,7 @@ type UpdateInput struct {
 	PriceMarkupPercent *float64 `json:"price_markup_percent"` // 指针类型，区分 0 和未传
 	PriceRoundingMode  *string  `json:"price_rounding_mode"`
 	AutoSyncPrice      *bool    `json:"auto_sync_price"`
+	SyncWholesalePrice *bool    `json:"sync_wholesale_price"`
 }
 
 // PingResult 连接测试结果。

@@ -237,7 +237,7 @@ func (s *Service) importUpstreamProduct(connectionID uint, upstreamProductID uin
 			localSKUs = append(localSKUs, defaultSKU)
 		}
 
-		if len(upProduct.WholesalePrices) > 0 {
+		if conn.SyncWholesalePrice && len(upProduct.WholesalePrices) > 0 {
 			wholesalePrices := convertUpstreamWholesalePrices(
 				upProduct.WholesalePrices,
 				exchangeRate,

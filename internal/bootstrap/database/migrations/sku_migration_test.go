@@ -3,6 +3,7 @@ package migrations
 import (
 	"errors"
 	"fmt"
+	siteconnectiondomain "github.com/dujiao-next/internal/modules/siteconnection/domain"
 	"strings"
 	"testing"
 	"time"
@@ -631,5 +632,51 @@ func TestAutoMigrateReplacesSupersededProcurementConstraintName(t *testing.T) {
 	assertModelIndexesExist(t, db, &procurementdomain.Order{})
 	if !db.Migrator().HasConstraint(&procurementdomain.Order{}, procurementOrderForeignKeyConstraint) {
 		t.Errorf("procurement index repair removed canonical constraint %s", procurementOrderForeignKeyConstraint)
+	}
+}
+
+func TestSiteConnectionWholesaleSyncSQLiteUpgrade(t *testing.T) {
+	db := setupRegistryMigrationTestDB(t)
+	if err := db.AutoMigrate(&siteconnectiondomain.Connection{}); err != nil {
+		t.Fatal(err)
+	}
+	// 模拟升级前不含新字段的连接表。
+	if err := db.Migrator().DropColumn(&siteconnectiondomain.Connection{}, "sync_wholesale_price"); err != nil {
+		t.Fatal(err)
+	}
+	if err := db.Exec(`INSERT INTO site_connections (id, name, base_url, api_key, api_secret) VALUES (1, 'legacy', 'https://example.test', 'key', 'secret')`).Error; err != nil {
+		t.Fatal(err)
+	}
+	if err := AutoMigrate(); err != nil {
+		t.Fatal(err)
+	}
+	var conn siteconnectiondomain.Connection
+	if err := db.First(&conn, 1).Error; err != nil {
+		t.Fatal(err)
+	}
+	if !conn.SyncWholesalePrice {
+		t.Fatal("existing connections must default to enabled after upgrade")
+	}
+	if err := db.Model(&conn).UpdateColumn("sync_wholesale_price", false).Error; err != nil {
+		t.Fatal(err)
+	}
+	if err := AutoMigrate(); err != nil {
+		t.Fatal(err)
+	}
+	if err := db.First(&conn, 1).Error; err != nil {
+		t.Fatal(err)
+	}
+	if conn.SyncWholesalePrice {
+		t.Fatal("repeated migration must preserve disabled setting")
+	}
+	if err := db.Exec(`INSERT INTO site_connections (id, name, base_url, api_key, api_secret) VALUES (2, 'new', 'https://example.test', 'key2', 'secret')`).Error; err != nil {
+		t.Fatal(err)
+	}
+	var newConn siteconnectiondomain.Connection
+	if err := db.First(&newConn, 2).Error; err != nil {
+		t.Fatal(err)
+	}
+	if !newConn.SyncWholesalePrice {
+		t.Fatal("database default must enable wholesale sync")
 	}
 }

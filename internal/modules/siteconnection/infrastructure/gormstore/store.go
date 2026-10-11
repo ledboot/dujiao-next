@@ -48,7 +48,18 @@ func (r *Store) GetByApiKey(apiKey string) (*siteconnectiondomain.Connection, er
 
 // Create 创建连接
 func (r *Store) Create(conn *siteconnectiondomain.Connection) error {
-	return r.db.Create(conn).Error
+	// GORM 会把 default:true 的布尔零值改为 true；在同一事务内恢复显式关闭值。
+	syncWholesalePrice := conn.SyncWholesalePrice
+	return r.db.Transaction(func(tx *gorm.DB) error {
+		if err := tx.Create(conn).Error; err != nil {
+			return err
+		}
+		if !syncWholesalePrice {
+			conn.SyncWholesalePrice = false
+			return tx.Model(conn).UpdateColumn("sync_wholesale_price", false).Error
+		}
+		return nil
+	})
 }
 
 // Update 更新连接

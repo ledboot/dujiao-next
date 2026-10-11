@@ -293,6 +293,8 @@ const messages = {
         roundingCeilTenth: '向上取整（0.1）',
         autoSyncPrice: '同步时自动更新价格',
         autoSyncPriceHint: '启用后，同步上游商品时将按加价比例自动更新本地售价',
+        syncWholesalePrice: '同步上游批发价',
+        syncWholesalePriceHint: '关闭后保留本站批发价，不写入上游批发价。',
       },
       actions: {
         enable: '启用',
@@ -4820,6 +4822,8 @@ const messages = {
         roundingCeilTenth: '向上取整（0.1）',
         autoSyncPrice: '同步時自動更新價格',
         autoSyncPriceHint: '啟用後，同步上游商品時將按加價比例自動更新本地售價',
+        syncWholesalePrice: '同步上游批發價',
+        syncWholesalePriceHint: '關閉後保留本站批發價，不寫入上游批發價。',
       },
       actions: {
         enable: '啟用',
@@ -9347,6 +9351,8 @@ const messages = {
         roundingCeilTenth: 'Round up (0.1)',
         autoSyncPrice: 'Auto-update price on sync',
         autoSyncPriceHint: 'When enabled, local prices will be auto-updated with markup during sync',
+        syncWholesalePrice: 'Sync upstream wholesale prices',
+        syncWholesalePriceHint: 'When disabled, keep local wholesale prices without applying upstream wholesale prices.',
       },
       actions: {
         enable: 'Enable',

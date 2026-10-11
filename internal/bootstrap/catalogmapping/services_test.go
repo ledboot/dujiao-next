@@ -385,7 +385,7 @@ func TestSyncProductMarksInactiveWhenUpstreamReturnsInactive(t *testing.T) {
 	}
 }
 
-func TestSyncProductKeepsLocalWholesalePricesWhenUpstreamOmitsWholesalePrices(t *testing.T) {
+func TestSyncProductKeepsLocalWholesalePricesWhenSyncDisabled(t *testing.T) {
 	svc, db, mapping, cleanup := setupMappingWithUpstreamHandler(t,
 		"file:sync_keep_local_wholesale?mode=memory&cache=shared",
 		func(w http.ResponseWriter, r *http.Request) {
@@ -407,6 +407,11 @@ func TestSyncProductKeepsLocalWholesalePricesWhenUpstreamOmitsWholesalePrices(t 
 		},
 	)
 	defer cleanup()
+
+	if err := db.Model(&siteconnectiondomain.Connection{}).Where("id = ?", mapping.ConnectionID).
+		Update("sync_wholesale_price", false).Error; err != nil {
+		t.Fatal(err)
+	}
 
 	localWholesalePrices := productdomain.WholesalePriceTiers{
 		{MinQuantity: 5, UnitPrice: money.FromDecimal(decimal.NewFromInt(80))},

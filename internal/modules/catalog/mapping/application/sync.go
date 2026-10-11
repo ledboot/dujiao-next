@@ -190,8 +190,8 @@ func (s *Service) SyncProduct(mappingID uint) error {
 		s.recalcProductPrice(localProduct)
 	}
 
-	// 上游未返回批发价时不覆盖本地配置，避免运营手动配置被同步任务清空。
-	if len(upProduct.WholesalePrices) > 0 && localProduct != nil {
+	// 批发价独立于普通售价同步开关，开启时以本次上游阶梯覆盖本地配置。
+	if conn.SyncWholesalePrice && localProduct != nil {
 		if err := s.syncUpstreamWholesalePrices(mapping, localProduct.ID, conn, upProduct); err != nil {
 			logger.Warnw("sync_upstream_wholesale_prices_failed",
 				"mapping_id", mapping.ID,
@@ -215,7 +215,7 @@ func (s *Service) SyncProduct(mappingID uint) error {
 }
 
 func (s *Service) syncUpstreamWholesalePrices(mapping *mappingdomain.Mapping, localProductID uint, conn *siteconnectiondomain.Connection, upProduct *upstream.UpstreamProduct) error {
-	if s == nil || mapping == nil || conn == nil || upProduct == nil || localProductID == 0 || len(upProduct.WholesalePrices) == 0 {
+	if s == nil || mapping == nil || conn == nil || upProduct == nil || localProductID == 0 || !conn.SyncWholesalePrice {
 		return nil
 	}
 	localSKUs, err := s.skus.ListByProduct(localProductID, false)
@@ -233,7 +233,7 @@ func (s *Service) syncUpstreamWholesalePrices(mapping *mappingdomain.Mapping, lo
 		conn.PriceRoundingMode,
 		buildUpstreamWholesaleSKUIndex(localSKUs, upProduct.SKUs, skuMappings),
 	)
-	if len(wholesalePrices) == 0 {
+	if len(upProduct.WholesalePrices) > 0 && len(wholesalePrices) == 0 {
 		logger.Warnw("sync_upstream_wholesale_prices_empty_after_convert",
 			"mapping_id", mapping.ID,
 			"connection_id", mapping.ConnectionID,
@@ -741,7 +741,7 @@ func (s *Service) syncProductFromData(mapping *mappingdomain.Mapping, conn *site
 		s.recalcProductPrice(localProduct)
 	}
 
-	if len(upProduct.WholesalePrices) > 0 {
+	if conn.SyncWholesalePrice {
 		if err := s.syncUpstreamWholesalePrices(mapping, localProduct.ID, conn, upProduct); err != nil {
 			logger.Warnw("sync_upstream_wholesale_prices_failed",
 				"mapping_id", mapping.ID,

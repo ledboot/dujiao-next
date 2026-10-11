@@ -24,6 +24,7 @@ type Connection struct {
 	PriceMarkupPercent decimal.Decimal `gorm:"type:decimal(10,4);not null;default:0" json:"price_markup_percent"`   // 加价百分比，如 100 = +100%（翻倍）
 	PriceRoundingMode  string          `gorm:"type:varchar(20);not null;default:'none'" json:"price_rounding_mode"` // none / ceil_int / ceil_tenth
 	AutoSyncPrice      bool            `gorm:"not null;default:false" json:"auto_sync_price"`                       // 同步时自动更新本地价格
+	SyncWholesalePrice bool            `gorm:"not null;default:true" json:"sync_wholesale_price"`                   // 同步上游批发价，开启时覆盖本地阶梯
 	CreatedAt          time.Time       `gorm:"index" json:"created_at"`
 	UpdatedAt          time.Time       `gorm:"index" json:"updated_at"`
 	DeletedAt          *time.Time      `gorm:"index" json:"-"`

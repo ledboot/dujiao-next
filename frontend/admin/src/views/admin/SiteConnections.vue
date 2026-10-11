@@ -42,6 +42,7 @@ const form = reactive({
   price_markup_percent: 0,
   price_rounding_mode: 'none',
   auto_sync_price: 'false',
+  sync_wholesale_price: 'true',
 })
 const reapplyingId = ref<number | null>(null)
 
@@ -101,6 +102,7 @@ const resetForm = () => {
     price_markup_percent: 0,
     price_rounding_mode: 'none',
     auto_sync_price: 'false',
+    sync_wholesale_price: 'true',
   })
 }
 
@@ -139,6 +141,7 @@ const openEditModal = (conn: AdminSiteConnection) => {
     price_markup_percent: conn.price_markup_percent ?? 0,
     price_rounding_mode: conn.price_rounding_mode || 'none',
     auto_sync_price: conn.auto_sync_price ? 'true' : 'false',
+    sync_wholesale_price: (conn.sync_wholesale_price ?? true) ? 'true' : 'false',
   })
   showModal.value = true
 }
@@ -166,6 +169,7 @@ const buildPayload = () => {
     price_markup_percent: Number(form.price_markup_percent) || 0,
     price_rounding_mode: form.price_rounding_mode,
     auto_sync_price: form.auto_sync_price === 'true',
+    sync_wholesale_price: form.sync_wholesale_price === 'true',
   }
 }
 
@@ -459,6 +463,19 @@ onMounted(() => {
                   </SelectContent>
                 </Select>
                 <p class="mt-1 text-xs text-muted-foreground">{{ t('siteConnections.form.autoSyncPriceHint') }}</p>
+              </div>
+              <div>
+                <label for="sync-wholesale-price" class="mb-1.5 block text-xs font-medium text-muted-foreground">{{ t('siteConnections.form.syncWholesalePrice') }}</label>
+                <Select v-model="form.sync_wholesale_price">
+                  <SelectTrigger id="sync-wholesale-price" class="h-9 w-full">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="false">{{ t('admin.common.no') }}</SelectItem>
+                    <SelectItem value="true">{{ t('admin.common.yes') }}</SelectItem>
+                  </SelectContent>
+                </Select>
+                <p class="mt-1 text-xs text-muted-foreground">{{ t('siteConnections.form.syncWholesalePriceHint') }}</p>
               </div>
             </div>
           </div>
