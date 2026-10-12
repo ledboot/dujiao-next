@@ -127,7 +127,7 @@
             </div>
           </div>
 
-          <div v-if="emailVerificationEnabled && sendCodeCaptchaEnabled">
+          <div v-if="registerCaptchaEnabled">
             <label class="mb-2 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">
               <ShieldCheck class="h-3.5 w-3.5 opacity-60" />
               {{ t('auth.common.captchaLabel') }}
@@ -136,7 +136,7 @@
               v-if="captchaProvider === 'image'"
               ref="imageCaptchaRef"
               v-model="captchaPayload"
-              :disabled="sending || countdown > 0"
+              :disabled="sending || userAuthStore.loading"
               @config-stale="handleCaptchaConfigStale"
             />
             <TurnstileCaptcha
@@ -165,7 +165,7 @@
                 variant="secondary"
                 class="h-11 whitespace-nowrap"
                 @click="handleSendCode"
-                :disabled="sending || countdown > 0"
+                :disabled="sending || userAuthStore.loading || countdown > 0 || !captchaReady"
               >
                 {{ countdown > 0 ? t('auth.common.countdown', { seconds: countdown }) : t('auth.common.sendCode') }}
               </Button>
@@ -196,7 +196,7 @@
 
           <Button
             type="submit"
-            :disabled="userAuthStore.loading || !agreed"
+            :disabled="userAuthStore.loading || sending || !agreed || !captchaReady"
             class="h-11 w-full font-bold"
           >
             <UserPlus v-if="!userAuthStore.loading" class="h-4 w-4" />
@@ -238,7 +238,7 @@ const {
   email, emailLocalPart, selectedEmailDomain, password, showPassword, code, agreed, inviteCode, inviteOnlyEnabled, loginLink,
   passwordStrength, error, sending, countdown,
   captchaPayload, turnstileToken, imageCaptchaRef, turnstileRef,
-  captchaProvider, sendCodeCaptchaEnabled, turnstileSiteKey,
+  captchaReady, captchaProvider, registerCaptchaEnabled, turnstileSiteKey,
   registrationEnabled, emailVerificationEnabled,
   emailDomainAllowlistEnabled, allowedEmailDomains, allowedEmailDomainsText, emailDomainSelectionRequired,
   touchRegistrationEmail, formValidation, handleCaptchaConfigStale, handleSendCode, handleRegister,

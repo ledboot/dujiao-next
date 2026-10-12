@@ -1,4 +1,4 @@
-import { computed, onMounted, ref, watch } from 'vue'
+import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useUserAuthStore } from '../stores/userAuth'
 import { useI18n } from 'vue-i18n'
@@ -47,7 +47,10 @@ export function useRegister() {
 
   const captchaConfig = computed(() => appStore.config?.captcha || null)
   const captchaProvider = computed(() => String(captchaConfig.value?.provider || 'none'))
-  const sendCodeCaptchaEnabled = computed(() => !!captchaConfig.value?.scenes?.register_send_code && captchaProvider.value !== 'none')
+  const registerCaptchaEnabled = computed(() => !!captchaConfig.value?.scenes?.register_send_code && captchaProvider.value !== 'none')
+  const captchaReady = computed(() => !!captchaConfig.value && (!registerCaptchaEnabled.value || (captchaProvider.value === 'turnstile'
+    ? !!turnstileToken.value
+    : captchaProvider.value === 'image' && !!captchaPayload.value.captcha_id && !!captchaPayload.value.captcha_code)))
   const turnstileSiteKey = computed(() => String(captchaConfig.value?.turnstile?.site_key || ''))
   const registrationEnabled = computed(() => appStore.config?.registration_enabled !== false)
   const emailVerificationEnabled = computed(() => appStore.config?.email_verification_enabled !== false)
@@ -135,7 +138,7 @@ export function useRegister() {
   }
 
   const getCaptchaPayload = (): CaptchaPayload | undefined => {
-    if (!sendCodeCaptchaEnabled.value) return undefined
+    if (!registerCaptchaEnabled.value) return undefined
     if (captchaProvider.value === 'image') {
       return {
         captcha_id: captchaPayload.value.captcha_id || '',
@@ -162,7 +165,20 @@ export function useRegister() {
     return true
   }
 
+  const resetCaptcha = () => {
+    if (!registerCaptchaEnabled.value) return
+    if (captchaProvider.value === 'image') {
+      captchaPayload.value = {}
+      void imageCaptchaRef.value?.refresh()
+    }
+    if (captchaProvider.value === 'turnstile') {
+      turnstileToken.value = ''
+      turnstileRef.value?.reset()
+    }
+  }
+
   const performSendCode = async () => {
+    if (userAuthStore.loading || sending.value) return
     error.value = ''
     const currentEmail = registrationEmail.value
     if (!currentEmail) {
@@ -174,17 +190,9 @@ export function useRegister() {
     if (formValidation.hasError('email')) return
     if (countdown.value > 0) return
 
-    if (sendCodeCaptchaEnabled.value && captchaProvider.value === 'image') {
-      if (!captchaPayload.value.captcha_id || !captchaPayload.value.captcha_code) {
-        error.value = t('auth.common.captchaRequired')
-        return
-      }
-    }
-    if (sendCodeCaptchaEnabled.value && captchaProvider.value === 'turnstile') {
-      if (!turnstileToken.value) {
-        error.value = t('auth.common.captchaRequired')
-        return
-      }
+    if (!captchaReady.value) {
+      error.value = t('auth.common.captchaRequired')
+      return
     }
 
     sending.value = true
@@ -198,19 +206,14 @@ export function useRegister() {
       startCountdown()
     } catch (err: any) {
       error.value = err.message || t('auth.register.errors.sendCodeFailed')
-      if (captchaProvider.value === 'image') {
-        imageCaptchaRef.value?.refresh()
-      }
-      if (captchaProvider.value === 'turnstile') {
-        turnstileRef.value?.reset()
-        turnstileToken.value = ''
-      }
     } finally {
+      resetCaptcha()
       sending.value = false
     }
   }
 
   const performRegister = async () => {
+    if (userAuthStore.loading || sending.value) return
     error.value = ''
     const currentEmail = registrationEmail.value
     if (!formValidation.validateAll({ email: currentEmail, password: password.value })) return
@@ -220,17 +223,24 @@ export function useRegister() {
       error.value = t('auth.register.errors.agreementRequired')
       return
     }
+    if (!captchaReady.value) {
+      error.value = t('auth.common.captchaRequired')
+      return
+    }
     try {
       await userAuthStore.register({
         email: currentEmail,
         password: password.value,
         code: emailVerificationEnabled.value ? code.value : '',
         agreement_accepted: agreed.value,
+        captcha_payload: getCaptchaPayload(),
         invite_code: inviteOnlyEnabled.value ? inviteCode.value.trim() : undefined,
       })
       router.push('/me/orders')
     } catch (err: any) {
       error.value = err.message || t('auth.register.errors.registerFailed')
+    } finally {
+      resetCaptcha()
     }
   }
 
@@ -241,7 +251,14 @@ export function useRegister() {
     await appStore.loadConfig(true)
   })
 
+  onUnmounted(() => {
+    if (timer) clearInterval(timer)
+    handleSendCode.cancel()
+    handleRegister.cancel()
+  })
+
   return {
+    captchaReady,
     userAuthStore,
     brandSiteName,
     email,
@@ -263,7 +280,7 @@ export function useRegister() {
     imageCaptchaRef,
     turnstileRef,
     captchaProvider,
-    sendCodeCaptchaEnabled,
+    registerCaptchaEnabled,
     turnstileSiteKey,
     registrationEnabled,
     emailVerificationEnabled,

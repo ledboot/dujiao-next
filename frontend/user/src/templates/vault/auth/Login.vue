@@ -137,7 +137,7 @@
             <AlertDescription>{{ error }}</AlertDescription>
           </Alert>
 
-          <Button type="submit" :disabled="userAuthStore.loading" class="h-11 w-full rounded-full font-bold">
+          <Button type="submit" :disabled="userAuthStore.loading || !captchaReady" class="h-11 w-full rounded-full font-bold">
             <LogIn v-if="!userAuthStore.loading" class="h-4 w-4" />
             {{ userAuthStore.loading ? t('auth.login.submitting') : t('auth.login.submit') }}
           </Button>
@@ -214,7 +214,7 @@ const {
   email, password, showPassword, rememberMe,
   step, totpMode, totpCode, recoveryCode, challengeRemainingSeconds, handleVerify2FA, cancel2FA,
   error, info, formValidation,
-  loginCaptchaEnabled, captchaProvider, captchaPayload, turnstileToken, turnstileSiteKey,
+  captchaReady, loginCaptchaEnabled, captchaProvider, captchaPayload, turnstileToken, turnstileSiteKey,
   imageCaptchaRef, turnstileRef, handleCaptchaConfigStale,
   registrationEnabled, emailVerificationEnabled, inviteOnlyEnabled, registerLink, continueAfterLogin,
   showTelegramWidget, telegramWidgetRef, showTelegramOidc, startTelegramOidc,

@@ -3198,8 +3198,8 @@ const messages = {
           providerTurnstile: 'Cloudflare Turnstile',
           scenesTitle: '启用场景',
           scenes: {
-            login: '登录验证（前台+后台）',
-            registerSendCode: '注册发送邮件验证码',
+            login: '登录验证（Turnstile 仅前台）',
+            registerSendCode: '注册及发送邮件验证码',
             resetSendCode: '找回密码发送邮件验证码',
             guestCreateOrder: '游客下单创建订单',
             giftCardRedeem: '礼品卡兑换',
@@ -7727,8 +7727,8 @@ const messages = {
           providerTurnstile: 'Cloudflare Turnstile',
           scenesTitle: '啟用場景',
           scenes: {
-            login: '登入驗證（前台+後台）',
-            registerSendCode: '註冊發送郵件驗證碼',
+            login: '登入驗證（Turnstile 僅前台）',
+            registerSendCode: '註冊及發送郵件驗證碼',
             resetSendCode: '找回密碼發送郵件驗證碼',
             guestCreateOrder: '遊客下單建立訂單',
             giftCardRedeem: '禮品卡兌換',
@@ -12256,8 +12256,8 @@ const messages = {
           providerTurnstile: 'Cloudflare Turnstile',
           scenesTitle: 'Enabled scenes',
           scenes: {
-            login: 'Login verification (web + admin)',
-            registerSendCode: 'Register email code sending',
+            login: 'Login verification (Turnstile: storefront only)',
+            registerSendCode: 'Registration and email code sending',
             resetSendCode: 'Reset password email code sending',
             guestCreateOrder: 'Guest checkout create order',
             giftCardRedeem: 'Gift card redeem',

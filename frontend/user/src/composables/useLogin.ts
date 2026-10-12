@@ -75,6 +75,9 @@ export function useLogin() {
   const captchaConfig = computed(() => appStore.config?.captcha || null)
   const captchaProvider = computed(() => String(captchaConfig.value?.provider || 'none'))
   const loginCaptchaEnabled = computed(() => !!captchaConfig.value?.scenes?.login && captchaProvider.value !== 'none')
+  const captchaReady = computed(() => !!captchaConfig.value && (!loginCaptchaEnabled.value || (captchaProvider.value === 'turnstile'
+    ? !!turnstileToken.value
+    : captchaProvider.value === 'image' && !!captchaPayload.value.captcha_id && !!captchaPayload.value.captcha_code)))
   const turnstileSiteKey = computed(() => String(captchaConfig.value?.turnstile?.site_key || ''))
   const telegramConfig = computed(() => appStore.config?.telegram_auth || null)
   const telegramBotUsername = computed(() => String(telegramConfig.value?.bot_username || '').trim())
@@ -155,21 +158,13 @@ export function useLogin() {
   }
 
   const performLogin = async () => {
+    if (userAuthStore.loading) return
     error.value = ''
     if (!formValidation.validateAll({ email: email.value, password: password.value })) return
 
-    if (loginCaptchaEnabled.value && captchaProvider.value === 'image') {
-      if (!captchaPayload.value.captcha_id || !captchaPayload.value.captcha_code) {
-        error.value = t('auth.common.captchaRequired')
-        return
-      }
-    }
-
-    if (loginCaptchaEnabled.value && captchaProvider.value === 'turnstile') {
-      if (!turnstileToken.value) {
-        error.value = t('auth.common.captchaRequired')
-        return
-      }
+    if (!captchaReady.value) {
+      error.value = t('auth.common.captchaRequired')
+      return
     }
 
     try {
@@ -186,6 +181,7 @@ export function useLogin() {
       await redirectAfterLogin()
     } catch (err: any) {
       error.value = err.message || t('auth.login.error')
+    } finally {
       if (captchaProvider.value === 'image') {
         imageCaptchaRef.value?.refresh()
       }
@@ -498,6 +494,7 @@ export function useLogin() {
     // validation
     formValidation,
     // captcha
+    captchaReady,
     loginCaptchaEnabled,
     captchaProvider,
     captchaPayload,

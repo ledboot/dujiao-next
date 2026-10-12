@@ -4,6 +4,7 @@ import (
 	"errors"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 
 	"github.com/dujiao-next/internal/modules/captcha/contract"
@@ -48,5 +49,45 @@ func TestClientMapsRejectedToken(t *testing.T) {
 	}, "bad-token", "")
 	if !errors.Is(err, contract.ErrInvalid) {
 		t.Fatalf("rejected token error got %v", err)
+	}
+}
+
+func TestClientFailsClosed(t *testing.T) {
+	for _, tc := range []struct {
+		name, body string
+		status     int
+		want       error
+	}{
+		{"upstream error with success body", `{"success":true}`, http.StatusServiceUnavailable, contract.ErrVerifyFailed},
+		{"malformed response", `not json`, http.StatusOK, contract.ErrVerifyFailed},
+		{"missing success", `{}`, http.StatusOK, contract.ErrInvalid},
+		{"expired or replayed", `{"success":false,"error-codes":["timeout-or-duplicate"]}`, http.StatusOK, contract.ErrInvalid},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+				w.WriteHeader(tc.status)
+				_, _ = w.Write([]byte(tc.body))
+			}))
+			defer server.Close()
+			err := New().Verify(settingssecurity.CaptchaTurnstileSetting{SecretKey: "secret", VerifyURL: server.URL}, "token", "")
+			if !errors.Is(err, tc.want) {
+				t.Fatalf("got %v, want %v", err, tc.want)
+			}
+		})
+	}
+}
+
+func TestClientRejectsInvalidTokenLengthBeforeNetwork(t *testing.T) {
+	for _, tc := range []struct {
+		token string
+		want  error
+	}{
+		{"", contract.ErrRequired},
+		{strings.Repeat("a", 2049), contract.ErrInvalid},
+	} {
+		err := New().Verify(settingssecurity.CaptchaTurnstileSetting{}, tc.token, "")
+		if !errors.Is(err, tc.want) {
+			t.Fatalf("got %v, want %v", err, tc.want)
+		}
 	}
 }

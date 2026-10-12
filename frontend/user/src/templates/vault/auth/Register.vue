@@ -115,7 +115,7 @@
             </div>
 
             <!-- 图形验证 -->
-            <div v-if="emailVerificationEnabled && sendCodeCaptchaEnabled">
+            <div v-if="registerCaptchaEnabled">
               <label class="mb-2 flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-[0.12em] text-muted-foreground">
                 <ShieldCheck class="h-3.5 w-3.5 opacity-70" /> {{ t('auth.common.captchaLabel') }}
               </label>
@@ -123,7 +123,7 @@
                 v-if="captchaProvider === 'image'"
                 ref="imageCaptchaRef"
                 v-model="captchaPayload"
-                :disabled="sending || countdown > 0"
+                :disabled="sending || userAuthStore.loading"
                 @config-stale="handleCaptchaConfigStale"
               />
               <TurnstileCaptcha
@@ -147,7 +147,7 @@
                   class="h-11 min-w-0 flex-1"
                   :placeholder="t('auth.register.codePlaceholder')"
                 />
-                <Button type="button" variant="secondary" class="h-11 shrink-0 whitespace-nowrap rounded-full px-5" :disabled="sending || countdown > 0" @click="handleSendCode">
+                <Button type="button" variant="secondary" class="h-11 shrink-0 whitespace-nowrap rounded-full px-5" :disabled="sending || userAuthStore.loading || countdown > 0 || !captchaReady" @click="handleSendCode">
                   {{ countdown > 0 ? t('auth.common.countdown', { seconds: countdown }) : t('auth.common.sendCode') }}
                 </Button>
               </div>
@@ -168,7 +168,7 @@
               <AlertDescription>{{ error }}</AlertDescription>
             </Alert>
 
-            <Button type="submit" :disabled="userAuthStore.loading || !agreed" class="h-11 w-full rounded-full font-bold">
+            <Button type="submit" :disabled="userAuthStore.loading || sending || !agreed || !captchaReady" class="h-11 w-full rounded-full font-bold">
               <UserPlus v-if="!userAuthStore.loading" class="h-4 w-4" />
               {{ userAuthStore.loading ? t('auth.register.creating') : t('auth.register.create') }}
             </Button>
@@ -203,7 +203,7 @@ const {
   email, emailLocalPart, selectedEmailDomain, password, showPassword, code, agreed, inviteCode, inviteOnlyEnabled, loginLink,
   passwordStrength, error, sending, countdown,
   captchaPayload, turnstileToken, imageCaptchaRef, turnstileRef,
-  captchaProvider, sendCodeCaptchaEnabled, turnstileSiteKey,
+  captchaReady, captchaProvider, registerCaptchaEnabled, turnstileSiteKey,
   registrationEnabled, emailVerificationEnabled,
   emailDomainAllowlistEnabled, allowedEmailDomains, allowedEmailDomainsText, emailDomainSelectionRequired,
   touchRegistrationEmail, formValidation, handleCaptchaConfigStale, handleSendCode, handleRegister,

@@ -28,6 +28,12 @@ type verifyResponse struct {
 
 // Verify 校验令牌。
 func (Client) Verify(cfg settingssecurity.CaptchaTurnstileSetting, token, clientIP string) error {
+	if strings.TrimSpace(token) == "" {
+		return contract.ErrRequired
+	}
+	if len(token) > 2048 {
+		return contract.ErrInvalid
+	}
 	secret := strings.TrimSpace(cfg.SecretKey)
 	verifyURL := strings.TrimSpace(cfg.VerifyURL)
 	if secret == "" || verifyURL == "" {
@@ -54,6 +60,9 @@ func (Client) Verify(cfg settingssecurity.CaptchaTurnstileSetting, token, client
 		return fmt.Errorf("%w: %v", contract.ErrVerifyFailed, err)
 	}
 	defer resp.Body.Close()
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		return fmt.Errorf("%w: siteverify HTTP %d", contract.ErrVerifyFailed, resp.StatusCode)
+	}
 	var result verifyResponse
 	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
 		return fmt.Errorf("%w: %v", contract.ErrVerifyFailed, err)

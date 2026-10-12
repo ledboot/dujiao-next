@@ -316,6 +316,9 @@ func (s CaptchaSetting) IsSceneEnabled(scene string) bool {
 	switch strings.ToLower(strings.TrimSpace(scene)) {
 	case constants.CaptchaSceneLogin:
 		return s.Scenes.Login
+	case constants.CaptchaSceneAdminLogin:
+		// Turnstile 仅保护前台登录；后台保留原有图片验证码。
+		return s.Scenes.Login && s.Provider != constants.CaptchaProviderTurnstile
 	case constants.CaptchaSceneRegisterSendCode:
 		return s.Scenes.RegisterSendCode
 	case constants.CaptchaSceneResetSendCode:

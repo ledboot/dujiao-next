@@ -55,11 +55,12 @@ func NewUserLoginHandler(settings UserLoginSettings, auth UserLoginAuth, captcha
 
 // UserRegisterRequest 注册请求。
 type UserRegisterRequest struct {
-	Email             string `json:"email" binding:"required"`
-	Password          string `json:"password" binding:"required"`
-	Code              string `json:"code"`
-	InviteCode        string `json:"invite_code"`
-	AgreementAccepted bool   `json:"agreement_accepted"`
+	Email             string                            `json:"email" binding:"required"`
+	Password          string                            `json:"password" binding:"required"`
+	Code              string                            `json:"code"`
+	InviteCode        string                            `json:"invite_code"`
+	AgreementAccepted bool                              `json:"agreement_accepted"`
+	CaptchaPayload    captchahttp.CaptchaPayloadRequest `json:"captcha_payload"`
 }
 
 // UserLoginRequest 登录请求。
@@ -98,6 +99,14 @@ func (h *UserLoginHandler) UserRegister(c *gin.Context) {
 	if err != nil {
 		ginutil.RespondError(c, response.CodeInternal, "error.register_failed", err)
 		return
+	}
+
+	// 注册提交与注册发信共用注册验证码开关，即使关闭邮箱验证也必须校验。
+	if h.captcha != nil {
+		if captchaErr := h.captcha.Verify(constants.CaptchaSceneRegisterSendCode, req.CaptchaPayload, c.ClientIP()); captchaErr != nil {
+			respondCaptchaError(c, captchaErr)
+			return
+		}
 	}
 
 	user, token, expiresAt, err := h.auth.Register(c.Request.Context(), req.Email, req.Password, req.Code, req.InviteCode, req.AgreementAccepted, emailVerificationEnabled)

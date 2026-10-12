@@ -95,7 +95,7 @@ func (h *AdminLoginHandler) AdminLogin(c *gin.Context) {
 	}
 
 	if h.captcha != nil {
-		if captchaErr := h.captcha.Verify(constants.CaptchaSceneLogin, req.CaptchaPayload, c.ClientIP()); captchaErr != nil {
+		if captchaErr := h.captcha.Verify(constants.CaptchaSceneAdminLogin, req.CaptchaPayload, c.ClientIP()); captchaErr != nil {
 			switch {
 			case errors.Is(captchaErr, captcha.ErrRequired):
 				ginutil.RespondError(c, response.CodeBadRequest, "error.captcha_required", nil)

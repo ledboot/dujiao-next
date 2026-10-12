@@ -3,12 +3,17 @@ package userauthhttp
 import (
 	"bytes"
 	"context"
+	"encoding/json"
+	"errors"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 	"time"
 
 	"github.com/dujiao-next/internal/constants"
+	captcha "github.com/dujiao-next/internal/modules/captcha/contract"
+	captchahttp "github.com/dujiao-next/internal/modules/captcha/transport/http"
 	userdomain "github.com/dujiao-next/internal/modules/identity/user/domain"
 
 	"github.com/gin-gonic/gin"
@@ -113,5 +118,83 @@ func TestVerifyUser2FAPreservesExternalLoginSource(t *testing.T) {
 				t.Fatalf("login status = %q", loginRecorder.records[0].status)
 			}
 		})
+	}
+}
+
+type captchaLoginSettings struct{ verifyEmail bool }
+
+func (captchaLoginSettings) GetRegistrationEnabled(bool) (bool, error) { return true, nil }
+func (s captchaLoginSettings) GetEmailVerificationEnabled(bool) (bool, error) {
+	return s.verifyEmail, nil
+}
+
+type captchaLoginAuth struct{ calls int }
+
+func (a *captchaLoginAuth) Register(context.Context, string, string, string, string, bool, bool) (*userdomain.User, string, time.Time, error) {
+	a.calls++
+	return &userdomain.User{ID: 1, Email: "buyer@example.com"}, "token", time.Now().Add(time.Hour), nil
+}
+func (a *captchaLoginAuth) LoginStep1(context.Context, string, string, bool) (*AuthLoginResult, error) {
+	a.calls++
+	return &AuthLoginResult{User: &userdomain.User{ID: 1, Email: "buyer@example.com"}, Token: "token", ExpiresAt: time.Now().Add(time.Hour)}, nil
+}
+
+type captchaLoginVerifier struct {
+	err          error
+	scene, token string
+}
+
+func (v *captchaLoginVerifier) Verify(scene string, payload captchahttp.CaptchaPayloadRequest, _ string) error {
+	v.scene, v.token = scene, payload.TurnstileToken
+	return v.err
+}
+
+func TestPasswordAuthRequiresCaptchaBeforeBusinessLogic(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	for _, endpoint := range []string{"login", "register"} {
+		for _, verifyEmail := range []bool{true, false} {
+			for _, tc := range []struct {
+				name, token   string
+				err           error
+				status, calls int
+			}{
+				{"missing", "", captcha.ErrRequired, http.StatusBadRequest, 0},
+				{"invalid", "bad-token", captcha.ErrInvalid, http.StatusBadRequest, 0},
+				{"configuration", "token", captcha.ErrConfigInvalid, http.StatusInternalServerError, 0},
+				{"unavailable", "token", errors.New("upstream unavailable"), http.StatusInternalServerError, 0},
+				{"verified", "valid-token", nil, 0, 1},
+			} {
+				t.Run(endpoint+"/"+tc.name+"/email="+map[bool]string{true: "on", false: "off"}[verifyEmail], func(t *testing.T) {
+					auth := &captchaLoginAuth{}
+					verifier := &captchaLoginVerifier{err: tc.err}
+					handler := NewUserLoginHandler(captchaLoginSettings{verifyEmail}, auth, verifier, nil)
+					router := gin.New()
+					scene := constants.CaptchaSceneLogin
+					if endpoint == "register" {
+						router.POST("/auth/register", handler.UserRegister)
+						scene = constants.CaptchaSceneRegisterSendCode
+					} else {
+						router.POST("/auth/login", handler.UserLogin)
+					}
+					body := `{"email":"buyer@example.com","password":"password123","agreement_accepted":true,"captcha_payload":{"turnstile_token":"` + tc.token + `"}}`
+					request := httptest.NewRequest(http.MethodPost, "/auth/"+endpoint, strings.NewReader(body))
+					request.Header.Set("Content-Type", "application/json")
+					recorder := httptest.NewRecorder()
+					router.ServeHTTP(recorder, request)
+					var result struct {
+						StatusCode int `json:"status_code"`
+					}
+					if err := json.Unmarshal(recorder.Body.Bytes(), &result); err != nil {
+						t.Fatal(err)
+					}
+					if result.StatusCode != tc.status || auth.calls != tc.calls {
+						t.Fatalf("status=%d business calls=%d body=%s", result.StatusCode, auth.calls, recorder.Body.String())
+					}
+					if verifier.scene != scene || verifier.token != tc.token {
+						t.Fatalf("wrong verification input: %+v", verifier)
+					}
+				})
+			}
+		}
 	}
 }

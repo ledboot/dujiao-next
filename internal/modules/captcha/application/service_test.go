@@ -74,3 +74,27 @@ func TestVerifySkipsDisabledScene(t *testing.T) {
 		t.Fatalf("disabled scene must skip captcha, got %v", err)
 	}
 }
+
+func TestAdminLoginSkipsTurnstileButRetainsImageCaptcha(t *testing.T) {
+	for _, provider := range []string{constants.CaptchaProviderTurnstile, constants.CaptchaProviderImage} {
+		t.Run(provider, func(t *testing.T) {
+			setting := settingssecurity.CaptchaSetting{
+				Provider: provider,
+				Scenes:   settingssecurity.CaptchaSceneSetting{Login: true},
+			}
+			service := NewService(settingReaderStub{setting: setting}, config.CaptchaConfig{}, nil)
+			// Frontend login remains protected regardless of provider.
+			if err := service.Verify(constants.CaptchaSceneLogin, contract.VerifyPayload{}, ""); err != contract.ErrRequired {
+				t.Fatalf("frontend login got %v, want ErrRequired", err)
+			}
+			err := service.Verify(constants.CaptchaSceneAdminLogin, contract.VerifyPayload{}, "")
+			if provider == constants.CaptchaProviderTurnstile {
+				if err != nil {
+					t.Fatalf("admin must not require Turnstile: %v", err)
+				}
+			} else if err != contract.ErrRequired {
+				t.Fatalf("admin image captcha got %v, want ErrRequired", err)
+			}
+		})
+	}
+}
