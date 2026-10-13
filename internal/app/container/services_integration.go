@@ -95,6 +95,7 @@ func (c *Container) initIntegrationServices() {
 		Deliverer:   downstreamcallbackclient.New(),
 	})
 	c.PaymentService = paymentapp.NewPaymentService(paymentapp.PaymentServiceOptions{
+		ResellerActivation:      c.ResellerManagementService,
 		OrderStore:              c.OrderStore,
 		ProductRepo:             c.ProductRepo,
 		ProductSKURepo:          c.ProductSKURepo,

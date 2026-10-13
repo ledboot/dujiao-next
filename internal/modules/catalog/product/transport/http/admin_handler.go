@@ -233,6 +233,8 @@ type CreateProductRequest struct {
 	ManualStockTotal    *int                     `json:"manual_stock_total"`
 	SKUs                []ProductSKURequest      `json:"skus"`
 	PaymentChannelIDs   []uint                   `json:"payment_channel_ids"`
+	AutoApproveReseller *bool                    `json:"auto_approve_reseller"`
+	ResellerApplyRemark *string                  `json:"reseller_apply_remark"`
 	IsAffiliateEnabled  *bool                    `json:"is_affiliate_enabled"`
 	IsActive            *bool                    `json:"is_active"`
 	SortOrder           int                      `json:"sort_order"`
@@ -306,6 +308,8 @@ func (h *AdminProductHandler) CreateProduct(c *gin.Context) {
 		ManualStockTotal:     req.ManualStockTotal,
 		SKUs:                 toProductSKUInputs(req.SKUs),
 		PaymentChannelIDs:    req.PaymentChannelIDs,
+		AutoApproveReseller:  req.AutoApproveReseller,
+		ResellerApplyRemark:  req.ResellerApplyRemark,
 		IsAffiliateEnabled:   req.IsAffiliateEnabled,
 		IsActive:             req.IsActive,
 		SortOrder:            req.SortOrder,
@@ -398,6 +402,8 @@ func (h *AdminProductHandler) UpdateProduct(c *gin.Context) {
 		ManualStockTotal:     req.ManualStockTotal,
 		SKUs:                 toProductSKUInputs(req.SKUs),
 		PaymentChannelIDs:    req.PaymentChannelIDs,
+		AutoApproveReseller:  req.AutoApproveReseller,
+		ResellerApplyRemark:  req.ResellerApplyRemark,
 		IsAffiliateEnabled:   req.IsAffiliateEnabled,
 		IsActive:             req.IsActive,
 		SortOrder:            req.SortOrder,

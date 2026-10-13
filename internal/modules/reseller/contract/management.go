@@ -7,6 +7,11 @@ import (
 	resellerdomain "github.com/dujiao-next/internal/modules/reseller/domain"
 )
 
+// PaidActivationStore is bound to the successful payment transaction.
+type PaidActivationStore interface {
+	ActivatePaidProfile(profile *resellerdomain.Profile) error
+}
+
 // ProfileListFilter 管理端分销商资料过滤条件。
 type ProfileListFilter struct {
 	Page             int

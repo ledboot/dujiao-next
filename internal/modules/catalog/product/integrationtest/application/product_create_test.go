@@ -2,6 +2,7 @@ package integrationtest
 
 import (
 	"errors"
+	"strconv"
 	"testing"
 
 	productwrite "github.com/dujiao-next/internal/modules/catalog/product/application/write"
@@ -154,5 +155,39 @@ func TestProductServiceCreateRollsBackProductAndSKUWhenWholesaleValidationFails(
 	}
 	if skuCount != 0 {
 		t.Fatalf("transaction must roll back default SKU, got %d rows", skuCount)
+	}
+}
+
+func TestProductPaidResellerAttributePersistsAndRequiresMember(t *testing.T) {
+	svc, db := newProductServiceForTest(t)
+	category := categorydomain.Category{Slug: "paid-reseller", NameJSON: jsonmap.JSON{"zh-CN": "开店"}}
+	if err := db.Create(&category).Error; err != nil {
+		t.Fatal(err)
+	}
+	enabled, remark := true, "开店套餐"
+	input := productwrite.CreateProductInput{CategoryID: category.ID, Slug: "paid-reseller", TitleJSON: map[string]interface{}{"zh-CN": "开店套餐"}, PriceAmount: decimal.NewFromInt(120), PurchaseType: constants.ProductPurchaseGuest, FulfillmentType: constants.FulfillmentTypeAuto, AutoApproveReseller: &enabled, ResellerApplyRemark: &remark}
+	product, err := svc.Write.Create(input)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !product.AutoApproveReseller || product.PurchaseType != constants.ProductPurchaseMember || product.ResellerApplyRemark != remark {
+		t.Fatalf("unexpected product: %+v", product)
+	}
+	input.AutoApproveReseller, input.ResellerApplyRemark = nil, nil
+	updated, err := svc.Write.Update(strconv.FormatUint(uint64(product.ID), 10), input)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !updated.AutoApproveReseller || updated.ResellerApplyRemark != remark || updated.PurchaseType != constants.ProductPurchaseMember {
+		t.Fatal("omitted fields must preserve activation configuration")
+	}
+	disabled, empty := false, ""
+	input.AutoApproveReseller, input.ResellerApplyRemark = &disabled, &empty
+	updated, err = svc.Write.Update(strconv.FormatUint(uint64(product.ID), 10), input)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if updated.AutoApproveReseller || updated.ResellerApplyRemark != "" {
+		t.Fatal("explicit disable/clear not persisted")
 	}
 }

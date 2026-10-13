@@ -107,6 +107,9 @@ func (s *OrderService) buildOrderResult(input orderCreateParams) (*orderBuildRes
 		if purchaseType == "" {
 			purchaseType = constants.ProductPurchaseMember
 		}
+		if product.AutoApproveReseller && (input.IsGuest || input.UserID == 0) {
+			return nil, ErrProductPurchaseNotAllowed
+		}
 		if input.IsGuest && purchaseType == constants.ProductPurchaseMember {
 			return nil, ErrProductPurchaseNotAllowed
 		}
@@ -242,9 +245,11 @@ func (s *OrderService) buildOrderResult(input orderCreateParams) (*orderBuildRes
 		}
 
 		orderItem := orderdomain.OrderItem{
-			ProductID: product.ID,
-			SKUID:     sku.ID,
-			TitleJSON: product.TitleJSON,
+			AutoApproveReseller: product.AutoApproveReseller,
+			ResellerApplyRemark: product.ResellerApplyRemark,
+			ProductID:           product.ID,
+			SKUID:               sku.ID,
+			TitleJSON:           product.TitleJSON,
 			SKUSnapshotJSON: jsonmap.JSON{
 				"sku_id":      sku.ID,
 				"sku_code":    sku.SKUCode,

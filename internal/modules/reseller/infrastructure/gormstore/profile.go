@@ -9,6 +9,7 @@ import (
 	resellerdomain "github.com/dujiao-next/internal/modules/reseller/domain"
 
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
 
 // CreateProfile 创建分销商资料。
@@ -114,4 +115,20 @@ func (r *Store) IsActiveRelatedAccount(resellerID uint, userID uint) (bool, erro
 		return false, err
 	}
 	return count > 0, nil
+}
+
+// ActivatePaidProfile atomically creates or approves a pending/rejected application.
+// Existing active, disabled and deleted profiles retain their status and settings.
+func (r *Store) ActivatePaidProfile(profile *resellerdomain.Profile) error {
+	return r.db.Clauses(clause.OnConflict{
+		Columns: []clause.Column{{Name: "user_id"}},
+		DoUpdates: clause.Assignments(map[string]interface{}{
+			"status": profile.Status, "apply_reason": profile.ApplyReason, "reject_reason": "",
+			"reviewed_by": nil, "reviewed_at": profile.ReviewedAt, "updated_at": profile.UpdatedAt,
+		}),
+		Where: clause.Where{Exprs: []clause.Expression{
+			clause.IN{Column: clause.Column{Table: "reseller_profiles", Name: "status"}, Values: []interface{}{resellerdomain.ProfileStatusPendingReview, resellerdomain.ProfileStatusRejected}},
+			clause.Eq{Column: clause.Column{Table: "reseller_profiles", Name: "deleted_at"}, Value: nil},
+		}},
+	}).Create(profile).Error
 }

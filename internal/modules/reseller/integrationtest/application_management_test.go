@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 	"testing"
 	"time"
 
@@ -287,5 +288,39 @@ func TestResellerManagementDisablePrimaryDomainPromotesNextActiveVerifiedDomain(
 	}
 	if !loadedSecondary.IsPrimary {
 		t.Fatalf("expected active verified secondary domain to become primary: %+v", loadedSecondary)
+	}
+}
+
+func TestPaidActivationPreservesExistingAccountControls(t *testing.T) {
+	for _, status := range []string{resellerdomain.ProfileStatusPendingReview, resellerdomain.ProfileStatusRejected, resellerdomain.ProfileStatusActive, resellerdomain.ProfileStatusDisabled} {
+		t.Run(status, func(t *testing.T) {
+			db := openResellerManagementServiceTestDB(t)
+			user := seedResellerManagementUser(t, db, "paid-existing@example.test")
+			profile := resellerdomain.Profile{UserID: user.ID, Status: status, ApplyReason: "existing", SettlementStatus: resellerdomain.SettlementStatusFrozen}
+			if err := db.Create(&profile).Error; err != nil {
+				t.Fatal(err)
+			}
+			svc := newResellerManagementServiceForTest(db)
+			now := time.Now()
+			for i := 0; i < 2; i++ {
+				if err := svc.ActivatePaidOrder(resellergormstore.New(db), user.ID, 456, "套餐", now); err != nil {
+					t.Fatal(err)
+				}
+			}
+			var actual resellerdomain.Profile
+			if err := db.First(&actual, profile.ID).Error; err != nil {
+				t.Fatal(err)
+			}
+			if actual.SettlementStatus != resellerdomain.SettlementStatusFrozen {
+				t.Fatal("financial restriction removed")
+			}
+			if status == resellerdomain.ProfileStatusActive || status == resellerdomain.ProfileStatusDisabled {
+				if actual.Status != status || actual.ApplyReason != "existing" {
+					t.Fatalf("existing account changed: %+v", actual)
+				}
+			} else if actual.Status != resellerdomain.ProfileStatusActive || !strings.Contains(actual.ApplyReason, "456") || !strings.Contains(actual.ApplyReason, "套餐") {
+				t.Fatalf("application not approved: %+v", actual)
+			}
+		})
 	}
 }

@@ -32,10 +32,12 @@ type OrderItem struct {
 	FulfillmentType              string            `gorm:"not null" json:"fulfillment_type"`                                       // 交付类型
 	ManualFormSchemaSnapshotJSON jsonmap.JSON      `gorm:"type:json" json:"manual_form_schema_snapshot"`                           // 人工交付表单 schema 快照
 	ManualFormSubmissionJSON     jsonmap.JSON      `gorm:"type:json" json:"manual_form_submission"`                                // 人工交付表单提交值
-	InstructionsJSON             jsonmap.JSON      `gorm:"type:json" json:"instructions"`                                          // 交付后使用说明快照（多语言）
-	CreatedAt                    time.Time         `gorm:"index" json:"created_at"`                                                // 创建时间
-	UpdatedAt                    time.Time         `gorm:"index" json:"updated_at"`                                                // 更新时间
-	DeletedAt                    *time.Time        `gorm:"index" json:"-"`                                                         // 软删除时间
+	AutoApproveReseller          bool              `gorm:"not null;default:false" json:"-"`
+	ResellerApplyRemark          string            `gorm:"type:text" json:"-"`
+	InstructionsJSON             jsonmap.JSON      `gorm:"type:json" json:"instructions"` // 交付后使用说明快照（多语言）
+	CreatedAt                    time.Time         `gorm:"index" json:"created_at"`       // 创建时间
+	UpdatedAt                    time.Time         `gorm:"index" json:"updated_at"`       // 更新时间
+	DeletedAt                    *time.Time        `gorm:"index" json:"-"`                // 软删除时间
 }
 
 // TableName 指定表名

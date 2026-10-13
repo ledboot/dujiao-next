@@ -74,6 +74,8 @@ export interface AdminProduct {
   manual_stock_locked: number
   manual_stock_sold: number
   payment_channel_ids: string
+  auto_approve_reseller?: boolean
+  reseller_apply_remark?: string
   is_affiliate_enabled: boolean
   auto_stock_available: number
   auto_stock_total: number

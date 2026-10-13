@@ -176,6 +176,8 @@ const form = reactive({
   skus: [] as SKUFormItem[],
   category_id: null as number | null,
   payment_channel_ids: [] as number[],
+  auto_approve_reseller: false,
+  reseller_apply_remark: '',
   is_affiliate_enabled: false,
   is_active: true,
   sort_order: 0,
@@ -520,7 +522,9 @@ const resetForm = () => {
     skus: [],
     category_id: null,
     payment_channel_ids: [],
-    is_affiliate_enabled: false,
+    auto_approve_reseller: false,
+  reseller_apply_remark: '',
+  is_affiliate_enabled: false,
     is_active: true,
     sort_order: 0,
     manual_form_schema: { fields: [] },
@@ -569,6 +573,8 @@ const populateForm = (product: AdminProduct) => {
     skus: resolveEditableSKURows(product),
     category_id: Number(product.category_id || 0) || null,
     payment_channel_ids: parsePaymentChannelIDs(product.payment_channel_ids),
+    auto_approve_reseller: Boolean(product.auto_approve_reseller),
+    reseller_apply_remark: String(product.reseller_apply_remark || ''),
     is_affiliate_enabled: Boolean(product.is_affiliate_enabled),
     is_active: product.is_active ?? true,
     sort_order: Number(product.sort_order || 0),
@@ -636,7 +642,7 @@ const handleSubmit = async () => {
       cost_price_amount: effectiveCostPrice,
       images: form.images,
       tags: form.tags,
-      purchase_type: form.purchase_type,
+      purchase_type: form.auto_approve_reseller ? 'member' : form.purchase_type,
       min_purchase_quantity: minPurchaseQuantityValue,
       max_purchase_quantity: maxPurchaseQuantityValue,
       stock_display_mode: form.stock_display_mode,
@@ -644,6 +650,8 @@ const handleSubmit = async () => {
       manual_stock_total: productStockUnchanged ? undefined : effectiveManualStockTotal,
       skus: normalizedSKUs,
       payment_channel_ids: form.payment_channel_ids.length > 0 ? form.payment_channel_ids : [],
+      auto_approve_reseller: form.auto_approve_reseller,
+      reseller_apply_remark: form.reseller_apply_remark.trim(),
       is_affiliate_enabled: form.is_affiliate_enabled,
       is_active: form.is_active,
       sort_order: Number(form.sort_order) || 0,
@@ -806,7 +814,7 @@ watch(
 
           <div class="col-span-1">
             <label class="block text-xs font-medium text-muted-foreground mb-1.5">{{ t('admin.products.form.purchaseType') }}</label>
-            <Select v-model="form.purchase_type">
+            <Select v-model="form.purchase_type" :disabled="form.auto_approve_reseller">
               <SelectTrigger class="h-9 w-full">
                 <SelectValue :placeholder="t('admin.products.purchaseType.member')" />
               </SelectTrigger>
@@ -1123,6 +1131,18 @@ watch(
               </div>
             </div>
             <p class="mt-1 text-xs text-muted-foreground">{{ t('admin.products.form.paymentChannelsTip') }}</p>
+          </div>
+
+          <div class="col-span-1 md:col-span-2 space-y-3 border-t border-border pt-4">
+            <div class="inline-flex items-center gap-2">
+              <Switch id="auto_approve_reseller" v-model="form.auto_approve_reseller" @update:model-value="(enabled) => { if (enabled) form.purchase_type = 'member' }" />
+              <Label for="auto_approve_reseller">{{ t('admin.products.form.autoApproveReseller') }}</Label>
+            </div>
+            <p class="text-xs text-muted-foreground">{{ t('admin.products.form.autoApproveResellerHint') }}</p>
+            <div v-if="form.auto_approve_reseller">
+              <Label for="reseller_apply_remark">{{ t('admin.products.form.resellerApplyRemark') }}</Label>
+              <Input id="reseller_apply_remark" v-model="form.reseller_apply_remark" class="mt-2" :placeholder="t('admin.products.form.resellerApplyRemarkHint')" />
+            </div>
           </div>
 
           <div class="col-span-1 md:col-span-2 flex flex-col items-start gap-4 border-t border-border pt-4 sm:flex-row sm:flex-wrap sm:items-center sm:gap-6">

@@ -120,3 +120,7 @@ func (s *Store) WithinTransaction(fn func(ordercontract.Transaction) error) erro
 		return fn(useTransaction(tx, s.guestCredentialSecret))
 	})
 }
+
+func (tx transaction) ResellerActivation() resellercontract.PaidActivationStore {
+	return resellergormstore.New(tx.db)
+}

@@ -73,6 +73,15 @@ func (s *WriteService) Update(id string, input CreateProductInput) (*productdoma
 	if purchaseType == "" {
 		return nil, productcontract.ErrProductPurchaseInvalid
 	}
+	if input.AutoApproveReseller != nil {
+		product.AutoApproveReseller = *input.AutoApproveReseller
+	}
+	if input.ResellerApplyRemark != nil {
+		product.ResellerApplyRemark = *input.ResellerApplyRemark
+	}
+	if product.AutoApproveReseller {
+		purchaseType = constants.ProductPurchaseMember
+	}
 	product.PurchaseType = purchaseType
 	if input.MaxPurchaseQuantity != nil {
 		product.MaxPurchaseQuantity = productdomain.NormalizePurchaseQuantityLimit(*input.MaxPurchaseQuantity)

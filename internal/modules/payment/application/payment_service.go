@@ -2,6 +2,7 @@ package application
 
 import (
 	"errors"
+	"time"
 
 	"github.com/dujiao-next/internal/config"
 	"github.com/dujiao-next/internal/logger"
@@ -65,7 +66,12 @@ type PaymentService struct {
 	downstreamCallbackSvc   DownstreamCallbackEnqueuer
 	memberLevelSvc          MemberLevelProgressor
 	paymentProviderRegistry paymentcontract.GatewayRegistry
+	resellerActivation      resellerPaidActivation
 	resellerAccounting      resellerAccountingTransactions
+}
+
+type resellerPaidActivation interface {
+	ActivatePaidOrder(store resellercontract.PaidActivationStore, userID, orderID uint, remark string, now time.Time) error
 }
 
 type MemberLevelProgressor interface {
@@ -108,6 +114,7 @@ func (s *PaymentService) SetMemberLevelService(svc MemberLevelProgressor) {
 
 // PaymentServiceOptions 支付服务构造参数
 type PaymentServiceOptions struct {
+	ResellerActivation      resellerPaidActivation
 	OrderStore              ordercontract.Store
 	ProductRepo             productcontract.Repository
 	ProductSKURepo          productcontract.SKURepository
@@ -130,6 +137,7 @@ type PaymentServiceOptions struct {
 // NewPaymentService 创建支付服务
 func NewPaymentService(opts PaymentServiceOptions) *PaymentService {
 	return &PaymentService{
+		resellerActivation:      opts.ResellerActivation,
 		orderRepo:               opts.OrderStore,
 		productRepo:             opts.ProductRepo,
 		productSKURepo:          opts.ProductSKURepo,

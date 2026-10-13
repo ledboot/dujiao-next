@@ -3,7 +3,14 @@ package application
 import (
 	"errors"
 	"fmt"
+	categorydomain "github.com/dujiao-next/internal/modules/catalog/category/domain"
+	productgormstore "github.com/dujiao-next/internal/modules/catalog/product/store/gormstore"
+	promotiondomain "github.com/dujiao-next/internal/modules/promotion/domain"
+	promotiongormstore "github.com/dujiao-next/internal/modules/promotion/infrastructure/gormstore"
+	"github.com/glebarez/sqlite"
+	"gorm.io/gorm"
 	"testing"
+	"time"
 
 	orderdomain "github.com/dujiao-next/internal/modules/order/domain"
 
@@ -684,5 +691,52 @@ func TestResellerSupplyPriceDrivesDisplayAndProfitSnapshot(t *testing.T) {
 				t.Fatalf("display mismatch: %+v %v", display, err)
 			}
 		})
+	}
+}
+
+func TestPaidResellerProductSnapshotsBenefitAndRejectsGuests(t *testing.T) {
+	db, err := gorm.Open(sqlite.Open(fmt.Sprintf("file:paid_reseller_order_%d?mode=memory&cache=shared", time.Now().UnixNano())), &gorm.Config{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := db.AutoMigrate(&categorydomain.Category{}, &productdomain.Product{}, &productdomain.ProductSKU{}, &promotiondomain.Promotion{}); err != nil {
+		t.Fatal(err)
+	}
+	category := categorydomain.Category{Slug: "paid-reseller-order", NameJSON: jsonmap.JSON{}, IsActive: true}
+	if err := db.Create(&category).Error; err != nil {
+		t.Fatal(err)
+	}
+	product := productdomain.Product{CategoryID: category.ID, Slug: "paid-reseller-order", TitleJSON: jsonmap.JSON{}, PriceAmount: money.FromDecimal(decimal.NewFromInt(120)), PurchaseType: constants.ProductPurchaseGuest, FulfillmentType: constants.FulfillmentTypeManual, IsActive: true, AutoApproveReseller: true, ResellerApplyRemark: "开店订单"}
+	if err := db.Create(&product).Error; err != nil {
+		t.Fatal(err)
+	}
+	sku := productdomain.ProductSKU{ProductID: product.ID, SKUCode: productdomain.DefaultSKUCode, PriceAmount: money.FromDecimal(decimal.NewFromInt(120)), IsActive: true, ManualStockTotal: constants.ManualStockUnlimited}
+	if err := db.Create(&sku).Error; err != nil {
+		t.Fatal(err)
+	}
+	svc := NewOrderService(OrderServiceOptions{ProductStore: productgormstore.NewProductStore(db), ProductSKUStore: productgormstore.NewSKUStore(db), PromotionRepo: promotiongormstore.New(db), ExpireMinutes: 15})
+	input := orderCreateParams{UserID: 1, Items: []CreateOrderItem{{ProductID: product.ID, SKUID: sku.ID, Quantity: 1}}}
+	result, err := svc.buildOrderResult(input)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(result.Plans) != 1 || !result.Plans[0].Item.AutoApproveReseller || result.Plans[0].Item.ResellerApplyRemark != "开店订单" {
+		t.Fatal("missing immutable activation snapshot")
+	}
+	if err := db.Model(&product).Updates(map[string]interface{}{"auto_approve_reseller": false, "reseller_apply_remark": "changed"}).Error; err != nil {
+		t.Fatal(err)
+	}
+	if !result.Plans[0].Item.AutoApproveReseller || result.Plans[0].Item.ResellerApplyRemark != "开店订单" {
+		t.Fatal("snapshot changed with catalog")
+	}
+	if err := db.Model(&product).Update("auto_approve_reseller", true).Error; err != nil {
+		t.Fatal(err)
+	}
+	input.UserID = 0
+	input.IsGuest = true
+	input.GuestEmail = "guest@example.test"
+	input.GuestPassword = "guest-pass-123"
+	if _, err := svc.buildOrderResult(input); !errors.Is(err, ErrProductPurchaseNotAllowed) {
+		t.Fatalf("guest purchase should be rejected: %v", err)
 	}
 }

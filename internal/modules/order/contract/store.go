@@ -83,6 +83,7 @@ type Transaction interface {
 	Wallets() walletcontract.Transaction
 	Affiliates() affiliatecontract.Store
 	ResellerOrders() ResellerOrderStore
+	ResellerActivation() resellercontract.PaidActivationStore
 	ResellerAccounting() resellercontract.AccountingLedgerStore
 	ExpirePendingPaymentsByOrderIDs(orderIDs []uint, expiredAt time.Time) (int64, error)
 }

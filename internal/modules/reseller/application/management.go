@@ -2,6 +2,7 @@ package application
 
 import (
 	"context"
+	"github.com/dujiao-next/internal/i18n"
 	"strings"
 	"time"
 
@@ -641,4 +642,18 @@ func isValidResellerSubdomainLabel(label string) bool {
 		}
 	}
 	return true
+}
+
+// ActivatePaidOrder runs entirely on the payment transaction; self-application settings do not apply.
+func (s *ManagementService) ActivatePaidOrder(store resellercontract.PaidActivationStore, userID, orderID uint, remark string, now time.Time) error {
+	if userID == 0 || orderID == 0 {
+		return productcontract.ErrNotFound
+	}
+	profile := &resellerdomain.Profile{
+		UserID: userID, Status: resellerdomain.ProfileStatusActive,
+		ApplyReason:      i18n.Sprintf("zh-CN", "reseller.paid_order_application", orderID, strings.TrimSpace(remark)),
+		SettlementStatus: resellerdomain.SettlementStatusNormal,
+		ReviewedAt:       &now, CreatedAt: now, UpdatedAt: now,
+	}
+	return store.ActivatePaidProfile(profile)
 }

@@ -106,6 +106,8 @@ type CreateProductInput struct {
 	ManualStockTotal    *int
 	SKUs                []ProductSKUInput
 	PaymentChannelIDs   []uint
+	AutoApproveReseller *bool
+	ResellerApplyRemark *string
 	IsAffiliateEnabled  *bool
 	IsActive            *bool
 	SortOrder           int

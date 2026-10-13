@@ -7,8 +7,12 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"github.com/dujiao-next/internal/config"
+	resellerapp "github.com/dujiao-next/internal/modules/reseller/application"
+	resellerdomain "github.com/dujiao-next/internal/modules/reseller/domain"
 	"go.uber.org/zap"
 	"strconv"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -1488,5 +1492,111 @@ func TestEnqueueOrderPaidAsyncRetriesFailedAffiliateCommission(t *testing.T) {
 	svc.enqueueOrderPaidAsync(order, nil, zap.NewNop().Sugar())
 	if len(queue.retried) != 1 || queue.retried[0] != 42 {
 		t.Fatalf("expected affiliate retry enqueued for order 42, got %v", queue.retried)
+	}
+}
+
+func TestPaidProductAutomaticallyActivatesReseller(t *testing.T) {
+	for _, method := range []string{"wallet", "online", "mixed"} {
+		t.Run(method, func(t *testing.T) {
+			svc, db := setupPaymentServiceWalletTest(t)
+			sqlDB, _ := db.DB()
+			sqlDB.SetMaxOpenConns(1)
+			if err := db.AutoMigrate(&resellerdomain.Profile{}); err != nil {
+				t.Fatal(err)
+			}
+			svc.resellerActivation = resellerapp.NewManagementService(nil, config.ResellerConfig{})
+			user := userdomain.User{Email: "paid-reseller@example.test", PasswordHash: "hash", Status: constants.UserStatusActive}
+			if err := db.Create(&user).Error; err != nil {
+				t.Fatal(err)
+			}
+			order := createUnderpaidOrder(t, db, "PAID-RESELLER", user.ID, 50)
+			childID := order.ID
+			if method == "mixed" {
+				child := orderdomain.Order{OrderNo: "PAID-RESELLER-CHILD", ParentID: &order.ID, UserID: user.ID, Status: constants.OrderStatusPendingPayment, Currency: "CNY", TotalAmount: money.FromDecimal(decimal.NewFromInt(50))}
+				if err := db.Create(&child).Error; err != nil {
+					t.Fatal(err)
+				}
+				childID = child.ID
+			}
+			item := orderdomain.OrderItem{OrderID: childID, ProductID: 123, SKUID: 123, TitleJSON: jsonmap.JSON{}, Quantity: 1, FulfillmentType: constants.FulfillmentTypeAuto, AutoApproveReseller: true, ResellerApplyRemark: "开店套餐"}
+			if err := db.Create(&item).Error; err != nil {
+				t.Fatal(err)
+			}
+			input := CreatePaymentInput{OrderID: order.ID, UseBalance: method != "online", Context: context.Background()}
+			balance := int64(100)
+			if method == "mixed" {
+				balance = 10
+			}
+			if err := db.Create(&walletdomain.Account{UserID: user.ID, Balance: money.FromDecimal(decimal.NewFromInt(balance))}).Error; err != nil {
+				t.Fatal(err)
+			}
+			if method != "wallet" {
+				channel := createUnderpaidChannel(t, db, svc, "Paid Reseller", constants.PaymentChannelTypeWechat)
+				input.ChannelID = channel.ID
+			}
+			created, err := svc.CreatePayment(input)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if method != "wallet" {
+				var before int64
+				db.Model(&resellerdomain.Profile{}).Count(&before)
+				if before != 0 {
+					t.Fatal("activated before successful payment")
+				}
+				callback := PaymentCallbackInput{PaymentID: created.Payment.ID, OrderNo: order.OrderNo, ChannelID: input.ChannelID, Status: constants.PaymentStatusSuccess, Amount: created.Payment.Amount, Currency: "CNY", ProviderRef: "paid-ref"}
+				if _, err := svc.HandleCallback(callback); err != nil {
+					t.Fatal(err)
+				}
+				if _, err := svc.HandleCallback(callback); err != nil {
+					t.Fatal(err)
+				}
+			}
+			var profile resellerdomain.Profile
+			if err := db.Where("user_id = ?", user.ID).First(&profile).Error; err != nil {
+				t.Fatal(err)
+			}
+			if profile.Status != resellerdomain.ProfileStatusActive || profile.ReviewedAt == nil || profile.ReviewedBy != nil || !strings.Contains(profile.ApplyReason, "开店套餐") || !strings.Contains(profile.ApplyReason, fmt.Sprintf("订单 ID：%d", order.ID)) {
+				t.Fatalf("unexpected profile: %+v", profile)
+			}
+			var count int64
+			db.Model(&resellerdomain.Profile{}).Where("user_id = ?", user.ID).Count(&count)
+			if count != 1 {
+				t.Fatalf("duplicate profiles: %d", count)
+			}
+		})
+	}
+}
+
+func TestPaidResellerActivationFailureRollsBackWalletPayment(t *testing.T) {
+	svc, db := setupPaymentServiceWalletTest(t)
+	sqlDB, _ := db.DB()
+	sqlDB.SetMaxOpenConns(1)
+	// Missing reseller table simulates a persistence failure after payment bookkeeping.
+	svc.resellerActivation = resellerapp.NewManagementService(nil, config.ResellerConfig{})
+	user := userdomain.User{Email: "paid-reseller-fail@example.test", PasswordHash: "hash", Status: constants.UserStatusActive}
+	if err := db.Create(&user).Error; err != nil {
+		t.Fatal(err)
+	}
+	order := createUnderpaidOrder(t, db, "PAID-RESELLER-FAIL", user.ID, 50)
+	item := orderdomain.OrderItem{OrderID: order.ID, ProductID: 123, TitleJSON: jsonmap.JSON{}, Quantity: 1, FulfillmentType: constants.FulfillmentTypeAuto, AutoApproveReseller: true}
+	if err := db.Create(&item).Error; err != nil {
+		t.Fatal(err)
+	}
+	if err := db.Create(&walletdomain.Account{UserID: user.ID, Balance: money.FromDecimal(decimal.NewFromInt(100))}).Error; err != nil {
+		t.Fatal(err)
+	}
+	if _, err := svc.CreatePayment(CreatePaymentInput{OrderID: order.ID, UseBalance: true}); err == nil {
+		t.Fatal("expected activation error")
+	}
+	if walletBalance(t, db, user.ID) != "100.00" {
+		t.Fatal("wallet debit did not roll back")
+	}
+	var reloaded orderdomain.Order
+	if err := db.First(&reloaded, order.ID).Error; err != nil {
+		t.Fatal(err)
+	}
+	if reloaded.Status != constants.OrderStatusPendingPayment {
+		t.Fatal("payment state did not roll back")
 	}
 }

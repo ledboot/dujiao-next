@@ -123,6 +123,15 @@ func (s *WriteService) Create(input CreateProductInput) (*productdomain.Product,
 		IsActive:             isActive,
 		SortOrder:            input.SortOrder,
 	}
+	if input.AutoApproveReseller != nil {
+		product.AutoApproveReseller = *input.AutoApproveReseller
+	}
+	if input.ResellerApplyRemark != nil {
+		product.ResellerApplyRemark = *input.ResellerApplyRemark
+	}
+	if product.AutoApproveReseller {
+		product.PurchaseType = constants.ProductPurchaseMember
+	}
 	if fulfillmentType == constants.FulfillmentTypeManual {
 		normalizedSchemaJSON, err := manualform.NormalizeSchema(jsonmap.JSON(input.ManualFormSchemaJSON))
 		if err != nil {

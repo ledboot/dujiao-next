@@ -34,17 +34,19 @@ type Product struct {
 	ManualStockLocked    int                 `gorm:"not null;default:0" json:"manual_stock_locked"`                       // 手动库存占用量（待支付）
 	ManualStockSold      int                 `gorm:"not null;default:0" json:"manual_stock_sold"`                         // 手动库存已售量（支付成功后累加）
 	PaymentChannelIDs    string              `gorm:"type:text" json:"payment_channel_ids"`                                // 允许的支付渠道ID（jsonmap.JSON数组字符串，空表示不限制）
-	IsAffiliateEnabled   bool                `gorm:"not null;default:false;index" json:"is_affiliate_enabled"`            // 是否参与推广返利
-	AutoStockAvailable   int64               `gorm:"-" json:"auto_stock_available"`                                       // 自动发货库存可用量（仅结构，不写入数据库）
-	AutoStockTotal       int64               `gorm:"-" json:"auto_stock_total"`                                           // 自动发货库存总量（仅结构，不写入数据库）
-	AutoStockLocked      int64               `gorm:"-" json:"auto_stock_locked"`                                          // 自动发货库存占用量（仅结构，不写入数据库）
-	AutoStockSold        int64               `gorm:"-" json:"auto_stock_sold"`                                            // 自动发货库存已售量（仅结构，不写入数据库）
-	IsMapped             bool                `gorm:"not null;default:false;index" json:"is_mapped"`                       // 是否为对接商品
-	IsActive             bool                `gorm:"default:false;index" json:"is_active"`                                // 是否上架
-	SortOrder            int                 `gorm:"default:0;index" json:"sort_order"`                                   // 排序权重
-	CreatedAt            time.Time           `gorm:"index" json:"created_at"`                                             // 创建时间
-	UpdatedAt            time.Time           `json:"updated_at"`                                                          // 更新时间
-	DeletedAt            *time.Time          `gorm:"index" json:"-"`                                                      // 软删除时间
+	AutoApproveReseller  bool                `gorm:"not null;default:false" json:"auto_approve_reseller"`
+	ResellerApplyRemark  string              `gorm:"type:text" json:"reseller_apply_remark"`
+	IsAffiliateEnabled   bool                `gorm:"not null;default:false;index" json:"is_affiliate_enabled"` // 是否参与推广返利
+	AutoStockAvailable   int64               `gorm:"-" json:"auto_stock_available"`                            // 自动发货库存可用量（仅结构，不写入数据库）
+	AutoStockTotal       int64               `gorm:"-" json:"auto_stock_total"`                                // 自动发货库存总量（仅结构，不写入数据库）
+	AutoStockLocked      int64               `gorm:"-" json:"auto_stock_locked"`                               // 自动发货库存占用量（仅结构，不写入数据库）
+	AutoStockSold        int64               `gorm:"-" json:"auto_stock_sold"`                                 // 自动发货库存已售量（仅结构，不写入数据库）
+	IsMapped             bool                `gorm:"not null;default:false;index" json:"is_mapped"`            // 是否为对接商品
+	IsActive             bool                `gorm:"default:false;index" json:"is_active"`                     // 是否上架
+	SortOrder            int                 `gorm:"default:0;index" json:"sort_order"`                        // 排序权重
+	CreatedAt            time.Time           `gorm:"index" json:"created_at"`                                  // 创建时间
+	UpdatedAt            time.Time           `json:"updated_at"`                                               // 更新时间
+	DeletedAt            *time.Time          `gorm:"index" json:"-"`                                           // 软删除时间
 
 	// 关联
 	Category categorydomain.Category `gorm:"foreignKey:CategoryID" json:"category,omitempty"` // 分类信息

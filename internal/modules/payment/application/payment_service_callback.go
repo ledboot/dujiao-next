@@ -447,6 +447,30 @@ func (s *PaymentService) markOrderPaid(tx paymentcontract.Transaction, order *or
 	order.PaidAt = &now
 	order.OnlinePaidAmount = money.FromDecimal(onlineAmount)
 	order.UpdatedAt = now
+	// Activate from the immutable order-item snapshot in the same payment transaction.
+	if order.UserID != 0 {
+		var remarks []string
+		var collect func(*orderdomain.Order)
+		collect = func(current *orderdomain.Order) {
+			for _, item := range current.Items {
+				if item.AutoApproveReseller {
+					remarks = append(remarks, item.ResellerApplyRemark)
+				}
+			}
+			for i := range current.Children {
+				collect(&current.Children[i])
+			}
+		}
+		collect(order)
+		if len(remarks) > 0 {
+			if s.resellerActivation == nil {
+				return ErrPaymentUpdateFailed
+			}
+			if err := s.resellerActivation.ActivatePaidOrder(tx.ResellerActivation(), order.UserID, order.ID, strings.Join(remarks, "; "), now); err != nil {
+				return err
+			}
+		}
+	}
 
 	if len(order.Children) > 0 {
 		for idx := range order.Children {
