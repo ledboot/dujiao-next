@@ -744,3 +744,35 @@ func TestUpdateSiteSettingValidatesContactLinks(t *testing.T) {
 		t.Fatalf("empty contact links rejected: %v", err)
 	}
 }
+
+func TestEmailVerificationLocalDevelopmentOverride(t *testing.T) {
+	for _, tt := range []struct {
+		name   string
+		server config.ServerConfig
+		want   bool
+	}{
+		{"default", config.ServerConfig{}, true},
+		{"local without flag", config.ServerConfig{Mode: "debug", Host: "127.0.0.1"}, true},
+		{"local debug", config.ServerConfig{Mode: "debug", Host: "127.0.0.1", DevDisableEmailVerification: true}, false},
+		{"ipv6 debug", config.ServerConfig{Mode: "debug", Host: "::1", DevDisableEmailVerification: true}, false},
+		{"release", config.ServerConfig{Mode: "release", Host: "127.0.0.1", DevDisableEmailVerification: true}, true},
+		{"public debug", config.ServerConfig{Mode: "debug", Host: "0.0.0.0", DevDisableEmailVerification: true}, true},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			repo := newMockSettingRepo()
+			svc := NewService(repo)
+			if _, err := svc.Update(constants.SettingKeyRegistrationConfig, map[string]interface{}{
+				constants.SettingFieldEmailVerificationEnabled: true,
+			}); err != nil {
+				t.Fatal(err)
+			}
+			svc.ServerConfig = tt.server
+			if got, err := svc.GetEmailVerificationEnabled(true); err != nil || got != tt.want {
+				t.Fatalf("enabled = %v, err = %v; want %v", got, err, tt.want)
+			}
+			if got, err := NewService(repo).GetEmailVerificationEnabled(true); err != nil || !got {
+				t.Fatalf("persisted setting changed: enabled = %v, err = %v", got, err)
+			}
+		})
+	}
+}

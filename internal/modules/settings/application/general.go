@@ -296,6 +296,10 @@ func (s *Service) GetEmailVerificationEnabled(defaultValue bool) (bool, error) {
 	if s == nil {
 		return defaultValue, nil
 	}
+	if s.ServerConfig.DevDisableEmailVerification && s.ServerConfig.Mode == "debug" &&
+		(s.ServerConfig.Host == "127.0.0.1" || s.ServerConfig.Host == "::1") {
+		return false, nil
+	}
 	value, err := s.GetByKey(constants.SettingKeyRegistrationConfig)
 	if err != nil {
 		return defaultValue, err

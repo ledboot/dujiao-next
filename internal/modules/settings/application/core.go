@@ -8,6 +8,8 @@ import (
 
 // Service 是站点设置的核心用例入口：读写、Registry 归一化与声明式副作用。
 type Service struct {
+	// ServerConfig 仅用于本地开发的运行时覆盖，不写入站点设置。
+	ServerConfig          config.ServerConfig
 	repo                  settingscontract.Store
 	registry              Registry
 	defaultOrderConfig    config.OrderConfig
