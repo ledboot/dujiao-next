@@ -113,3 +113,24 @@ func TestMoneyFieldsRoundTrip(t *testing.T) {
 		t.Fatalf("amount should round to 12.35, got %s", got.Amount.String())
 	}
 }
+
+func TestSupplyPriceMigrationDefaultsLegacyRulesToRetail(t *testing.T) {
+	db := openMigrationDB(t)
+	// Simulate the pre-feature schema and a retained pricing rule.
+	if err := db.Migrator().DropColumn(&resellerdomain.ProductSetting{}, "supply_price_amount"); err != nil {
+		t.Fatal(err)
+	}
+	if err := db.Exec("INSERT INTO reseller_product_settings (reseller_id, product_id, sku_id, is_listed, pricing_mode, fixed_price_amount) VALUES (1, 1, 0, true, 'fixed_price', 120)").Error; err != nil {
+		t.Fatal(err)
+	}
+	if err := resellerstore.Migrate(db); err != nil {
+		t.Fatal(err)
+	}
+	var setting resellerdomain.ProductSetting
+	if err := db.First(&setting).Error; err != nil {
+		t.Fatal(err)
+	}
+	if !setting.SupplyPriceAmount.Decimal.IsZero() || setting.FixedPriceAmount.StringFixed(2) != "120.00" {
+		t.Fatalf("migration changed legacy pricing: %+v", setting)
+	}
+}

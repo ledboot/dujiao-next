@@ -646,3 +646,43 @@ func TestResellerPricingResolverDisplayHidesInvalidSKUWithoutFailing(t *testing.
 		t.Fatalf("expected display fall back to valid sku 11@130, got %+v", result)
 	}
 }
+
+func TestResellerSupplyPriceDrivesDisplayAndProfitSnapshot(t *testing.T) {
+	for _, skuOverride := range []bool{false, true} {
+		t.Run(fmt.Sprintf("sku_override_%v", skuOverride), func(t *testing.T) {
+			setting := resellerdomain.ProductSetting{ProductID: 1, IsListed: true, PricingMode: resellerdomain.PricingModeFixedPrice, FixedPriceAmount: money.FromDecimal(decimal.NewFromInt(120)), SupplyPriceAmount: money.FromDecimal(decimal.NewFromInt(115))}
+			if skuOverride {
+				setting.SKUID = 2
+			}
+			repo := &resellerPricingRepoStub{profile: testResellerProfile(), settings: []resellerdomain.ProductSetting{setting}}
+			resolver := NewResellerPricingResolver(repo)
+			result := testOrderBuildResult(struct {
+				productID uint
+				skuID     uint
+				base      decimal.Decimal
+				cost      decimal.Decimal
+				quantity  int
+			}{1, 2, decimal.NewFromInt(120), decimal.NewFromInt(100), 2})
+			ctx, err := resolver.ApplyToOrderBuildResult(testResellerTenant(), 123, result)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if ctx.BaseAmount.StringFixed(2) != "230.00" || ctx.ResellerAmount.StringFixed(2) != "240.00" || ctx.ProfitAmount.StringFixed(2) != "10.00" || ctx.EffectiveProfit.StringFixed(2) != "10.00" {
+				t.Fatalf("wrong snapshot: %+v", ctx)
+			}
+			if result.Plans[0].SKU.PriceAmount.StringFixed(2) != "120.00" {
+				t.Fatal("retail price mutated")
+			}
+			product := *result.Plans[0].Product
+			product.SKUs = []productdomain.ProductSKU{*result.Plans[0].SKU}
+			batch, err := resolver.LoadDisplayPricingBatch(testResellerTenant(), []productdomain.Product{product})
+			if err != nil {
+				t.Fatal(err)
+			}
+			display, err := resolver.ResolveDisplayPrices(testResellerTenant(), &product, batch)
+			if err != nil || !display.Visible || display.DisplayPrice.StringFixed(2) != "120.00" {
+				t.Fatalf("display mismatch: %+v %v", display, err)
+			}
+		})
+	}
+}

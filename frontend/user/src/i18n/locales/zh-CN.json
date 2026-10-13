@@ -761,7 +761,7 @@
         "subtitle": "选择分销站可售商品，并设置商品或 SKU 的售价规则。",
         "searchPlaceholder": "搜索商品名称、Slug 或商品 ID",
         "empty": "暂无可配置商品",
-        "basePrice": "主站基准价",
+        "basePrice": "分销供货基准价",
         "edit": "编辑售价",
         "editorTitle": "售价规则",
         "productLevelRule": "商品级规则",

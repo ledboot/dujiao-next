@@ -4008,6 +4008,12 @@ const messages = {
         },
       },
       resellerProductSettings: {
+        configureProduct: '配置商品',
+        configureHint: '填写分销商 ID 和商品 ID 后，即可配置尚未添加规则的商品。',
+        supplyPrice: '分销供货价',
+        supplyPriceHint: '填 0 使用主站售价；重置售价规则会保留供货价。',
+        skuSupplyPriceHint: '填 0 继承商品供货价；商品未设置时使用主站售价。',
+
         title: '分销商品配置',
         subtitle: '查看并管理分销商的商品可售状态和售价规则。',
         filters: {
@@ -8537,6 +8543,12 @@ const messages = {
         },
       },
       resellerProductSettings: {
+        configureProduct: '設定商品',
+        configureHint: '填寫分銷商 ID 和商品 ID 後，即可設定尚未新增規則的商品。',
+        supplyPrice: '分銷供貨價',
+        supplyPriceHint: '填 0 使用主站售價；重置售價規則會保留供貨價。',
+        skuSupplyPriceHint: '填 0 繼承商品供貨價；商品未設定時使用主站售價。',
+
         title: '分銷商品配置',
         subtitle: '查看並管理分銷商的商品可售狀態和售價規則。',
         filters: {
@@ -13066,6 +13078,12 @@ const messages = {
         },
       },
       resellerProductSettings: {
+        configureProduct: 'Configure product',
+        configureHint: 'Enter reseller and product IDs to configure a product without existing rules.',
+        supplyPrice: 'Reseller supply price',
+        supplyPriceHint: 'Use 0 for the main store price. Resetting pricing rules retains the supply price.',
+        skuSupplyPriceHint: 'Use 0 to inherit the product supply price, or the main store price if unset.',
+
         title: 'Reseller products',
         subtitle: 'Review and manage reseller product visibility and pricing rules.',
         filters: {

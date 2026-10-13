@@ -808,7 +808,7 @@
         "subtitle": "Choose products for the reseller storefront and configure product or SKU pricing rules.",
         "searchPlaceholder": "Search product name, slug, or product ID",
         "empty": "No configurable products",
-        "basePrice": "Base price",
+        "basePrice": "Reseller supply base price",
         "edit": "Edit pricing",
         "editorTitle": "Pricing rules",
         "productLevelRule": "Product-level rule",

@@ -285,3 +285,70 @@ func TestResellerProductSettingServiceRequiresActiveProfile(t *testing.T) {
 		t.Fatalf("expected inactive profile, got %v product=%d", err, product.ID)
 	}
 }
+
+func TestResellerSupplyPriceAdminOwnershipAndFallback(t *testing.T) {
+	db := openResellerProductSettingServiceTestDB(t)
+	sqlDB, _ := db.DB()
+	sqlDB.SetMaxOpenConns(1)
+	user, profile, product, skus := seedResellerProductSettingServiceData(t, db)
+	svc := newResellerProductSettingServiceForTest(db)
+	supply := decimal.NewFromInt(90)
+	payload := ResellerProductSettingSaveInput{Settings: []ResellerProductSettingInput{{SKUID: skus[0].ID, IsListed: true, PricingMode: resellerdomain.PricingModeFixedPrice, FixedPriceAmount: decimal.NewFromInt(95), SupplyPriceAmount: &supply}}}
+	preview, err := svc.PreviewAdminProductSettings(profile.ID, product.ID, payload)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if item := findPreviewItem(preview, skus[0].ID); item == nil || !item.Valid || item.BasePrice.StringFixed(2) != "90.00" || item.EffectivePrice.StringFixed(2) != "95.00" {
+		t.Fatalf("unexpected preview: %+v", item)
+	}
+	detail, err := svc.SaveAdminProductSettings(profile.ID, product.ID, payload)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if detail.EffectiveBySKUID[skus[0].ID].StringFixed(2) != "95.00" || detail.Product.SKUs[0].PriceAmount.StringFixed(2) != "100.00" {
+		t.Fatalf("unexpected detail: %+v", detail)
+	}
+	payload.Settings[0].SupplyPriceAmount = nil
+	detail, err = svc.SaveAdminProductSettings(profile.ID, product.ID, payload)
+	if err != nil || detail.Settings[0].SupplyPriceAmount.StringFixed(2) != "90.00" {
+		t.Fatalf("omitted supply override was lost: %v", err)
+	}
+	// A reseller cannot replace the administrator-owned price, even via a forged request.
+	forged := decimal.NewFromInt(1)
+	payload.Settings[0].SupplyPriceAmount = &forged
+	detail, err = svc.SaveUserProductSettings(user.ID, product.ID, payload)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if detail.Settings[0].SupplyPriceAmount.StringFixed(2) != "90.00" {
+		t.Fatal("user changed supply price")
+	}
+	if err := svc.ResetUserProductSetting(user.ID, product.ID, skus[0].ID); err != nil {
+		t.Fatal(err)
+	}
+	detail, err = svc.GetUserProductSetting(user.ID, product.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if detail.Settings[0].SupplyPriceAmount.StringFixed(2) != "90.00" || detail.EffectiveBySKUID[skus[0].ID].StringFixed(2) != "99.00" {
+		t.Fatal("reset must retain supply price and restore default markup")
+	}
+	// Explicit zero clears the override; omitted values retain it.
+	zero := decimal.Zero
+	payload.Settings[0].SupplyPriceAmount = &zero
+	payload.Settings[0].PricingMode = resellerdomain.PricingModeInherit
+	detail, err = svc.SaveAdminProductSettings(profile.ID, product.ID, payload)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if detail.EffectiveBySKUID[skus[0].ID].StringFixed(2) != "110.00" {
+		t.Fatal("zero must restore retail base")
+	}
+	for _, invalid := range []string{"-1", "0.001", "79.99"} {
+		value := decimal.RequireFromString(invalid)
+		payload.Settings[0].SupplyPriceAmount = &value
+		if _, err := svc.SaveAdminProductSettings(profile.ID, product.ID, payload); err == nil {
+			t.Fatalf("accepted invalid supply price %s", invalid)
+		}
+	}
+}

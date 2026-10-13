@@ -27,6 +27,7 @@ func NewProductSettingService(store resellercontract.ProductSettingStore, produc
 }
 
 type ProductSettingInput struct {
+	SupplyPriceAmount *decimal.Decimal
 	SKUID             uint
 	IsListed          bool
 	PricingMode       string
@@ -37,6 +38,7 @@ type ProductSettingInput struct {
 }
 
 type ProductSettingSaveInput struct {
+	admin    bool
 	Settings []ProductSettingInput
 }
 
@@ -166,6 +168,7 @@ func (s *ProductSettingService) GetAdminProductSetting(resellerID, productID uin
 
 // PreviewAdminProductSettings 在不落库的前提下，按管理员拟用的定价规则计算各 SKU 的预计生效价与校验结果。
 func (s *ProductSettingService) PreviewAdminProductSettings(resellerID, productID uint, input ProductSettingSaveInput) ([]ProductSettingPreviewItem, error) {
+	input.admin = true
 	profile, err := s.requireActiveProfileByID(resellerID)
 	if err != nil {
 		return nil, err
@@ -174,6 +177,7 @@ func (s *ProductSettingService) PreviewAdminProductSettings(resellerID, productI
 }
 
 func (s *ProductSettingService) SaveAdminProductSettings(resellerID, productID uint, input ProductSettingSaveInput) (*ProductSettingDetail, error) {
+	input.admin = true
 	profile, err := s.requireActiveProfileByID(resellerID)
 	if err != nil {
 		return nil, err
@@ -264,19 +268,36 @@ func (s *ProductSettingService) saveSettings(profile *resellerdomain.Profile, pr
 	if product == nil {
 		return productcontract.ErrNotFound
 	}
-	normalizedSettings := make([]resellerdomain.ProductSetting, 0, len(input.Settings))
-	for _, item := range input.Settings {
-		normalized, err := normalizeProductSettingInput(profile, product, item)
+	if err := validateSettingSKUs(*product, input); err != nil {
+		return err
+	}
+	return s.store.WithinProductSettingTransaction(func(store resellercontract.ProductSettingStore) error {
+		row, err := store.GetProductWithSettings(profile.ID, productID)
 		if err != nil {
 			return err
 		}
-		normalized.ResellerID = profile.ID
-		normalized.ProductID = product.ID
-		normalizedSettings = append(normalizedSettings, normalized)
-	}
-	return s.store.WithinProductSettingTransaction(func(store resellercontract.ProductSettingStore) error {
-		for _, setting := range normalizedSettings {
-			if _, err := store.UpsertSetting(setting); err != nil {
+		if row == nil {
+			return productcontract.ErrNotFound
+		}
+		settings, err := mergeProductSettings(row.Settings, input)
+		if err != nil {
+			return err
+		}
+		if err := validateSupplySettings(profile, *product, settings); err != nil {
+			return err
+		}
+		byProduct, bySKU := indexProductSettings(settings)
+		for _, item := range input.Settings {
+			setting := bySKU[productSettingKey{productID: productID, skuID: item.SKUID}]
+			if item.SKUID == 0 {
+				setting = byProduct[productID]
+			}
+			if setting == nil {
+				return productcontract.ErrProductSKUInvalid
+			}
+			setting.ResellerID = profile.ID
+			setting.UpdateSupplyPrice = input.admin && item.SupplyPriceAmount != nil
+			if _, err := store.UpsertSetting(*setting); err != nil {
 				return err
 			}
 		}
@@ -284,74 +305,96 @@ func (s *ProductSettingService) saveSettings(profile *resellerdomain.Profile, pr
 	})
 }
 
-func normalizeProductSettingInput(profile *resellerdomain.Profile, product *productdomain.Product, input ProductSettingInput) (resellerdomain.ProductSetting, error) {
-	if product == nil {
-		return resellerdomain.ProductSetting{}, productcontract.ErrNotFound
-	}
-	mode := strings.TrimSpace(input.PricingMode)
-	if mode == "" {
-		mode = resellerdomain.PricingModeInherit
-	}
-	switch mode {
-	case resellerdomain.PricingModeInherit, resellerdomain.PricingModeMarkupPercent, resellerdomain.PricingModeFixedMarkup, resellerdomain.PricingModeFixedPrice:
-	default:
-		return resellerdomain.ProductSetting{}, resellercontract.ErrPricingModeInvalid
-	}
-	setting := resellerdomain.ProductSetting{
-		SKUID:             input.SKUID,
-		IsListed:          input.IsListed,
-		PricingMode:       mode,
-		MarkupPercent:     money.FromDecimal(input.MarkupPercent.Round(2)),
-		FixedMarkupAmount: money.FromDecimal(input.FixedMarkupAmount.Round(2)),
-		FixedPriceAmount:  money.FromDecimal(input.FixedPriceAmount.Round(2)),
-		SortOrder:         input.SortOrder,
-	}
-	if !setting.IsListed {
-		return setting, nil
-	}
-	if input.SKUID > 0 {
-		sku := findProductSKU(product.SKUs, input.SKUID)
-		if sku == nil || !sku.IsActive {
-			return resellerdomain.ProductSetting{}, productcontract.ErrProductSKUInvalid
+// mergeProductSettings retains omitted rules and protects the administrator-owned supply price.
+func mergeProductSettings(existing []resellerdomain.ProductSetting, input ProductSettingSaveInput) ([]resellerdomain.ProductSetting, error) {
+	rows := append([]resellerdomain.ProductSetting(nil), existing...)
+	seen := map[uint]bool{}
+	for _, item := range input.Settings {
+		if seen[item.SKUID] {
+			return nil, resellercontract.ErrPricingModeInvalid
 		}
-		price, _, err := ResolveUnitAmount(profile, nil, &setting, sku.PriceAmount.Decimal.Round(2))
+		seen[item.SKUID] = true
+		setting, err := buildPreviewSetting(item)
 		if err != nil {
-			return resellerdomain.ProductSetting{}, err
+			return nil, err
 		}
-		if err := ValidateUnitAmount(profile, sku, sku.PriceAmount.Decimal.Round(2), price); err != nil {
-			return resellerdomain.ProductSetting{}, err
+		index := -1
+		for i := range rows {
+			if rows[i].SKUID == item.SKUID {
+				index = i
+				setting = copySupplySetting(setting, rows[i])
+				break
+			}
 		}
-		return setting, nil
+		if input.admin && item.SupplyPriceAmount != nil {
+			value := *item.SupplyPriceAmount
+			if value.IsNegative() || (value.IsPositive() && value.Round(2).IsZero()) {
+				return nil, resellercontract.ErrPriceBelowBase
+			}
+			setting.SupplyPriceAmount = money.FromDecimal(value.Round(2))
+		}
+		if index >= 0 {
+			rows[index] = setting
+		} else {
+			rows = append(rows, setting)
+		}
+	}
+	return rows, nil
+}
+
+func copySupplySetting(setting, existing resellerdomain.ProductSetting) resellerdomain.ProductSetting {
+	setting.ID = existing.ID
+	setting.ProductID = existing.ProductID
+	setting.ResellerID = existing.ResellerID
+	setting.SupplyPriceAmount = existing.SupplyPriceAmount
+	return setting
+}
+
+func validateSupplySettings(profile *resellerdomain.Profile, product productdomain.Product, settings []resellerdomain.ProductSetting) error {
+	var ps *resellerdomain.ProductSetting
+	skus := map[uint]*resellerdomain.ProductSetting{}
+	for i := range settings {
+		setting := &settings[i]
+		setting.ProductID = product.ID
+		if setting.SKUID == 0 {
+			ps = setting
+		} else {
+			skus[setting.SKUID] = setting
+		}
+	}
+	validate := func(sku *productdomain.ProductSKU, retail, cost decimal.Decimal, ss *resellerdomain.ProductSetting) error {
+		base := ResolveSupplyPrice(retail, ps, ss)
+		if err := ValidateSupplyPrice(cost, base, ps, ss); err != nil {
+			return err
+		}
+		if (ps != nil && !ps.IsListed) || (ss != nil && !ss.IsListed) {
+			return nil
+		}
+		price, _, err := ResolveUnitAmount(profile, ps, ss, base)
+		if err != nil {
+			return err
+		}
+		if err := ValidateUnitAmount(profile, sku, base, price); err != nil {
+			return err
+		}
+		if cost.IsPositive() && price.LessThan(cost.Round(2)) {
+			return resellercontract.ErrPriceBelowBase
+		}
+		return nil
 	}
 	if len(product.SKUs) == 0 {
-		basePrice := product.PriceAmount.Decimal.Round(2)
-		price, _, err := ResolveUnitAmount(profile, &setting, nil, basePrice)
-		if err != nil {
-			return resellerdomain.ProductSetting{}, err
-		}
-		if err := ValidateUnitAmount(profile, nil, basePrice, price); err != nil {
-			return resellerdomain.ProductSetting{}, err
-		}
-		costPrice := product.CostPriceAmount.Decimal.Round(2)
-		if costPrice.GreaterThan(decimal.Zero) && price.LessThan(costPrice) {
-			return resellerdomain.ProductSetting{}, resellercontract.ErrPriceBelowBase
-		}
-		return setting, nil
+		return validate(nil, product.PriceAmount.Decimal, product.CostPriceAmount.Decimal, nil)
 	}
 	for i := range product.SKUs {
 		sku := &product.SKUs[i]
 		if !sku.IsActive {
 			continue
 		}
-		price, _, err := ResolveUnitAmount(profile, &setting, nil, sku.PriceAmount.Decimal.Round(2))
-		if err != nil {
-			return resellerdomain.ProductSetting{}, err
-		}
-		if err := ValidateUnitAmount(profile, sku, sku.PriceAmount.Decimal.Round(2), price); err != nil {
-			return resellerdomain.ProductSetting{}, err
+		if err := validate(sku, sku.PriceAmount.Decimal, sku.CostPriceAmount.Decimal, skus[sku.ID]); err != nil {
+			return err
 		}
 	}
-	return setting, nil
+	return nil
 }
 
 func (s *ProductSettingService) previewSettings(profile *resellerdomain.Profile, productID uint, input ProductSettingSaveInput) ([]ProductSettingPreviewItem, error) {
@@ -366,28 +409,28 @@ func (s *ProductSettingService) previewSettings(profile *resellerdomain.Profile,
 		return nil, productcontract.ErrNotFound
 	}
 	product := row.Product
+	if err := validateSettingSKUs(product, input); err != nil {
+		return nil, err
+	}
 
+	settings, err := mergeProductSettings(row.Settings, input)
+	if err != nil {
+		return nil, err
+	}
 	var productSetting *resellerdomain.ProductSetting
 	skuSettings := map[uint]*resellerdomain.ProductSetting{}
-	for _, item := range input.Settings {
-		setting, err := buildPreviewSetting(item)
-		if err != nil {
-			return nil, err
-		}
-		setting.ResellerID = profile.ID
-		setting.ProductID = product.ID
-		if item.SKUID == 0 {
-			ps := setting
-			productSetting = &ps
+	for i := range settings {
+		setting := &settings[i]
+		if setting.SKUID == 0 {
+			productSetting = setting
 		} else {
-			ss := setting
-			skuSettings[item.SKUID] = &ss
+			skuSettings[setting.SKUID] = setting
 		}
 	}
 
 	items := make([]ProductSettingPreviewItem, 0, len(product.SKUs)+1)
 
-	productBase := product.PriceAmount.Decimal.Round(2)
+	productBase := ResolveSupplyPrice(product.PriceAmount.Decimal, productSetting, nil)
 	productItem := ProductSettingPreviewItem{
 		SKUID:     0,
 		IsListed:  productSetting == nil || productSetting.IsListed,
@@ -405,10 +448,14 @@ func (s *ProductSettingService) previewSettings(profile *resellerdomain.Profile,
 					perr = resellercontract.ErrPriceBelowBase
 				}
 			}
+			if perr == nil {
+				perr = ValidateSupplyPrice(product.CostPriceAmount.Decimal, productBase, productSetting, nil)
+			}
 			productItem.Valid = perr == nil
 			productItem.ErrorCode = previewErrorCode(perr)
 		} else {
-			productItem.Valid, productItem.ErrorCode = previewValidateProductRuleAcrossSKUs(profile, product, productSetting)
+			err := validateSupplySettings(profile, product, settings)
+			productItem.Valid, productItem.ErrorCode = err == nil, previewErrorCode(err)
 		}
 	}
 	items = append(items, productItem)
@@ -419,7 +466,7 @@ func (s *ProductSettingService) previewSettings(profile *resellerdomain.Profile,
 			continue
 		}
 		skuSetting := skuSettings[sku.ID]
-		base := sku.PriceAmount.Decimal.Round(2)
+		base := ResolveSupplyPrice(sku.PriceAmount.Decimal, productSetting, skuSettings[sku.ID])
 		item := ProductSettingPreviewItem{SKUID: sku.ID, IsListed: true, BasePrice: base, Valid: true}
 		if (productSetting != nil && !productSetting.IsListed) || (skuSetting != nil && !skuSetting.IsListed) {
 			item.IsListed = false
@@ -429,6 +476,9 @@ func (s *ProductSettingService) previewSettings(profile *resellerdomain.Profile,
 		price, _, perr := ResolveUnitAmount(profile, productSetting, skuSetting, base)
 		if perr == nil {
 			perr = ValidateUnitAmount(profile, sku, base, price)
+			if perr == nil {
+				perr = ValidateSupplyPrice(sku.CostPriceAmount.Decimal, base, productSetting, skuSetting)
+			}
 		}
 		item.EffectivePrice = price.Round(2)
 		item.Valid = perr == nil
@@ -459,24 +509,6 @@ func buildPreviewSetting(input ProductSettingInput) (resellerdomain.ProductSetti
 	}, nil
 }
 
-func previewValidateProductRuleAcrossSKUs(profile *resellerdomain.Profile, product productdomain.Product, productSetting *resellerdomain.ProductSetting) (bool, string) {
-	for i := range product.SKUs {
-		sku := &product.SKUs[i]
-		if !sku.IsActive {
-			continue
-		}
-		base := sku.PriceAmount.Decimal.Round(2)
-		price, _, err := ResolveUnitAmount(profile, productSetting, nil, base)
-		if err == nil {
-			err = ValidateUnitAmount(profile, sku, base, price)
-		}
-		if err != nil {
-			return false, previewErrorCode(err)
-		}
-	}
-	return true, ""
-}
-
 func previewErrorCode(err error) string {
 	switch {
 	case err == nil:
@@ -494,7 +526,7 @@ func computeProductEffectivePrices(profile *resellerdomain.Profile, product prod
 	byProduct, bySKU := indexProductSettings(settings)
 	productSetting := byProduct[product.ID]
 	if productSetting != nil && productSetting.IsListed {
-		price, rule, err := ResolveUnitAmount(profile, productSetting, nil, product.PriceAmount.Decimal.Round(2))
+		price, rule, err := ResolveUnitAmount(profile, productSetting, nil, ResolveSupplyPrice(product.PriceAmount.Decimal, productSetting, nil))
 		if err != nil {
 			return effective, rules, err
 		}
@@ -513,7 +545,7 @@ func computeProductEffectivePrices(profile *resellerdomain.Profile, product prod
 		if skuSetting != nil && !skuSetting.IsListed {
 			continue
 		}
-		price, rule, err := ResolveUnitAmount(profile, productSetting, skuSetting, sku.PriceAmount.Decimal.Round(2))
+		price, rule, err := ResolveUnitAmount(profile, productSetting, skuSetting, ResolveSupplyPrice(sku.PriceAmount.Decimal, productSetting, skuSetting))
 		if err != nil {
 			return effective, rules, err
 		}
@@ -547,6 +579,19 @@ func findProductSKU(items []productdomain.ProductSKU, skuID uint) *productdomain
 	for i := range items {
 		if items[i].ID == skuID {
 			return &items[i]
+		}
+	}
+	return nil
+}
+
+func validateSettingSKUs(product productdomain.Product, input ProductSettingSaveInput) error {
+	for _, item := range input.Settings {
+		if item.SKUID == 0 {
+			continue
+		}
+		sku := findProductSKU(product.SKUs, item.SKUID)
+		if sku == nil || (item.IsListed && !sku.IsActive) {
+			return productcontract.ErrProductSKUInvalid
 		}
 	}
 	return nil

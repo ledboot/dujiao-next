@@ -78,7 +78,7 @@ func (r *ResellerPricingResolver) ApplyToOrderBuildResult(tenant resellercontrac
 			return nil, ErrResellerProductNotListed
 		}
 
-		baseUnit := plan.SKU.PriceAmount.Decimal.Round(2)
+		baseUnit := resellerapplication.ResolveSupplyPrice(plan.SKU.PriceAmount.Decimal, productSetting, skuSetting)
 		resellerUnit, rule, err := resolveResellerUnitAmount(profile, productSetting, skuSetting, baseUnit)
 		if err != nil {
 			return nil, err
@@ -207,9 +207,10 @@ func (r *ResellerPricingResolver) ResolveDisplayPrices(tenant resellercontract.T
 			result.HiddenSKUIDs[sku.ID] = true
 			continue
 		}
-		price, _, err := resolveResellerUnitAmount(batch.Profile, productSetting, skuSetting, sku.PriceAmount.Decimal.Round(2))
+		base := resellerapplication.ResolveSupplyPrice(sku.PriceAmount.Decimal, productSetting, skuSetting)
+		price, _, err := resolveResellerUnitAmount(batch.Profile, productSetting, skuSetting, base)
 		if err == nil {
-			err = validateResellerUnitAmount(batch.Profile, &sku, sku.PriceAmount.Decimal.Round(2), price)
+			err = validateResellerUnitAmount(batch.Profile, &sku, base, price)
 		}
 		if err != nil {
 			// 定价配置可能在保存后因基准价/成本价/上限调整而失效；
@@ -232,7 +233,7 @@ func (r *ResellerPricingResolver) ResolveDisplayPrices(tenant resellercontract.T
 		}
 	}
 	if len(product.SKUs) == 0 {
-		price, _, err := resolveResellerUnitAmount(batch.Profile, productSetting, nil, product.PriceAmount.Decimal.Round(2))
+		price, _, err := resolveResellerUnitAmount(batch.Profile, productSetting, nil, resellerapplication.ResolveSupplyPrice(product.PriceAmount.Decimal, productSetting, nil))
 		if err != nil {
 			logger.Warnw("reseller_display_price_product_hidden",
 				"reseller_id", batch.Profile.ID,

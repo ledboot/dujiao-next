@@ -18,10 +18,13 @@ type ProductSetting struct {
 	MarkupPercent     money.Amount `gorm:"type:decimal(10,2);not null;default:0" json:"markup_percent"`
 	FixedMarkupAmount money.Amount `gorm:"type:decimal(20,2);not null;default:0" json:"fixed_markup_amount"`
 	FixedPriceAmount  money.Amount `gorm:"type:decimal(20,2);not null;default:0" json:"fixed_price_amount"`
-	SortOrder         int          `gorm:"not null;default:0;index" json:"sort_order"`
-	CreatedAt         time.Time    `gorm:"index" json:"created_at"`
-	UpdatedAt         time.Time    `gorm:"index" json:"updated_at"`
-	DeletedAt         *time.Time   `gorm:"index" json:"-"`
+	SupplyPriceAmount money.Amount `gorm:"type:decimal(20,2);not null;default:0" json:"supply_price_amount"`
+	// UpdateSupplyPrice is set only by the administrator application path.
+	UpdateSupplyPrice bool       `gorm:"-" json:"-"`
+	SortOrder         int        `gorm:"not null;default:0;index" json:"sort_order"`
+	CreatedAt         time.Time  `gorm:"index" json:"created_at"`
+	UpdatedAt         time.Time  `gorm:"index" json:"updated_at"`
+	DeletedAt         *time.Time `gorm:"index" json:"-"`
 
 	Product *productdomain.Product `gorm:"foreignKey:ProductID" json:"product,omitempty"`
 	Profile *Profile               `gorm:"foreignKey:ResellerID" json:"profile,omitempty"`

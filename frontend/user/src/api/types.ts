@@ -320,6 +320,7 @@ export interface ResellerProductSettingSKUData {
 }
 
 export interface ResellerProductSettingProductData {
+    base_price_amount?: string
     id: number
     slug: string
     title: Record<string, string>

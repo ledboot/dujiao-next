@@ -1,6 +1,7 @@
 package presenter
 
 import (
+	resellerapplication "github.com/dujiao-next/internal/modules/reseller/application"
 	"time"
 
 	resellerdomain "github.com/dujiao-next/internal/modules/reseller/domain"
@@ -142,6 +143,7 @@ type AdminResellerSiteConfigResp struct {
 }
 
 type ResellerProductSettingResp struct {
+	SupplyPriceAmount    string     `json:"supply_price_amount"`
 	ID                   uint       `json:"id"`
 	ProductID            uint       `json:"product_id"`
 	SKUID                uint       `json:"sku_id"`
@@ -157,11 +159,12 @@ type ResellerProductSettingResp struct {
 }
 
 type ResellerProductSettingProductResp struct {
-	ID          uint         `json:"id"`
-	Slug        string       `json:"slug"`
-	Title       jsonmap.JSON `json:"title"`
-	PriceAmount string       `json:"price_amount"`
-	IsActive    bool         `json:"is_active"`
+	BasePriceAmount string       `json:"base_price_amount"`
+	ID              uint         `json:"id"`
+	Slug            string       `json:"slug"`
+	Title           jsonmap.JSON `json:"title"`
+	PriceAmount     string       `json:"price_amount"`
+	IsActive        bool         `json:"is_active"`
 }
 
 type ResellerProductSettingSKUResp struct {
@@ -210,6 +213,7 @@ type AdminResellerProductSettingProductResp struct {
 }
 
 type AdminResellerProductSettingResp struct {
+	SupplyPriceAmount string                                  `json:"supply_price_amount"`
 	ID                uint                                    `json:"id"`
 	ResellerID        uint                                    `json:"reseller_id"`
 	ProductID         uint                                    `json:"product_id"`
@@ -386,11 +390,12 @@ func NewResellerProductSettingDetailResp(input ResellerProductSettingDTOInput) R
 	productSetting := findResellerProductSetting(input.Settings, 0)
 	resp := ResellerProductSettingDetailResp{
 		Product: ResellerProductSettingProductResp{
-			ID:          input.Product.ID,
-			Slug:        input.Product.Slug,
-			Title:       input.Product.TitleJSON,
-			PriceAmount: input.Product.PriceAmount.String(),
-			IsActive:    input.Product.IsActive,
+			BasePriceAmount: resellerapplication.ResolveSupplyPrice(input.Product.PriceAmount.Decimal, productSetting, nil).StringFixed(2),
+			ID:              input.Product.ID,
+			Slug:            input.Product.Slug,
+			Title:           input.Product.TitleJSON,
+			PriceAmount:     input.Product.PriceAmount.String(),
+			IsActive:        input.Product.IsActive,
 		},
 		SKUs: make([]ResellerProductSettingSKUResp, 0, len(input.Product.SKUs)),
 	}
@@ -408,7 +413,7 @@ func NewResellerProductSettingDetailResp(input ResellerProductSettingDTOInput) R
 			ID:              sku.ID,
 			SKUCode:         sku.SKUCode,
 			SpecValues:      sku.SpecValuesJSON,
-			BasePriceAmount: sku.PriceAmount.String(),
+			BasePriceAmount: resellerapplication.ResolveSupplyPrice(sku.PriceAmount.Decimal, productSetting, setting).StringFixed(2),
 			IsActive:        sku.IsActive,
 			Setting:         settingResp,
 			EffectivePrice:  input.EffectiveBySKUID[sku.ID],
@@ -467,6 +472,7 @@ func NewResellerProductSettingPreviewResp(items []ResellerProductSettingPreviewI
 func newResellerProductSettingResp(setting resellerdomain.ProductSetting, effectivePrice string, ruleSource string) *ResellerProductSettingResp {
 	updatedAt := setting.UpdatedAt
 	return &ResellerProductSettingResp{
+		SupplyPriceAmount:    setting.SupplyPriceAmount.String(),
 		ID:                   setting.ID,
 		ProductID:            setting.ProductID,
 		SKUID:                setting.SKUID,
@@ -493,6 +499,7 @@ func findResellerProductSetting(settings []resellerdomain.ProductSetting, skuID 
 
 func NewAdminResellerProductSettingResp(row resellerdomain.ProductSetting) AdminResellerProductSettingResp {
 	resp := AdminResellerProductSettingResp{
+		SupplyPriceAmount: row.SupplyPriceAmount.String(),
 		ID:                row.ID,
 		ResellerID:        row.ResellerID,
 		ProductID:         row.ProductID,
