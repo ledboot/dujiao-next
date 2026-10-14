@@ -64,3 +64,11 @@ test('active reseller profile check is strict', () => {
   assert.equal(isResellerProfileActive({ status: 'pending_review' }), false)
   assert.equal(isResellerProfileActive(null), false)
 })
+
+test('approved custom domains display setup pending without becoming active', () => {
+  const hosting = { managed: true, approved: true }
+  assert.equal(getResellerDomainStatusKey('pending_review', hosting), 'approvedPending')
+  assert.equal(getResellerDomainStatusKey('pending_review', { managed: true, approved: false }), 'pendingReview')
+  assert.equal(getResellerDomainStatusKey('active', hosting), 'active')
+  assert.equal(getResellerDomainStatusKey('disabled', hosting), 'disabled')
+})

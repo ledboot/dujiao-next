@@ -3893,6 +3893,7 @@ const messages = {
       },
       resellerDomains: {
         hosting: {
+          "approvedPending": "已审核，待接入",
           "title": "域名接入",
           "instructions": "按下方记录配置 DNS。CNAME 请使用仅 DNS 模式，TXT 用于验证域名归属；保留验证记录以便后续检查。验证、证书和平台审核全部通过后生效。",
           "refresh": "检查 / 重试",
@@ -3911,7 +3912,7 @@ const messages = {
           "configuration": "接入配置异常，请联系平台。",
           "validation": "验证或证书异常，请核对 DNS 后重试。",
           "errorDNS": "尚未检测到正确的 CNAME 和归属验证 TXT 记录。",
-          "saved": "操作已保存；后台将继续同步接入状态。"
+          "saved": "操作已保存；接入状态未就绪时，请手动检查 / 重试。"
         },
         title: '分销域名管理',
         empty: '暂无分销域名',
@@ -8460,6 +8461,7 @@ const messages = {
       },
       resellerDomains: {
         hosting: {
+          "approvedPending": "已審核，待接入",
           "title": "網域接入",
           "instructions": "依下方記錄設定 DNS。CNAME 請使用僅 DNS 模式，TXT 用於驗證網域歸屬；保留驗證記錄以供後續檢查。驗證、憑證及平台審核全部通過後生效。",
           "refresh": "檢查 / 重試",
@@ -8478,7 +8480,7 @@ const messages = {
           "configuration": "接入設定異常，請聯絡平台。",
           "validation": "驗證或憑證異常，請核對 DNS 後重試。",
           "errorDNS": "尚未偵測到正確的 CNAME 與歸屬驗證 TXT 記錄。",
-          "saved": "操作已儲存；背景將持續同步接入狀態。"
+          "saved": "操作已儲存；接入狀態未就緒時，請手動檢查 / 重試。"
         },
         title: '分銷域名管理',
         empty: '暫無分銷域名',
@@ -13027,6 +13029,7 @@ const messages = {
       },
       resellerDomains: {
         hosting: {
+          "approvedPending": "Approved, pending setup",
           "title": "Domain connection",
           "instructions": "Add the DNS records below. Use DNS-only mode for the CNAME. The TXT proves domain ownership; keep verification records for future checks. DNS, certificate and platform approval must all be ready.",
           "refresh": "Check / retry",
@@ -13045,7 +13048,7 @@ const messages = {
           "configuration": "Connection configuration error. Contact the platform.",
           "validation": "Validation or certificate error. Check DNS and retry.",
           "errorDNS": "The expected CNAME and ownership TXT records have not been detected.",
-          "saved": "Saved. Domain connection status will continue syncing in the background."
+          "saved": "Saved. If setup is not ready, use Check / retry manually."
         },
         title: 'Reseller Domain Management',
         empty: 'No reseller domains',

@@ -420,3 +420,14 @@ func (h *AdminManagementHandler) RefreshDomain(c *gin.Context) {
 	}
 	h.handleDomainAction(c, "reseller_domain_refresh", "/admin/resellers/domains/:id/refresh", service.RefreshDomain)
 }
+
+func (h *AdminManagementHandler) RemoveDomain(c *gin.Context) {
+	service, ok := h.management.(interface {
+		RemoveDomain(context.Context, uint, uint) (*resellerdomain.Domain, error)
+	})
+	if !ok {
+		ginutil.RespondError(c, response.CodeBadRequest, "error.bad_request", nil)
+		return
+	}
+	h.handleDomainAction(c, "reseller_domain_remove", "/admin/resellers/domains/:id", service.RemoveDomain)
+}

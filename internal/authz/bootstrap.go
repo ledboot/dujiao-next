@@ -280,6 +280,7 @@ func BuiltinRoleSeeds() []RoleSeed {
 				{Object: "/admin/resellers/profiles/:id/disable", Action: "POST"},
 				{Object: "/admin/resellers/profiles/:id/restore", Action: "POST"},
 				{Object: "/admin/resellers/domains/:id/disable", Action: "POST"},
+				{Object: "/admin/resellers/domains/:id", Action: "DELETE"},
 			},
 			Immutable: true,
 		},

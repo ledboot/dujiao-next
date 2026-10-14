@@ -228,12 +228,9 @@ func (h *UserHandler) UploadImage(c *gin.Context) {
 
 type domainActions interface {
 	RefreshUserDomain(context.Context, uint, uint) (*resellerdomain.Domain, error)
-	RemoveUserDomain(context.Context, uint, uint) (*resellerdomain.Domain, error)
 }
 
-func (h *UserHandler) RefreshDomain(c *gin.Context) { h.domainAction(c, false) }
-func (h *UserHandler) RemoveDomain(c *gin.Context)  { h.domainAction(c, true) }
-func (h *UserHandler) domainAction(c *gin.Context, remove bool) {
+func (h *UserHandler) RefreshDomain(c *gin.Context) {
 	uid, ok := ginutil.GetUserID(c)
 	if !ok {
 		return
@@ -248,12 +245,7 @@ func (h *UserHandler) domainAction(c *gin.Context, remove bool) {
 		ginutil.RespondError(c, response.CodeBadRequest, "error.bad_request", nil)
 		return
 	}
-	var row *resellerdomain.Domain
-	if remove {
-		row, err = actions.RemoveUserDomain(c.Request.Context(), uid, id)
-	} else {
-		row, err = actions.RefreshUserDomain(c.Request.Context(), uid, id)
-	}
+	row, err := actions.RefreshUserDomain(c.Request.Context(), uid, id)
 	if err != nil {
 		respondUserManagementError(c, err, "error.save_failed")
 		return

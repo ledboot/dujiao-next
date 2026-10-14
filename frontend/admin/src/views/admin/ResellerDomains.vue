@@ -25,7 +25,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { confirmAction } from '@/utils/confirm'
 import { notifyError, notifySuccess } from '@/utils/notify'
 import { formatDate, toRFC3339 } from '@/utils/format'
-import { getResellerDomainActionState } from '@/utils/resellerManagement'
+import { getResellerDomainActionState, isResellerDomainApprovedPending } from '@/utils/resellerManagement'
 import { adminUrl } from '@/utils/adminBase'
 
 const { t } = useI18n()
@@ -108,7 +108,8 @@ const typeLabel = (type?: string) => {
   return type || '-'
 }
 
-const statusLabel = (status?: string) => {
+const statusLabel = (status?: string, hosting?: AdminResellerDomain['hosting']) => {
+  if (isResellerDomainApprovedPending(status, hosting)) return t('admin.resellerDomains.hosting.approvedPending')
   if (status === RESELLER_DOMAIN_STATUS_PENDING_REVIEW) return t('admin.resellerDomains.status.pendingReview')
   if (status === RESELLER_DOMAIN_STATUS_ACTIVE) return t('admin.resellerDomains.status.active')
   if (status === RESELLER_DOMAIN_STATUS_DISABLED) return t('admin.resellerDomains.status.disabled')
@@ -161,6 +162,20 @@ const disableDomain = async (row: AdminResellerDomain) => {
     await fetchRows(pagination.value.page, { preserveRows: true })
   } catch (err: any) {
     notifyError(err?.message || t('admin.resellerDomains.actions.disableFailed'))
+  } finally {
+    operatingId.value = null
+  }
+}
+
+const removeDomain = async (row: AdminResellerDomain) => {
+  if (!await confirmAction({ description: t('admin.resellerDomains.hosting.removeConfirm') })) return
+  operatingId.value = row.id
+  try {
+    await adminAPI.removeResellerDomain(row.id)
+    await fetchRows(pagination.value.page, { preserveRows: true })
+    notifySuccess(t('admin.resellerDomains.hosting.saved'))
+  } catch (err: any) {
+    notifyError(err?.message || t('admin.resellerDomains.hosting.provider'))
   } finally {
     operatingId.value = null
   }
@@ -311,7 +326,7 @@ onMounted(() => {
             </TableCell>
             <TableCell class="px-6 py-4 text-xs">
               <span class="inline-flex rounded-full border px-2.5 py-1 text-xs" :class="statusClass(item.status)">
-                {{ statusLabel(item.status) }}
+                {{ statusLabel(item.status, item.hosting) }}
               </span>
             </TableCell>
             <TableCell class="px-6 py-4 text-xs text-muted-foreground">{{ item.is_primary ? t('admin.common.yes') : t('admin.common.no') }}</TableCell>
@@ -319,9 +334,12 @@ onMounted(() => {
             <TableCell class="min-w-[140px] px-6 py-4 text-xs text-muted-foreground">{{ formatDate(item.created_at) }}</TableCell>
             <TableCell class="min-w-[140px] px-6 py-4 text-right">
               <div class="flex flex-wrap items-center justify-end gap-2">
+                <Button v-if="item.type === RESELLER_DOMAIN_TYPE_CUSTOM" size="sm" variant="destructive" :disabled="operatingId !== null" @click="removeDomain(item)">
+                  {{ t('admin.resellerDomains.hosting.remove') }}
+                </Button>
                 <Button
                   size="sm"
-                  :disabled="operatingId === item.id || !getResellerDomainActionState(item.status).canApprove"
+                  :disabled="operatingId === item.id || !getResellerDomainActionState(item.status, item.hosting).canApprove"
                   @click="approveDomain(item)"
                 >
                   {{ t('admin.resellerDomains.actions.approve') }}
@@ -329,7 +347,7 @@ onMounted(() => {
                 <Button
                   size="sm"
                   variant="outline"
-                  :disabled="operatingId === item.id || !getResellerDomainActionState(item.status).canDisable"
+                  :disabled="operatingId === item.id || !getResellerDomainActionState(item.status, item.hosting).canDisable"
                   @click="disableDomain(item)"
                 >
                   {{ t('admin.resellerDomains.actions.disable') }}

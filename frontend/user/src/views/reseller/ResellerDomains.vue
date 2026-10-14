@@ -78,7 +78,7 @@
                 <div class="min-w-0">
                   <div class="break-all font-mono text-base font-bold text-foreground">{{ systemDomain.domain }}</div>
                   <div class="mt-2 flex flex-wrap gap-2">
-                    <ResellerStatusBadge :label="domainStatusLabel(systemDomain.status)" :tone="domainTone(systemDomain.status)" dot />
+                    <ResellerStatusBadge :label="domainStatusLabel(systemDomain.status, systemDomain.hosting)" :tone="domainTone(systemDomain.status)" dot />
                     <ResellerStatusBadge :label="verificationLabel(systemDomain.verification_status)" :tone="verificationTone(systemDomain.verification_status)" />
                     <ResellerStatusBadge :label="domainTypeLabel(systemDomain.type)" tone="neutral" />
                     <ResellerStatusBadge v-if="systemDomain.is_primary && isActiveVerifiedDomain(systemDomain)" :label="t('personalCenter.reseller.primaryDomain')" tone="accent" />
@@ -174,7 +174,7 @@
 
                   <div class="flex items-center justify-between gap-3 md:block">
                     <span class="text-xs font-medium text-muted-foreground md:hidden">{{ t('resellerConsole.domains.tableStatus') }}</span>
-                    <ResellerStatusBadge :label="domainStatusLabel(item.status)" :tone="domainTone(item.status)" dot />
+                    <ResellerStatusBadge :label="domainStatusLabel(item.status, item.hosting)" :tone="domainTone(item.status)" dot />
                   </div>
 
                   <div class="flex items-center justify-between gap-3 md:block">
@@ -188,8 +188,7 @@
                   </div>
 
                   <div class="flex flex-wrap items-center gap-2 md:justify-end">
-                    <Button v-if="item.hosting?.managed" variant="outline" size="sm" :disabled="operatingId !== null" @click="operateDomain(item.id, false)">{{ t('resellerConsole.domains.hosting.refresh') }}</Button>
-                    <Button v-if="!item.hosting?.removal_requested" variant="ghost" size="sm" :disabled="operatingId !== null" @click="operateDomain(item.id, true)">{{ t('resellerConsole.domains.hosting.remove') }}</Button>
+                    <Button v-if="item.hosting?.managed" variant="outline" size="sm" :disabled="operatingId !== null" @click="operateDomain(item.id)">{{ t('resellerConsole.domains.hosting.refresh') }}</Button>
                     <Button v-if="isActiveVerifiedDomain(item)" as-child variant="ghost" size="sm">
                       <a :href="`https://${item.domain}`" target="_blank" rel="noopener noreferrer">
                         <ExternalLink class="h-4 w-4" />
@@ -234,7 +233,6 @@
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { useConfirmDialog } from '../../composables/useConfirmDialog'
 import { CircleAlert, ExternalLink, Globe2, Link2, Plus, RotateCw } from 'lucide-vue-next'
 import { resellerAPI, type ResellerDomainData, type ResellerManagementSnapshotData } from '../../api'
 import { Alert, AlertDescription } from '@/components/ui/alert'
@@ -263,14 +261,11 @@ const { t } = useI18n()
 const loading = ref(false)
 const submitting = ref(false)
 const operatingId = ref<number | null>(null)
-const { confirm } = useConfirmDialog()
 const hostingError = (key: string) => t(`resellerConsole.domains.hosting.${({ dns: 'errorDNS', provider: 'provider', configuration: 'configuration', validation: 'validation' } as Record<string, string>)[key] || 'provider'}`)
-const operateDomain = async (id: number, remove: boolean) => {
-  if (remove && !await confirm({ title: t('resellerConsole.domains.hosting.remove'), message: t('resellerConsole.domains.hosting.removeConfirm'), variant: 'danger' })) return
+const operateDomain = async (id: number) => {
   operatingId.value = id
   try {
-    if (remove) await resellerAPI.removeDomain(id)
-    else await resellerAPI.refreshDomain(id)
+    await resellerAPI.refreshDomain(id)
     await load()
     alert.value = { level: 'success', message: t('resellerConsole.domains.hosting.saved') }
   } catch (err) {
@@ -321,7 +316,7 @@ const submitDomain = async () => {
   }
 }
 
-const domainStatusLabel = (status?: string) => t(`personalCenter.reseller.domainStatus.${getResellerDomainStatusKey(status)}`)
+const domainStatusLabel = (status?: string, hosting?: ResellerDomainData['hosting']) => t(`personalCenter.reseller.domainStatus.${getResellerDomainStatusKey(status, hosting)}`)
 
 const domainTone = (status?: string): ResellerBadgeTone => {
   if (status === RESELLER_DOMAIN_STATUS_ACTIVE) return 'success'

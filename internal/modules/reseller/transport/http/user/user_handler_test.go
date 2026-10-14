@@ -149,3 +149,13 @@ func TestUserHandlerSiteConfigUpdateAndGet(t *testing.T) {
 		t.Fatalf("unexpected get body: %s", recorder.Body.String())
 	}
 }
+
+func TestResellerCannotDeleteDomainThroughUserRoute(t *testing.T) {
+	router := gin.New()
+	RegisterUserConsoleRoutes(router.Group("/api/v1/user/reseller"), &UserHandler{})
+	response := httptest.NewRecorder()
+	router.ServeHTTP(response, httptest.NewRequest(http.MethodDelete, "/api/v1/user/reseller/domains/1", nil))
+	if response.Code != http.StatusNotFound {
+		t.Fatalf("user deletion route still reachable: %d", response.Code)
+	}
+}

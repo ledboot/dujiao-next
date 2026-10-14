@@ -821,6 +821,7 @@
         "custom": "自定义域名"
       },
       "domainStatus": {
+        "approvedPending": "已审核，待接入",
         "pendingReview": "待审核",
         "active": "已启用",
         "disabled": "已停用",
@@ -1398,7 +1399,7 @@
         "configuration": "接入配置异常，请联系平台。",
         "validation": "验证或证书异常，请核对 DNS 后重试。",
         "errorDNS": "尚未检测到正确的 CNAME 和归属验证 TXT 记录。",
-        "saved": "操作已保存；后台将继续同步接入状态。"
+        "saved": "操作已保存；接入状态未就绪时，请手动检查 / 重试。"
       },
       "title": "域名管理",
       "description": "管理分销站系统域名和自定义域名的审核、验证状态。",

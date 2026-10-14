@@ -756,21 +756,19 @@ func (s *ManagementService) RefreshUserDomain(ctx context.Context, userID, id ui
 	}
 	return s.Hosting.Sync(ctx, id)
 }
-func (s *ManagementService) RemoveUserDomain(ctx context.Context, userID, id uint) (*resellerdomain.Domain, error) {
-	profile, err := s.store.GetProfileByUserID(userID)
-	if err != nil {
-		return nil, err
-	}
-	if profile == nil {
-		return nil, resellercontract.ErrNotOpened
+
+// RemoveDomain revokes access and deletes the remote binding before removing the local record.
+func (s *ManagementService) RemoveDomain(ctx context.Context, adminID, id uint) (*resellerdomain.Domain, error) {
+	if adminID == 0 {
+		return nil, resellercontract.ErrDomainStatusInvalid
 	}
 	var result *resellerdomain.Domain
-	err = s.store.WithinManagementTransaction(func(tx resellercontract.ManagementStore) error {
+	err := s.store.WithinManagementTransaction(func(tx resellercontract.ManagementStore) error {
 		row, err := tx.GetDomainByIDForUpdate(id)
 		if err != nil {
 			return err
 		}
-		if row == nil || row.ResellerID != profile.ID || row.Type != resellerdomain.DomainTypeCustom {
+		if row == nil || row.Type != resellerdomain.DomainTypeCustom {
 			return resellercontract.ErrDomainInvalid
 		}
 		if row.IsPrimary {

@@ -868,6 +868,7 @@
         "custom": "自訂域名"
       },
       "domainStatus": {
+        "approvedPending": "已審核，待接入",
         "pendingReview": "待審核",
         "active": "已啟用",
         "disabled": "已停用",
@@ -1445,7 +1446,7 @@
         "configuration": "接入設定異常，請聯絡平台。",
         "validation": "驗證或憑證異常，請核對 DNS 後重試。",
         "errorDNS": "尚未偵測到正確的 CNAME 與歸屬驗證 TXT 記錄。",
-        "saved": "操作已儲存；背景將持續同步接入狀態。"
+        "saved": "操作已儲存；接入狀態未就緒時，請手動檢查 / 重試。"
       },
       "title": "域名管理",
       "description": "管理分銷站系統域名和自訂域名的審核、驗證狀態。",

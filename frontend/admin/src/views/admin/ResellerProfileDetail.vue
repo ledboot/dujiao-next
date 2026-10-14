@@ -2,6 +2,7 @@
 import { computed, onMounted, reactive, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRoute, useRouter } from 'vue-router'
+import { isResellerDomainApprovedPending } from '@/utils/resellerManagement'
 import { adminAPI } from '@/api/admin'
 import type { AdminResellerDomain, AdminResellerProfileDetail } from '@/api/types'
 import {
@@ -190,7 +191,8 @@ const settlementClass = (status?: string) => {
   return 'border-border bg-muted/30 text-muted-foreground'
 }
 
-const domainStatusLabel = (status?: string) => {
+const domainStatusLabel = (status?: string, hosting?: AdminResellerDomain['hosting']) => {
+  if (isResellerDomainApprovedPending(status, hosting)) return t('admin.resellerDomains.hosting.approvedPending')
   if (status === 'pending_review') return t('admin.resellerProfileDetail.domainStatus.pendingReview')
   if (status === 'active') return t('admin.resellerProfileDetail.domainStatus.active')
   if (status === 'disabled') return t('admin.resellerProfileDetail.domainStatus.disabled')
@@ -399,7 +401,7 @@ onMounted(fetchDetail)
                   <TableCell class="px-4 py-3 font-mono text-xs">{{ domain.domain }}</TableCell>
                   <TableCell class="px-4 py-3 text-xs">{{ domainTypeLabel(domain.type) }}</TableCell>
                   <TableCell class="px-4 py-3 text-xs">{{ verificationLabel(domain.verification_status) }}</TableCell>
-                  <TableCell class="px-4 py-3 text-xs">{{ domainStatusLabel(domain.status) }}</TableCell>
+                  <TableCell class="px-4 py-3 text-xs">{{ domainStatusLabel(domain.status, domain.hosting) }}</TableCell>
                   <TableCell class="px-4 py-3 text-xs">{{ domain.is_primary && isActiveVerifiedDomain(domain) ? t('admin.common.yes') : t('admin.common.no') }}</TableCell>
                   <TableCell class="px-4 py-3 text-xs text-muted-foreground">{{ formatDate(domain.verified_at) || '-' }}</TableCell>
                   <TableCell class="px-4 py-3 text-right">

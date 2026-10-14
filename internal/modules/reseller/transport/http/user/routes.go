@@ -13,7 +13,6 @@ func RegisterUserConsoleRoutes(console gin.IRoutes, handler *UserHandler) {
 	console.GET("/domains", handler.ListDomains)
 	console.POST("/domains", handler.SubmitCustomDomain)
 	console.POST("/domains/:id/refresh", handler.RefreshDomain)
-	console.DELETE("/domains/:id", handler.RemoveDomain)
 	console.GET("/site-config", handler.GetSiteConfig)
 	console.PUT("/site-config", handler.UpdateSiteConfig)
 	console.POST("/upload", handler.UploadImage)

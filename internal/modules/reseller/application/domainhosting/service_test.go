@@ -126,7 +126,7 @@ func TestDisableDuringProvisionAndCleanupRetry(t *testing.T) {
 	}
 	reset(t, db, row.ID)
 	p.fail = true
-	_, err = m.RemoveUserDomain(context.Background(), 17, row.ID)
+	_, err = m.RemoveDomain(context.Background(), 1, row.ID)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -149,8 +149,8 @@ func TestDomainOwnershipAuthorizationAndLease(t *testing.T) {
 	if _, err := m.RefreshUserDomain(context.Background(), 99, row.ID); err == nil {
 		t.Fatal("foreign refresh allowed")
 	}
-	if _, err := m.RemoveUserDomain(context.Background(), 99, row.ID); err == nil {
-		t.Fatal("foreign removal allowed")
+	if _, err := m.RemoveDomain(context.Background(), 0, row.ID); err == nil {
+		t.Fatal("unauthenticated admin removal allowed")
 	}
 	if _, err := svc.Sync(context.Background(), row.ID); err != nil {
 		t.Fatal(err)
@@ -188,7 +188,7 @@ func TestApprovalBeforeReadinessAndResubmission(t *testing.T) {
 		t.Fatal("approved domain not activated after readiness")
 	}
 	oldToken := row.Hosting.OwnershipToken
-	if _, err := m.RemoveUserDomain(context.Background(), 17, row.ID); err != nil {
+	if _, err := m.RemoveDomain(context.Background(), 1, row.ID); err != nil {
 		t.Fatal(err)
 	}
 	gone, _ := repo.GetDomainByID(row.ID)
@@ -204,5 +204,19 @@ func TestApprovalBeforeReadinessAndResubmission(t *testing.T) {
 	}
 	if _, err := m.RefreshDomain(context.Background(), 1, 999); err == nil {
 		t.Fatal("missing domain accepted")
+	}
+}
+
+func TestAdminRemovalRejectsSystemDomain(t *testing.T) {
+	db, repo, row, m, _, p := setup(t)
+	if err := db.Model(&domain.Domain{}).Where("id = ?", row.ID).Update("type", domain.DomainTypeSubdomain).Error; err != nil {
+		t.Fatal(err)
+	}
+	if _, err := m.RemoveDomain(context.Background(), 1, row.ID); err == nil {
+		t.Fatal("system domain removal allowed")
+	}
+	retained, err := repo.GetDomainByID(row.ID)
+	if err != nil || retained == nil || retained.Hosting.RemovalRequested || p.calls != 0 {
+		t.Fatal("rejected removal changed binding")
 	}
 }

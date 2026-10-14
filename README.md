@@ -298,7 +298,7 @@ gateways and the like) outside it.
 This optional integration uses one dedicated Tunnel for all reseller hostnames. New domains do
 not require new 1Panel/OpenResty websites. Existing manually managed domains remain unchanged;
 the integration applies to new submissions after enabling it. To migrate an existing custom domain,
-unbind it and submit it again (plan for downtime). System-assigned subdomains keep their existing
+ask an administrator to unbind it and submit it again (plan for downtime). System-assigned subdomains keep their existing
 DNS/TLS setup.
 
 ### One-time infrastructure setup
@@ -369,7 +369,7 @@ Failed checks and cleanup must be retried manually. New config is disabled by de
 4. An administrator approves the binding. Approval can happen before or after DNS verification;
    the domain only becomes usable after the local ownership TXT, CNAME, Cloudflare hostname
    status and certificate status all pass. Technical success never grants administrative approval.
-5. Disabling immediately stops application access and attempts provider deletion. The reseller
+5. Disabling immediately stops application access and attempts provider deletion. An administrator
    can also unbind a custom domain: the local record is retained for retry until remote cleanup
    succeeds, then soft-deleted so it can be submitted again. Reactivating a disabled managed
    domain requires administrator approval and provisioning again. Do not remove verification

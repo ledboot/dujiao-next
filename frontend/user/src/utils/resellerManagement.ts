@@ -1,3 +1,5 @@
+export type ResellerDomainHostingState = { managed?: boolean; approved?: boolean; removal_requested?: boolean }
+
 type ResellerManagementProfile = {
   status?: string
 }
@@ -31,7 +33,8 @@ export const getResellerProfileStatusKey = (status?: string) => {
   return 'unknown'
 }
 
-export const getResellerDomainStatusKey = (status?: string) => {
+export const getResellerDomainStatusKey = (status?: string, hosting?: ResellerDomainHostingState) => {
+  if (status === RESELLER_DOMAIN_STATUS_PENDING_REVIEW && hosting?.managed && hosting.approved) return 'approvedPending'
   if (status === RESELLER_DOMAIN_STATUS_PENDING_REVIEW) return 'pendingReview'
   if (status === RESELLER_DOMAIN_STATUS_ACTIVE) return 'active'
   if (status === RESELLER_DOMAIN_STATUS_DISABLED) return 'disabled'

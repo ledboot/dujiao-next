@@ -868,6 +868,7 @@
         "custom": "Custom Domain"
       },
       "domainStatus": {
+        "approvedPending": "Approved, pending setup",
         "pendingReview": "Pending Review",
         "active": "Active",
         "disabled": "Disabled",
@@ -1445,7 +1446,7 @@
         "configuration": "Connection configuration error. Contact the platform.",
         "validation": "Validation or certificate error. Check DNS and retry.",
         "errorDNS": "The expected CNAME and ownership TXT records have not been detected.",
-        "saved": "Saved. Domain connection status will continue syncing in the background."
+        "saved": "Saved. If setup is not ready, use Check / retry manually."
       },
       "title": "Domain Management",
       "description": "Manage system and custom reseller domains with review and verification status.",
