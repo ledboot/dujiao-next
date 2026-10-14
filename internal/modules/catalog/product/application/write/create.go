@@ -123,6 +123,12 @@ func (s *WriteService) Create(input CreateProductInput) (*productdomain.Product,
 		IsActive:             isActive,
 		SortOrder:            input.SortOrder,
 	}
+	if input.DefaultSupplyPriceAmount != nil {
+		product.DefaultSupplyPriceAmount = *input.DefaultSupplyPriceAmount
+	}
+	if err := validateDefaultSupplyPrice(&product, normalizedSKUs); err != nil {
+		return nil, err
+	}
 	if input.AutoApproveReseller != nil {
 		product.AutoApproveReseller = *input.AutoApproveReseller
 	}

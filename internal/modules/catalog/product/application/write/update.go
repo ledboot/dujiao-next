@@ -152,6 +152,12 @@ func (s *WriteService) Update(id string, input CreateProductInput) (*productdoma
 	} else {
 		product.CostPriceAmount = money.FromDecimal(input.CostPriceAmount.Round(2))
 	}
+	if input.DefaultSupplyPriceAmount != nil {
+		product.DefaultSupplyPriceAmount = *input.DefaultSupplyPriceAmount
+	}
+	if err := validateDefaultSupplyPrice(product, normalizedSKUs); err != nil {
+		return nil, err
+	}
 	product.ManualStockTotal = manualStockTotal
 	// 单规格且未提交库存时不改 SKU 库存，避免旧表单值覆盖下单预占后的实时库存
 	var singleSKUStock *int

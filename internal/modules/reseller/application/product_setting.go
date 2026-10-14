@@ -363,8 +363,12 @@ func validateSupplySettings(profile *resellerdomain.Profile, product productdoma
 		}
 	}
 	validate := func(sku *productdomain.ProductSKU, retail, cost decimal.Decimal, ss *resellerdomain.ProductSetting) error {
-		base := ResolveSupplyPrice(retail, ps, ss)
-		if err := ValidateSupplyPrice(cost, base, ps, ss); err != nil {
+		defaults := []decimal.Decimal{product.DefaultSupplyPriceAmount.Decimal}
+		if sku != nil {
+			defaults = append([]decimal.Decimal{sku.DefaultSupplyPriceAmount.Decimal}, defaults...)
+		}
+		base := ResolveSupplyPrice(retail, ps, ss, defaults...)
+		if err := ValidateSupplyPrice(cost, base, ps, ss, defaults...); err != nil {
 			return err
 		}
 		if (ps != nil && !ps.IsListed) || (ss != nil && !ss.IsListed) {
@@ -430,7 +434,7 @@ func (s *ProductSettingService) previewSettings(profile *resellerdomain.Profile,
 
 	items := make([]ProductSettingPreviewItem, 0, len(product.SKUs)+1)
 
-	productBase := ResolveSupplyPrice(product.PriceAmount.Decimal, productSetting, nil)
+	productBase := ResolveSupplyPrice(product.PriceAmount.Decimal, productSetting, nil, product.DefaultSupplyPriceAmount.Decimal)
 	productItem := ProductSettingPreviewItem{
 		SKUID:     0,
 		IsListed:  productSetting == nil || productSetting.IsListed,
@@ -449,7 +453,7 @@ func (s *ProductSettingService) previewSettings(profile *resellerdomain.Profile,
 				}
 			}
 			if perr == nil {
-				perr = ValidateSupplyPrice(product.CostPriceAmount.Decimal, productBase, productSetting, nil)
+				perr = ValidateSupplyPrice(product.CostPriceAmount.Decimal, productBase, productSetting, nil, product.DefaultSupplyPriceAmount.Decimal)
 			}
 			productItem.Valid = perr == nil
 			productItem.ErrorCode = previewErrorCode(perr)
@@ -466,7 +470,7 @@ func (s *ProductSettingService) previewSettings(profile *resellerdomain.Profile,
 			continue
 		}
 		skuSetting := skuSettings[sku.ID]
-		base := ResolveSupplyPrice(sku.PriceAmount.Decimal, productSetting, skuSettings[sku.ID])
+		base := ResolveSupplyPrice(sku.PriceAmount.Decimal, productSetting, skuSettings[sku.ID], sku.DefaultSupplyPriceAmount.Decimal, product.DefaultSupplyPriceAmount.Decimal)
 		item := ProductSettingPreviewItem{SKUID: sku.ID, IsListed: true, BasePrice: base, Valid: true}
 		if (productSetting != nil && !productSetting.IsListed) || (skuSetting != nil && !skuSetting.IsListed) {
 			item.IsListed = false
@@ -477,7 +481,7 @@ func (s *ProductSettingService) previewSettings(profile *resellerdomain.Profile,
 		if perr == nil {
 			perr = ValidateUnitAmount(profile, sku, base, price)
 			if perr == nil {
-				perr = ValidateSupplyPrice(sku.CostPriceAmount.Decimal, base, productSetting, skuSetting)
+				perr = ValidateSupplyPrice(sku.CostPriceAmount.Decimal, base, productSetting, skuSetting, sku.DefaultSupplyPriceAmount.Decimal, product.DefaultSupplyPriceAmount.Decimal)
 			}
 		}
 		item.EffectivePrice = price.Round(2)
@@ -526,7 +530,7 @@ func computeProductEffectivePrices(profile *resellerdomain.Profile, product prod
 	byProduct, bySKU := indexProductSettings(settings)
 	productSetting := byProduct[product.ID]
 	if productSetting != nil && productSetting.IsListed {
-		price, rule, err := ResolveUnitAmount(profile, productSetting, nil, ResolveSupplyPrice(product.PriceAmount.Decimal, productSetting, nil))
+		price, rule, err := ResolveUnitAmount(profile, productSetting, nil, ResolveSupplyPrice(product.PriceAmount.Decimal, productSetting, nil, product.DefaultSupplyPriceAmount.Decimal))
 		if err != nil {
 			return effective, rules, err
 		}
@@ -545,7 +549,7 @@ func computeProductEffectivePrices(profile *resellerdomain.Profile, product prod
 		if skuSetting != nil && !skuSetting.IsListed {
 			continue
 		}
-		price, rule, err := ResolveUnitAmount(profile, productSetting, skuSetting, ResolveSupplyPrice(sku.PriceAmount.Decimal, productSetting, skuSetting))
+		price, rule, err := ResolveUnitAmount(profile, productSetting, skuSetting, ResolveSupplyPrice(sku.PriceAmount.Decimal, productSetting, skuSetting, sku.DefaultSupplyPriceAmount.Decimal, product.DefaultSupplyPriceAmount.Decimal))
 		if err != nil {
 			return effective, rules, err
 		}

@@ -2,6 +2,7 @@ package productwrite
 
 import (
 	paymentdomain "github.com/dujiao-next/internal/modules/payment/domain"
+	"github.com/dujiao-next/internal/shared/money"
 
 	productdomain "github.com/dujiao-next/internal/modules/catalog/product/domain"
 
@@ -84,16 +85,17 @@ func NewWriteService(options Options) *WriteService {
 
 // CreateProductInput 创建或完整更新商品的输入。
 type CreateProductInput struct {
-	CategoryID           uint
-	Slug                 string
-	SeoMetaJSON          map[string]interface{}
-	TitleJSON            map[string]interface{}
-	DescriptionJSON      map[string]interface{}
-	ContentJSON          map[string]interface{}
-	InstructionsJSON     map[string]interface{}
-	ManualFormSchemaJSON map[string]interface{}
-	PriceAmount          decimal.Decimal
-	CostPriceAmount      decimal.Decimal
+	CategoryID               uint
+	Slug                     string
+	SeoMetaJSON              map[string]interface{}
+	TitleJSON                map[string]interface{}
+	DescriptionJSON          map[string]interface{}
+	ContentJSON              map[string]interface{}
+	InstructionsJSON         map[string]interface{}
+	ManualFormSchemaJSON     map[string]interface{}
+	PriceAmount              decimal.Decimal
+	DefaultSupplyPriceAmount *money.Amount
+	CostPriceAmount          decimal.Decimal
 	// WholesalePrices 为可选字段：nil 表示更新时保留，非 nil 表示整体覆盖。
 	WholesalePrices     *[]productdomain.WholesalePriceInput
 	Images              []string
@@ -115,11 +117,12 @@ type CreateProductInput struct {
 
 // ProductSKUInput 描述商品 SKU 的完整写入值。
 type ProductSKUInput struct {
-	ID              uint
-	SKUCode         string
-	SpecValuesJSON  map[string]interface{}
-	PriceAmount     decimal.Decimal
-	CostPriceAmount decimal.Decimal
+	ID                       uint
+	SKUCode                  string
+	SpecValuesJSON           map[string]interface{}
+	PriceAmount              decimal.Decimal
+	DefaultSupplyPriceAmount *money.Amount
+	CostPriceAmount          decimal.Decimal
 	// ManualStockTotal 为 nil 表示保持该 SKU 现有的实时库存（新建 SKU 视为 0），
 	// 避免后台用打开表单时的旧值覆盖期间被下单预占后的库存。
 	ManualStockTotal *int

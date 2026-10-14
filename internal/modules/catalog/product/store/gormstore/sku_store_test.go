@@ -171,3 +171,24 @@ func TestSKUStoreDeleteByProductHidesRowsAndRejectsStockMutations(t *testing.T) 
 		}
 	}
 }
+
+func TestDefaultSupplyPriceMigrationPreservesLegacySKU(t *testing.T) {
+	_, db := setupSKUStoreTest(t)
+	sku := productdomain.ProductSKU{ProductID: 1, SKUCode: "legacy", PriceAmount: money.FromDecimal(decimal.NewFromInt(120)), IsActive: true}
+	if err := db.Create(&sku).Error; err != nil {
+		t.Fatal(err)
+	}
+	if err := db.Migrator().DropColumn(&productdomain.ProductSKU{}, "default_supply_price_amount"); err != nil {
+		t.Fatal(err)
+	}
+	if err := db.AutoMigrate(&productdomain.ProductSKU{}); err != nil {
+		t.Fatal(err)
+	}
+	var restored productdomain.ProductSKU
+	if err := db.First(&restored, sku.ID).Error; err != nil {
+		t.Fatal(err)
+	}
+	if !restored.DefaultSupplyPriceAmount.IsZero() || restored.PriceAmount.String() != "120.00" {
+		t.Fatalf("legacy SKU changed: %+v", restored)
+	}
+}

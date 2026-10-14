@@ -390,7 +390,7 @@ func NewResellerProductSettingDetailResp(input ResellerProductSettingDTOInput) R
 	productSetting := findResellerProductSetting(input.Settings, 0)
 	resp := ResellerProductSettingDetailResp{
 		Product: ResellerProductSettingProductResp{
-			BasePriceAmount: resellerapplication.ResolveSupplyPrice(input.Product.PriceAmount.Decimal, productSetting, nil).StringFixed(2),
+			BasePriceAmount: resellerapplication.ResolveSupplyPrice(input.Product.PriceAmount.Decimal, productSetting, nil, input.Product.DefaultSupplyPriceAmount.Decimal).StringFixed(2),
 			ID:              input.Product.ID,
 			Slug:            input.Product.Slug,
 			Title:           input.Product.TitleJSON,
@@ -413,7 +413,7 @@ func NewResellerProductSettingDetailResp(input ResellerProductSettingDTOInput) R
 			ID:              sku.ID,
 			SKUCode:         sku.SKUCode,
 			SpecValues:      sku.SpecValuesJSON,
-			BasePriceAmount: resellerapplication.ResolveSupplyPrice(sku.PriceAmount.Decimal, productSetting, setting).StringFixed(2),
+			BasePriceAmount: resellerapplication.ResolveSupplyPrice(sku.PriceAmount.Decimal, productSetting, setting, sku.DefaultSupplyPriceAmount.Decimal, input.Product.DefaultSupplyPriceAmount.Decimal).StringFixed(2),
 			IsActive:        sku.IsActive,
 			Setting:         settingResp,
 			EffectivePrice:  input.EffectiveBySKUID[sku.ID],

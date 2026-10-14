@@ -505,3 +505,38 @@ func TestAdminProductListFiltersByActiveState(t *testing.T) {
 		t.Fatalf("is_active=0 + non-matching search should be empty, got %+v", got)
 	}
 }
+
+func TestCreateProductDefaultSupplyPricesAcceptStringAndNumber(t *testing.T) {
+	for _, value := range []string{`"115.25"`, `115.25`} {
+		t.Run(value, func(t *testing.T) {
+			h, db := setupAdminProductHandlerTest(t)
+			cat := categorydomain.Category{Slug: "supply-http", NameJSON: jsonmap.JSON{"zh-CN": "supply"}}
+			if err := db.Create(&cat).Error; err != nil {
+				t.Fatal(err)
+			}
+			body := fmt.Sprintf(`{"category_id":%d,"slug":"supply-http","title":{"zh-CN":"supply"},"price_amount":120,"cost_price_amount":100,"default_supply_price_amount":%s,"purchase_type":"member","fulfillment_type":"manual","skus":[{"sku_code":"A","price_amount":120,"cost_price_amount":100,"default_supply_price_amount":%s}]}`, cat.ID, value, value)
+			w := httptest.NewRecorder()
+			c, _ := gin.CreateTestContext(w)
+			c.Request = httptest.NewRequest(http.MethodPost, "/api/v1/admin/products", strings.NewReader(body))
+			c.Request.Header.Set("Content-Type", "application/json")
+			h.CreateProduct(c)
+			var response struct {
+				StatusCode int                   `json:"status_code"`
+				Data       productdomain.Product `json:"data"`
+			}
+			if err := json.Unmarshal(w.Body.Bytes(), &response); err != nil {
+				t.Fatal(err)
+			}
+			if w.Code != 200 || response.StatusCode != 0 || response.Data.ID == 0 {
+				t.Fatalf("request failed: %s", w.Body.String())
+			}
+			var product productdomain.Product
+			if err := db.Preload("SKUs").First(&product, response.Data.ID).Error; err != nil {
+				t.Fatal(err)
+			}
+			if product.DefaultSupplyPriceAmount.String() != "115.25" || len(product.SKUs) != 1 || product.SKUs[0].DefaultSupplyPriceAmount.String() != "115.25" {
+				t.Fatalf("defaults lost: %+v", product)
+			}
+		})
+	}
+}

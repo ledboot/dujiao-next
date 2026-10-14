@@ -78,7 +78,10 @@ func (r *ResellerPricingResolver) ApplyToOrderBuildResult(tenant resellercontrac
 			return nil, ErrResellerProductNotListed
 		}
 
-		baseUnit := resellerapplication.ResolveSupplyPrice(plan.SKU.PriceAmount.Decimal, productSetting, skuSetting)
+		baseUnit := resellerapplication.ResolveSupplyPrice(plan.SKU.PriceAmount.Decimal, productSetting, skuSetting, plan.SKU.DefaultSupplyPriceAmount.Decimal, plan.Product.DefaultSupplyPriceAmount.Decimal)
+		if err := resellerapplication.ValidateSupplyPrice(plan.SKU.CostPriceAmount.Decimal, baseUnit, productSetting, skuSetting, plan.SKU.DefaultSupplyPriceAmount.Decimal, plan.Product.DefaultSupplyPriceAmount.Decimal); err != nil {
+			return nil, err
+		}
 		resellerUnit, rule, err := resolveResellerUnitAmount(profile, productSetting, skuSetting, baseUnit)
 		if err != nil {
 			return nil, err
@@ -207,10 +210,13 @@ func (r *ResellerPricingResolver) ResolveDisplayPrices(tenant resellercontract.T
 			result.HiddenSKUIDs[sku.ID] = true
 			continue
 		}
-		base := resellerapplication.ResolveSupplyPrice(sku.PriceAmount.Decimal, productSetting, skuSetting)
+		base := resellerapplication.ResolveSupplyPrice(sku.PriceAmount.Decimal, productSetting, skuSetting, sku.DefaultSupplyPriceAmount.Decimal, product.DefaultSupplyPriceAmount.Decimal)
 		price, _, err := resolveResellerUnitAmount(batch.Profile, productSetting, skuSetting, base)
 		if err == nil {
-			err = validateResellerUnitAmount(batch.Profile, &sku, base, price)
+			err = resellerapplication.ValidateSupplyPrice(sku.CostPriceAmount.Decimal, base, productSetting, skuSetting, sku.DefaultSupplyPriceAmount.Decimal, product.DefaultSupplyPriceAmount.Decimal)
+			if err == nil {
+				err = validateResellerUnitAmount(batch.Profile, &sku, base, price)
+			}
 		}
 		if err != nil {
 			// 定价配置可能在保存后因基准价/成本价/上限调整而失效；
@@ -233,7 +239,7 @@ func (r *ResellerPricingResolver) ResolveDisplayPrices(tenant resellercontract.T
 		}
 	}
 	if len(product.SKUs) == 0 {
-		price, _, err := resolveResellerUnitAmount(batch.Profile, productSetting, nil, resellerapplication.ResolveSupplyPrice(product.PriceAmount.Decimal, productSetting, nil))
+		price, _, err := resolveResellerUnitAmount(batch.Profile, productSetting, nil, resellerapplication.ResolveSupplyPrice(product.PriceAmount.Decimal, productSetting, nil, product.DefaultSupplyPriceAmount.Decimal))
 		if err != nil {
 			logger.Warnw("reseller_display_price_product_hidden",
 				"reseller_id", batch.Profile.ID,

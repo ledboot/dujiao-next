@@ -696,6 +696,9 @@ watch(
             </TableCell>
             <TableCell class="px-6 py-4">
               <div class="font-mono text-foreground">{{ formatPrice(product.price_amount, siteCurrency) }}</div>
+              <div v-if="Number(product.default_supply_price_amount) > 0" class="mt-1 text-xs text-muted-foreground">
+                {{ t('admin.products.form.defaultSupplyPrice') }}：{{ formatPrice(product.default_supply_price_amount || '0', siteCurrency) }}
+              </div>
               <div v-if="formatWholesaleSummary(product)" class="mt-1 text-xs text-emerald-600 dark:text-emerald-400">
                 {{ formatWholesaleSummary(product) }}
               </div>

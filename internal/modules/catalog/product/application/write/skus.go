@@ -68,6 +68,8 @@ func (s *WriteService) syncSingleProductSKU(
 	target := skus[targetIndex]
 	target.PriceAmount = money.FromDecimal(priceAmount)
 	target.CostPriceAmount = money.FromDecimal(costPriceAmount)
+	// 单规格模式只使用商品默认值，清除旧规格的覆盖价。
+	target.DefaultSupplyPriceAmount = money.FromDecimal(decimal.Zero)
 	// nil 表示本次未修改库存：保留 SKU 上被下单预占后的实时值
 	if manualStockTotal != nil {
 		target.ManualStockTotal = *manualStockTotal
@@ -135,15 +137,16 @@ func pickSingleModeTargetSKUIndex(skus []productdomain.ProductSKU) int {
 }
 
 type normalizedProductSKU struct {
-	ID               uint
-	SKUCode          string
-	SpecValuesJSON   jsonmap.JSON
-	PriceAmount      money.Amount
-	CostPriceAmount  money.Amount
-	ManualStockTotal int
-	KeepManualStock  bool // 未提交库存：落库时保留现有实时值
-	IsActive         bool
-	SortOrder        int
+	ID                       uint
+	SKUCode                  string
+	SpecValuesJSON           jsonmap.JSON
+	PriceAmount              money.Amount
+	DefaultSupplyPriceAmount money.Amount
+	CostPriceAmount          money.Amount
+	ManualStockTotal         int
+	KeepManualStock          bool // 未提交库存：落库时保留现有实时值
+	IsActive                 bool
+	SortOrder                int
 }
 
 func (s *WriteService) normalizeProductSKUInputs(inputs []ProductSKUInput, fulfillmentType string, existingSKUMap map[uint]productdomain.ProductSKU) ([]normalizedProductSKU, decimal.Decimal, int, error) {
@@ -185,6 +188,13 @@ func (s *WriteService) normalizeProductSKUInputs(inputs []ProductSKUInput, fulfi
 				return nil, decimal.Zero, 0, productcontract.ErrProductSKUInvalid
 			}
 		}
+		supply := existing.DefaultSupplyPriceAmount
+		if input.DefaultSupplyPriceAmount != nil {
+			supply = *input.DefaultSupplyPriceAmount
+		}
+		if supply.Decimal.IsNegative() || (supply.Decimal.IsPositive() && supply.Decimal.LessThan(costPriceAmount)) {
+			return nil, decimal.Zero, 0, productcontract.ErrProductPriceInvalid
+		}
 		keepManualStock := input.ManualStockTotal == nil && fulfillmentType == constants.FulfillmentTypeManual
 		manualTotal := 0
 		if input.ManualStockTotal != nil {
@@ -209,15 +219,16 @@ func (s *WriteService) normalizeProductSKUInputs(inputs []ProductSKUInput, fulfi
 		}
 
 		normalized = append(normalized, normalizedProductSKU{
-			ID:               input.ID,
-			SKUCode:          skuCode,
-			SpecValuesJSON:   specValues,
-			PriceAmount:      money.FromDecimal(priceAmount),
-			CostPriceAmount:  money.FromDecimal(costPriceAmount),
-			ManualStockTotal: manualTotal,
-			KeepManualStock:  keepManualStock,
-			IsActive:         isActive,
-			SortOrder:        input.SortOrder,
+			ID:                       input.ID,
+			SKUCode:                  skuCode,
+			SpecValuesJSON:           specValues,
+			PriceAmount:              money.FromDecimal(priceAmount),
+			CostPriceAmount:          money.FromDecimal(costPriceAmount),
+			DefaultSupplyPriceAmount: supply,
+			ManualStockTotal:         manualTotal,
+			KeepManualStock:          keepManualStock,
+			IsActive:                 isActive,
+			SortOrder:                input.SortOrder,
 		})
 
 		if isActive {
@@ -298,6 +309,7 @@ func (s *WriteService) applyProductSKUsWithStockGuard(
 			existing.SpecValuesJSON = row.SpecValuesJSON
 			existing.PriceAmount = row.PriceAmount
 			existing.CostPriceAmount = row.CostPriceAmount
+			existing.DefaultSupplyPriceAmount = row.DefaultSupplyPriceAmount
 			if !row.KeepManualStock {
 				existing.ManualStockTotal = row.ManualStockTotal
 			}
@@ -316,6 +328,7 @@ func (s *WriteService) applyProductSKUsWithStockGuard(
 			existing.SpecValuesJSON = row.SpecValuesJSON
 			existing.PriceAmount = row.PriceAmount
 			existing.CostPriceAmount = row.CostPriceAmount
+			existing.DefaultSupplyPriceAmount = row.DefaultSupplyPriceAmount
 			if !row.KeepManualStock {
 				existing.ManualStockTotal = row.ManualStockTotal
 			}
@@ -333,16 +346,17 @@ func (s *WriteService) applyProductSKUsWithStockGuard(
 			return err
 		}
 		item := productdomain.ProductSKU{
-			ProductID:         productID,
-			SKUCode:           row.SKUCode,
-			SpecValuesJSON:    row.SpecValuesJSON,
-			PriceAmount:       row.PriceAmount,
-			CostPriceAmount:   row.CostPriceAmount,
-			ManualStockTotal:  row.ManualStockTotal,
-			ManualStockLocked: 0,
-			ManualStockSold:   0,
-			IsActive:          row.IsActive,
-			SortOrder:         row.SortOrder,
+			ProductID:                productID,
+			SKUCode:                  row.SKUCode,
+			SpecValuesJSON:           row.SpecValuesJSON,
+			PriceAmount:              row.PriceAmount,
+			CostPriceAmount:          row.CostPriceAmount,
+			DefaultSupplyPriceAmount: row.DefaultSupplyPriceAmount,
+			ManualStockTotal:         row.ManualStockTotal,
+			ManualStockLocked:        0,
+			ManualStockSold:          0,
+			IsActive:                 row.IsActive,
+			SortOrder:                row.SortOrder,
 		}
 		if err := skuRepo.Create(&item); err != nil {
 			return err
@@ -409,4 +423,31 @@ func derefStock(value *int) int {
 		return 0
 	}
 	return *value
+}
+
+// validateDefaultSupplyPrice checks the product fallback against each active SKU's acquisition cost.
+func validateDefaultSupplyPrice(product *productdomain.Product, skus []normalizedProductSKU) error {
+	price := product.DefaultSupplyPriceAmount.Decimal
+	if price.IsNegative() {
+		return productcontract.ErrProductPriceInvalid
+	}
+	if len(skus) == 0 {
+		if price.IsPositive() && price.LessThan(product.CostPriceAmount.Decimal) {
+			return productcontract.ErrProductPriceInvalid
+		}
+		return nil
+	}
+	for _, sku := range skus {
+		if !sku.IsActive {
+			continue
+		}
+		effective := sku.DefaultSupplyPriceAmount.Decimal
+		if !effective.IsPositive() {
+			effective = price
+		}
+		if effective.IsPositive() && effective.LessThan(sku.CostPriceAmount.Decimal) {
+			return productcontract.ErrProductPriceInvalid
+		}
+	}
+	return nil
 }

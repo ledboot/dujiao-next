@@ -172,3 +172,58 @@ func TestProductServiceUpdateRejectsInvalidPurchaseLimits(t *testing.T) {
 		t.Fatalf("expected productcontract.ErrProductPurchaseLimitInvalid on update, got %v", err)
 	}
 }
+
+func TestDefaultSupplyPricesPersistAndPreserveOmittedValues(t *testing.T) {
+	svc, db := newProductServiceForTest(t)
+	category := categorydomain.Category{Slug: "supply-default", NameJSON: jsonmap.JSON{"zh-CN": "supply"}}
+	if err := db.Create(&category).Error; err != nil {
+		t.Fatal(err)
+	}
+	amount := func(v int64) *money.Amount { m := money.FromDecimal(decimal.NewFromInt(v)); return &m }
+	input := productwrite.CreateProductInput{CategoryID: category.ID, Slug: "default-supply", TitleJSON: map[string]interface{}{"zh-CN": "supply"}, PriceAmount: decimal.NewFromInt(120), CostPriceAmount: decimal.NewFromInt(100), PurchaseType: constants.ProductPurchaseMember, FulfillmentType: constants.FulfillmentTypeManual, DefaultSupplyPriceAmount: amount(115), SKUs: []productwrite.ProductSKUInput{{SKUCode: "A", PriceAmount: decimal.NewFromInt(120), CostPriceAmount: decimal.NewFromInt(100), DefaultSupplyPriceAmount: amount(112)}}}
+	product, err := svc.Write.Create(input)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var skus []productdomain.ProductSKU
+	if err := db.Where("product_id = ?", product.ID).Find(&skus).Error; err != nil || len(skus) != 1 {
+		t.Fatalf("skus: %v %v", skus, err)
+	}
+	if product.DefaultSupplyPriceAmount.String() != "115.00" || skus[0].DefaultSupplyPriceAmount.String() != "112.00" {
+		t.Fatal("defaults not persisted")
+	}
+	input.SKUs[0].ID = skus[0].ID
+	input.DefaultSupplyPriceAmount = nil
+	input.SKUs[0].DefaultSupplyPriceAmount = nil
+	product, err = svc.Write.Update(strconv.Itoa(int(product.ID)), input)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := db.First(&skus[0], skus[0].ID).Error; err != nil {
+		t.Fatal(err)
+	}
+	if product.DefaultSupplyPriceAmount.String() != "115.00" || skus[0].DefaultSupplyPriceAmount.String() != "112.00" {
+		t.Fatal("omitted values overwritten")
+	}
+	input.DefaultSupplyPriceAmount = amount(0)
+	input.SKUs[0].DefaultSupplyPriceAmount = amount(0)
+	product, err = svc.Write.Update(strconv.Itoa(int(product.ID)), input)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := db.First(&skus[0], skus[0].ID).Error; err != nil {
+		t.Fatal(err)
+	}
+	if !product.DefaultSupplyPriceAmount.IsZero() || !skus[0].DefaultSupplyPriceAmount.IsZero() {
+		t.Fatal("reset failed")
+	}
+	input.DefaultSupplyPriceAmount = amount(99)
+	if _, err = svc.Write.Update(strconv.Itoa(int(product.ID)), input); !errors.Is(err, productcontract.ErrProductPriceInvalid) {
+		t.Fatalf("below-cost fallback accepted: %v", err)
+	}
+	input.DefaultSupplyPriceAmount = amount(115)
+	input.SKUs[0].DefaultSupplyPriceAmount = amount(-1)
+	if _, err = svc.Write.Update(strconv.Itoa(int(product.ID)), input); !errors.Is(err, productcontract.ErrProductPriceInvalid) {
+		t.Fatalf("negative SKU supply accepted: %v", err)
+	}
+}

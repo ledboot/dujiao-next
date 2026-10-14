@@ -48,12 +48,17 @@ func ResolveUnitAmount(profile *resellerdomain.Profile, productSetting *reseller
 	return baseUnit.Round(2), PricingRule{Mode: resellerdomain.PricingModeInherit, Source: RuleSourceInherit}, nil
 }
 
-// ResolveSupplyPrice resolves the administrator's SKU/product supply price, falling back to retail.
+// ResolveSupplyPrice prefers reseller SKU/product overrides, then ordered catalog defaults, then retail.
 // Zero means inherit; it is never a free supply price.
-func ResolveSupplyPrice(retail decimal.Decimal, productSetting, skuSetting *resellerdomain.ProductSetting) decimal.Decimal {
+func ResolveSupplyPrice(retail decimal.Decimal, productSetting, skuSetting *resellerdomain.ProductSetting, defaults ...decimal.Decimal) decimal.Decimal {
 	for _, setting := range []*resellerdomain.ProductSetting{skuSetting, productSetting} {
 		if setting != nil && setting.SupplyPriceAmount.Decimal.GreaterThan(decimal.Zero) {
 			return setting.SupplyPriceAmount.Decimal.Round(2)
+		}
+	}
+	for _, price := range defaults {
+		if price.IsPositive() {
+			return price.Round(2)
 		}
 	}
 	return retail.Round(2)
@@ -109,7 +114,12 @@ func ValidateUnitAmount(profile *resellerdomain.Profile, sku *productdomain.Prod
 }
 
 // ValidateSupplyPrice keeps an explicitly configured supply price above acquisition cost.
-func ValidateSupplyPrice(cost, base decimal.Decimal, productSetting, skuSetting *resellerdomain.ProductSetting) error {
+func ValidateSupplyPrice(cost, base decimal.Decimal, productSetting, skuSetting *resellerdomain.ProductSetting, defaults ...decimal.Decimal) error {
+	for _, price := range defaults {
+		if price.IsPositive() && base.LessThan(cost.Round(2)) {
+			return resellercontract.ErrPriceBelowBase
+		}
+	}
 	if base.LessThan(cost.Round(2)) && ((skuSetting != nil && skuSetting.SupplyPriceAmount.Decimal.IsPositive()) || (productSetting != nil && productSetting.SupplyPriceAmount.Decimal.IsPositive())) {
 		return resellercontract.ErrPriceBelowBase
 	}

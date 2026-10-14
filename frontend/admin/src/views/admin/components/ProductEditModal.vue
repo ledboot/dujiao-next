@@ -94,6 +94,7 @@ type SKUFormItem = {
   sku_code: string
   spec_values: Record<string, string>
   price_amount: number
+  default_supply_price_amount: string
   cost_price_amount: number
   manual_stock_total: number
   // 打开编辑框时的库存；保存时未改动则不提交，后端保留期间被下单预占后的实时库存
@@ -148,6 +149,7 @@ const createSKUFormItem = (raw?: Partial<AdminProductSKU>): SKUFormItem => ({
     }, {}),
   },
   price_amount: Number(raw?.price_amount || 0),
+  default_supply_price_amount: String(raw?.default_supply_price_amount || '0'),
   cost_price_amount: Number(raw?.cost_price_amount || 0),
   manual_stock_total: toSafeStockTotal(raw?.manual_stock_total),
   original_manual_stock_total: raw?.id ? toSafeStockTotal(raw?.manual_stock_total) : null,
@@ -164,6 +166,7 @@ const form = reactive({
   content: { 'zh-CN': '', 'zh-TW': '', 'en-US': '' } as LocalizedText,
   instructions: { 'zh-CN': '', 'zh-TW': '', 'en-US': '' } as LocalizedText,
   price_amount: 0,
+  default_supply_price_amount: '0',
   cost_price_amount: 0,
   images: [] as string[],
   tags: [] as string[],
@@ -481,6 +484,7 @@ const normalizeSKUsForSubmit = () => {
       sku_code: skuCode,
       spec_values: specValues,
       price_amount: priceAmount,
+      default_supply_price_amount: String(item.default_supply_price_amount || '0'),
       cost_price_amount: Number(item.cost_price_amount) || 0,
       manual_stock_total: stockUnchanged ? undefined : manualStockTotal,
       is_active: isActive,
@@ -510,7 +514,8 @@ const resetForm = () => {
     content: { 'zh-CN': '', 'zh-TW': '', 'en-US': '' },
     instructions: { 'zh-CN': '', 'zh-TW': '', 'en-US': '' },
     price_amount: 0,
-    cost_price_amount: 0,
+    default_supply_price_amount: '0',
+  cost_price_amount: 0,
     images: [],
     tags: [],
     purchase_type: 'member',
@@ -561,6 +566,7 @@ const populateForm = (product: AdminProduct) => {
     content: product.content || { 'zh-CN': '', 'zh-TW': '', 'en-US': '' },
     instructions: (product as AdminProduct & { instructions?: LocalizedText }).instructions || { 'zh-CN': '', 'zh-TW': '', 'en-US': '' },
     price_amount: Number(product.price_amount || 0),
+    default_supply_price_amount: String(product.default_supply_price_amount || '0'),
     cost_price_amount: Number(product.cost_price_amount || 0),
     images: imagesList,
     tags: tagsList,
@@ -639,6 +645,7 @@ const handleSubmit = async () => {
       content: form.content,
       instructions: form.instructions,
       price_amount: effectivePrice,
+      default_supply_price_amount: String(form.default_supply_price_amount || '0'),
       cost_price_amount: effectiveCostPrice,
       images: form.images,
       tags: form.tags,
@@ -1022,6 +1029,11 @@ watch(
                   <Input v-model.number="sku.cost_price_amount" type="number" step="0.01" min="0" :placeholder="t('admin.products.form.skuCostPricePlaceholder')" :disabled="editingIsMapped" />
                   <p v-if="editingIsMapped" class="mt-1 text-xs text-muted-foreground">{{ t('admin.products.form.costPriceAutoFromUpstream') }}</p>
                 </div>
+                <div class="md:col-span-2">
+                  <label class="block text-xs font-medium text-muted-foreground mb-1.5">{{ t('admin.products.form.defaultSupplyPrice') }}</label>
+                  <Input v-model="sku.default_supply_price_amount" inputmode="decimal" placeholder="0.00" />
+                  <p class="mt-1 text-xs text-muted-foreground">{{ t('admin.products.form.skuDefaultSupplyPriceHint') }}</p>
+                </div>
                 <div v-if="form.fulfillment_type === 'manual'" class="md:col-span-1">
                   <label class="block text-xs font-medium text-muted-foreground mb-1.5">{{ t('admin.products.form.skuManualStock') }}</label>
                   <Input v-model.number="sku.manual_stock_total" type="number" min="-1" :placeholder="t('admin.products.form.skuManualStockPlaceholder')" />
@@ -1058,6 +1070,12 @@ watch(
               {{ t('admin.products.form.priceAmountSkuTip') }}
             </p>
             <p v-else class="mt-1 text-xs text-muted-foreground">{{ t('admin.products.form.priceAmountTip') }}</p>
+          </div>
+
+          <div class="col-span-1">
+            <label class="block text-xs font-medium text-muted-foreground mb-1.5">{{ t('admin.products.form.defaultSupplyPrice') }}</label>
+            <Input v-model="form.default_supply_price_amount" inputmode="decimal" placeholder="0.00" />
+            <p class="mt-1 text-xs text-muted-foreground">{{ t('admin.products.form.defaultSupplyPriceHint') }}</p>
           </div>
 
           <div class="col-span-1">

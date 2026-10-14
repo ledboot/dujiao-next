@@ -740,3 +740,74 @@ func TestPaidResellerProductSnapshotsBenefitAndRejectsGuests(t *testing.T) {
 		t.Fatalf("guest purchase should be rejected: %v", err)
 	}
 }
+
+func TestCatalogSupplyDefaultsDriveResellerPricing(t *testing.T) {
+	for _, tc := range []struct {
+		name                                      string
+		product, sku, override, skuOverride, want int64
+	}{
+		{"retail fallback", 0, 0, 0, 0, 120}, {"product default", 115, 0, 0, 0, 115}, {"sku default", 115, 113, 0, 0, 113}, {"reseller product override", 115, 113, 110, 0, 110}, {"reseller sku override", 115, 113, 110, 108, 108},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			repo := &resellerPricingRepoStub{profile: testResellerProfile()}
+			repo.profile.DefaultMarkupPercent = money.FromDecimal(decimal.Zero)
+			if tc.override > 0 {
+				repo.settings = append(repo.settings, resellerdomain.ProductSetting{ProductID: 1, IsListed: true, PricingMode: resellerdomain.PricingModeInherit, SupplyPriceAmount: money.FromDecimal(decimal.NewFromInt(tc.override))})
+			}
+			if tc.skuOverride > 0 {
+				repo.settings = append(repo.settings, resellerdomain.ProductSetting{ProductID: 1, SKUID: 2, IsListed: true, PricingMode: resellerdomain.PricingModeInherit, SupplyPriceAmount: money.FromDecimal(decimal.NewFromInt(tc.skuOverride))})
+			}
+			resolver := NewResellerPricingResolver(repo)
+			result := testOrderBuildResult(struct {
+				productID uint
+				skuID     uint
+				base      decimal.Decimal
+				cost      decimal.Decimal
+				quantity  int
+			}{1, 2, decimal.NewFromInt(120), decimal.NewFromInt(100), 2})
+			result.Plans[0].Product.DefaultSupplyPriceAmount = money.FromDecimal(decimal.NewFromInt(tc.product))
+			result.Plans[0].SKU.DefaultSupplyPriceAmount = money.FromDecimal(decimal.NewFromInt(tc.sku))
+			ctx, err := resolver.ApplyToOrderBuildResult(testResellerTenant(), 123, result)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if !ctx.BaseAmount.Equal(decimal.NewFromInt(tc.want*2)) || !ctx.ResellerAmount.Equal(ctx.BaseAmount) {
+				t.Fatalf("snapshot mismatch: %+v", ctx)
+			}
+			product := *result.Plans[0].Product
+			product.SKUs = []productdomain.ProductSKU{*result.Plans[0].SKU}
+			batch, err := resolver.LoadDisplayPricingBatch(testResellerTenant(), []productdomain.Product{product})
+			if err != nil {
+				t.Fatal(err)
+			}
+			display, err := resolver.ResolveDisplayPrices(testResellerTenant(), &product, batch)
+			if err != nil || !display.Visible || !display.DisplayPrice.Equal(decimal.NewFromInt(tc.want)) {
+				t.Fatalf("display mismatch %+v %v", display, err)
+			}
+			product.DefaultSupplyPriceAmount = money.FromDecimal(decimal.NewFromInt(105))
+			if !ctx.BaseAmount.Equal(decimal.NewFromInt(tc.want * 2)) {
+				t.Fatal("existing snapshot mutated")
+			}
+			if result.Plans[0].SKU.PriceAmount.String() != "120.00" {
+				t.Fatal("main store price changed")
+			}
+			// A fixed retail rule uses the same default supply cost for profit snapshots.
+			repo.settings = []resellerdomain.ProductSetting{{ProductID: 1, IsListed: true, PricingMode: resellerdomain.PricingModeFixedPrice, FixedPriceAmount: money.FromDecimal(decimal.NewFromInt(120))}}
+			ctx, err = resolver.ApplyToOrderBuildResult(testResellerTenant(), 123, result)
+			if err != nil {
+				t.Fatal(err)
+			}
+			supply := tc.product
+			if tc.sku > 0 {
+				supply = tc.sku
+			}
+			if supply == 0 {
+				supply = 120
+			}
+			if !ctx.BaseAmount.Equal(decimal.NewFromInt(supply*2)) || !ctx.ProfitAmount.Equal(decimal.NewFromInt((120-supply)*2)) {
+				t.Fatalf("default profit mismatch: %+v", ctx)
+			}
+
+		})
+	}
+}
