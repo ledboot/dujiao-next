@@ -3,7 +3,6 @@ package domainhosting
 
 import (
 	"context"
-	"errors"
 	"time"
 
 	"github.com/dujiao-next/internal/cache"
@@ -19,7 +18,6 @@ type Provider interface {
 type Store interface {
 	contract.ManagementStore
 	ClaimDomainSync(uint, time.Time, time.Time) (bool, error)
-	DueDomainIDs(time.Time, int) ([]uint, error)
 }
 
 type Service struct {
@@ -62,8 +60,7 @@ func (s *Service) Sync(ctx context.Context, id uint) (*domain.Domain, error) {
 	state.Managed = true
 	state.CheckedAt = &now
 	state.LeaseUntil = nil
-	next := now.Add(5 * time.Minute)
-	state.NextCheckAt = &next
+	state.NextCheckAt = nil
 	if providerErr != nil && state.ErrorKey == "" {
 		state.ErrorKey = "provider"
 	}
@@ -105,10 +102,6 @@ func (s *Service) Sync(ctx context.Context, id uint) (*domain.Domain, error) {
 		if disabled && providerErr == nil && state.HostnameStatus == "deleted" && current.Hosting.RemovalRequested {
 			current.DeletedAt = &now
 		}
-		// Remote cleanup is retried even if disabled during an in-flight create.
-		if current.Status == domain.DomainStatusDisabled && !disabled {
-			current.Hosting.NextCheckAt = &now
-		}
 		return tx.UpdateDomain(current)
 	})
 	_ = cache.DelResellerDomain(context.WithoutCancel(ctx), row.Domain)
@@ -116,23 +109,4 @@ func (s *Service) Sync(ctx context.Context, id uint) (*domain.Domain, error) {
 		return nil, err
 	}
 	return s.store.GetDomainByID(id)
-}
-
-func (s *Service) SyncDue(ctx context.Context) error {
-	if !s.Enabled() {
-		return nil
-	}
-	ids, err := s.store.DueDomainIDs(time.Now().UTC().Truncate(time.Microsecond), 100)
-	if err != nil {
-		return err
-	}
-	var result error
-	for _, id := range ids {
-		if ctx.Err() != nil {
-			return ctx.Err()
-		}
-		_, err := s.Sync(ctx, id)
-		result = errors.Join(result, err)
-	}
-	return result
 }

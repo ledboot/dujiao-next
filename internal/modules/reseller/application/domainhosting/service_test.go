@@ -202,10 +202,6 @@ func TestApprovalBeforeReadinessAndResubmission(t *testing.T) {
 	if row.Hosting.OwnershipToken == oldToken || row.Hosting.RemovalRequested || row.Hosting.Approved || row.Hosting.HostnameID != "" {
 		t.Fatal("resubmission inherited old provider authorization")
 	}
-	ids, err := repo.DueDomainIDs(time.Now(), 100)
-	if err != nil || len(ids) != 1 || ids[0] != row.ID {
-		t.Fatalf("resubmitted binding is not scheduled: %v %v", ids, err)
-	}
 	if _, err := m.RefreshDomain(context.Background(), 1, 999); err == nil {
 		t.Fatal("missing domain accepted")
 	}

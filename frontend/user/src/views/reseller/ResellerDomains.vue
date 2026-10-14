@@ -190,7 +190,6 @@
                   <div class="flex flex-wrap items-center gap-2 md:justify-end">
                     <Button v-if="item.hosting?.managed" variant="outline" size="sm" :disabled="operatingId !== null" @click="operateDomain(item.id, false)">{{ t('resellerConsole.domains.hosting.refresh') }}</Button>
                     <Button v-if="!item.hosting?.removal_requested" variant="ghost" size="sm" :disabled="operatingId !== null" @click="operateDomain(item.id, true)">{{ t('resellerConsole.domains.hosting.remove') }}</Button>
-                    <ResellerCopyButton :value="item.domain" :label="t('resellerConsole.common.copy')" />
                     <Button v-if="isActiveVerifiedDomain(item)" as-child variant="ghost" size="sm">
                       <a :href="`https://${item.domain}`" target="_blank" rel="noopener noreferrer">
                         <ExternalLink class="h-4 w-4" />
@@ -201,12 +200,11 @@
                   <div v-if="item.hosting?.managed" class="space-y-2 rounded-lg bg-muted/40 p-3 text-xs md:col-span-5">
                     <p class="font-semibold">{{ t('resellerConsole.domains.hosting.title') }}</p>
                     <p>{{ t('resellerConsole.domains.hosting.instructions') }}</p>
-                    <p>{{ t(item.hosting.approved ? 'resellerConsole.domains.hosting.approved' : 'resellerConsole.domains.hosting.review') }}</p>
                     <p v-if="item.hosting.removal_requested">{{ t('resellerConsole.domains.hosting.removing') }}</p>
                     <div class="flex flex-wrap gap-3">
-                      <span>{{ t('resellerConsole.domains.hosting.hostname') }}: {{ t(item.hosting.hostname_status === 'active' ? 'resellerConsole.domains.hosting.ready' : 'resellerConsole.domains.hosting.pending') }}</span>
-                      <span>{{ t('resellerConsole.domains.hosting.certificate') }}: {{ t(item.hosting.ssl_status === 'active' ? 'resellerConsole.domains.hosting.ready' : 'resellerConsole.domains.hosting.pending') }}</span>
-                      <span>{{ t('resellerConsole.domains.hosting.dns') }}: {{ t(item.hosting.dns_ready ? 'resellerConsole.domains.hosting.ready' : 'resellerConsole.domains.hosting.pending') }}</span>
+                      <ResellerStatusBadge :tone="item.hosting.hostname_status === 'active' ? 'success' : 'warning'">{{ t('resellerConsole.domains.hosting.hostname') }}: {{ t(item.hosting.hostname_status === 'active' ? 'resellerConsole.domains.hosting.ready' : 'resellerConsole.domains.hosting.pending') }}</ResellerStatusBadge>
+                      <ResellerStatusBadge :tone="item.hosting.ssl_status === 'active' ? 'success' : 'warning'">{{ t('resellerConsole.domains.hosting.certificate') }}: {{ t(item.hosting.ssl_status === 'active' ? 'resellerConsole.domains.hosting.ready' : 'resellerConsole.domains.hosting.pending') }}</ResellerStatusBadge>
+                      <ResellerStatusBadge :tone="item.hosting.dns_ready ? 'success' : 'warning'">{{ t('resellerConsole.domains.hosting.dns') }}: {{ t(item.hosting.dns_ready ? 'resellerConsole.domains.hosting.ready' : 'resellerConsole.domains.hosting.pending') }}</ResellerStatusBadge>
                     </div>
                     <div v-for="record in item.hosting.records || []" :key="`${record.type}:${record.name}`" class="flex flex-wrap items-center gap-2 rounded border border-border p-2">
                       <code class="break-all">{{ record.type }} {{ record.name }} → {{ record.value }}</code>

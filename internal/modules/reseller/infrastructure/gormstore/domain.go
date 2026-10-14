@@ -215,13 +215,3 @@ func (r *Store) ClaimDomainSync(id uint, now, until time.Time) (bool, error) {
 		Update("hosting_lease_until", until)
 	return result.RowsAffected == 1, result.Error
 }
-
-func (r *Store) DueDomainIDs(now time.Time, limit int) ([]uint, error) {
-	var ids []uint
-	err := r.db.Model(&resellerdomain.Domain{}).
-		Where("deleted_at IS NULL AND hosting_managed = ?", true).
-		Where("status <> ? OR hosting_hostname_status <> ?", resellerdomain.DomainStatusDisabled, "deleted").
-		Where("hosting_next_check_at IS NULL OR hosting_next_check_at <= ?", now).
-		Order("hosting_next_check_at ASC, id ASC").Limit(limit).Pluck("id", &ids).Error
-	return ids, err
-}

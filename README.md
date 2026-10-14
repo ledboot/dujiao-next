@@ -343,19 +343,19 @@ reseller:
     token_env: DUJIAO_CLOUDFLARE_API_TOKEN
 ```
 
-Set `DUJIAO_CLOUDFLARE_API_TOKEN` in the **application and worker** process/container environment.
+Set `DUJIAO_CLOUDFLARE_API_TOKEN` in the **application** process/container environment.
 Use a token scoped to this zone with Custom Hostnames read/write permissions (Cloudflare's
 SSL and Certificates permission category); do not use a global API key. It is separate from the
 Tunnel credential. The token value is never stored in domain records or returned to the browser.
-Changing these configuration values requires restarting the app/worker; environment changes in
+Changing these configuration values requires restarting the application; environment changes in
 Compose require recreating the containers. Keep the zone stable while bindings exist: a zone
 mismatch fails closed rather than creating or deleting resources in a different zone.
 
-Enable Redis and `queue.enabled`, and run the worker (`-mode all` or a separate `-mode worker`).
-The worker scans every minute and checks up to 100 due domains; each domain is normally checked
-again after five minutes. API-only mode has manual checks but **no periodic synchronization**.
-Manual checks have a shared 30-second cooldown; database leases prevent concurrent provider
-operations across API and worker processes. New config is disabled by default.
+Domain checks run only on manual actions; there is no periodic background synchronization.
+This integration does not require a worker or Redis queue. Manual checks have a shared
+30-second cooldown; database leases prevent concurrent provider operations across API replicas.
+Approval, disabling, and unbinding still perform their associated synchronization or cleanup.
+Failed checks and cleanup must be retried manually. New config is disabled by default.
 
 ### Domain onboarding and removal
 
@@ -365,17 +365,18 @@ operations across API and worker processes. New config is disabled by default.
    chain and does not support a proxied/flattened customer record or apex-only onboarding.
 3. After the ownership TXT is visible, a check creates or recovers the Cloudflare Custom Hostname.
    Any additional Cloudflare ownership/certificate TXT records appear in the console. Preserve
-   these records; verification continues after activation. Click **Check / retry** to refresh.
+   these records for subsequent manual checks. Click **Check / retry** to refresh.
 4. An administrator approves the binding. Approval can happen before or after DNS verification;
    the domain only becomes usable after the local ownership TXT, CNAME, Cloudflare hostname
    status and certificate status all pass. Technical success never grants administrative approval.
-5. Disabling immediately stops application access and schedules provider deletion. The reseller
+5. Disabling immediately stops application access and attempts provider deletion. The reseller
    can also unbind a custom domain: the local record is retained for retry until remote cleanup
    succeeds, then soft-deleted so it can be submitted again. Reactivating a disabled managed
    domain requires administrator approval and provisioning again. Do not remove verification
    records until unbinding finishes, especially after an interrupted provider request.
 
-Provider outages, missing ownership records and certificate failures revoke verification until a
+Provider outages, missing ownership records and certificate failures detected during a manual check
+revoke verification until a
 successful recheck. Existing domains on a different Cloudflare zone are not silently migrated.
 No request body, provider error body or API credential is exposed in error messages.
 

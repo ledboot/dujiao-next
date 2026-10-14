@@ -23,7 +23,6 @@ import (
 
 type DomainHostingService interface {
 	Sync(context.Context, uint) (*resellerdomain.Domain, error)
-	SyncDue(context.Context) error
 	Enabled() bool
 }
 
