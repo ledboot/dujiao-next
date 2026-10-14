@@ -263,6 +263,12 @@ func (h *PublicHandler) decoratePublicProductForTenant(
 	}
 
 	productCopy := *product
+	if display.Title != nil {
+		productCopy.TitleJSON = display.Title
+	}
+	if len(display.Images) > 0 {
+		productCopy.Images = append([]string(nil), display.Images...)
+	}
 	productCopy.PriceAmount = display.DisplayPrice
 	productCopy.WholesalePrices = nil
 	filteredSKUs := make([]productdomain.ProductSKU, 0, len(product.SKUs))

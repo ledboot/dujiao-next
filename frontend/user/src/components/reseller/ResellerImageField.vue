@@ -62,7 +62,10 @@ const props = defineProps<{
   hint?: string
   wide?: boolean
 }>()
-const emit = defineEmits<{ (e: 'update:modelValue', value: string): void }>()
+const emit = defineEmits<{
+  (e: 'update:modelValue', value: string): void
+  (e: 'uploading', value: boolean): void
+}>()
 
 const { t } = useI18n()
 const fileInput = ref<HTMLInputElement | null>(null)
@@ -90,6 +93,7 @@ const onFileChange = async (e: Event) => {
   input.value = ''
   if (!file) return
   uploading.value = true
+  emit('uploading', true)
   error.value = ''
   try {
     const res = await resellerAPI.uploadImage(file)
@@ -102,6 +106,7 @@ const onFileChange = async (e: Event) => {
     error.value = err?.message || t('personalCenter.reseller.siteConfig.uploadFailed')
   } finally {
     uploading.value = false
+    emit('uploading', false)
   }
 }
 </script>

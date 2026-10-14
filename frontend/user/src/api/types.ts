@@ -309,6 +309,8 @@ export interface ResellerSiteConfigSnapshotData {
 export type ResellerPricingMode = 'inherit' | 'markup_percent' | 'fixed_markup' | 'fixed_price'
 
 export interface ResellerProductSettingData {
+    title?: Record<string, string>
+    images?: string[]
     id?: number
     product_id: number
     sku_id: number
@@ -334,6 +336,7 @@ export interface ResellerProductSettingSKUData {
 }
 
 export interface ResellerProductSettingProductData {
+    images?: string[]
     base_price_amount?: string
     id: number
     slug: string
@@ -349,6 +352,8 @@ export interface ResellerProductSettingDetailData {
 }
 
 export interface ResellerProductSettingPayloadItem {
+    title?: Record<string, string>
+    images?: string[]
     sku_id: number
     is_listed: boolean
     pricing_mode: ResellerPricingMode | string

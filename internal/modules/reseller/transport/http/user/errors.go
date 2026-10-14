@@ -2,6 +2,7 @@ package userhttp
 
 import (
 	"errors"
+	resellercontract "github.com/dujiao-next/internal/modules/reseller/contract"
 
 	productcontract "github.com/dujiao-next/internal/modules/catalog/product/contract"
 
@@ -67,6 +68,8 @@ func isUploadValidationError(err error) bool {
 }
 
 var userProductSettingErrorRules = []mappedError{
+	{target: resellercontract.ErrProductTitleInvalid, code: response.CodeBadRequest, key: "error.reseller_product_title_invalid"},
+	{target: resellermodule.ErrSiteConfigInvalid, code: response.CodeBadRequest, key: "error.reseller_image_invalid"},
 	{target: resellermodule.ErrNotOpened, code: response.CodeBadRequest, key: "error.bad_request"},
 	{target: resellermodule.ErrProfileInactive, code: response.CodeBadRequest, key: "error.forbidden"},
 	{target: productcontract.ErrProductSKUInvalid, code: response.CodeBadRequest, key: "error.order_item_invalid"},

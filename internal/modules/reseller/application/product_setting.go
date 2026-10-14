@@ -2,8 +2,10 @@ package application
 
 import (
 	"errors"
+	"github.com/dujiao-next/internal/shared/jsonmap"
 	"strconv"
 	"strings"
+	"unicode/utf8"
 
 	resellercontract "github.com/dujiao-next/internal/modules/reseller/contract"
 
@@ -27,6 +29,8 @@ func NewProductSettingService(store resellercontract.ProductSettingStore, produc
 }
 
 type ProductSettingInput struct {
+	Title             map[string]string
+	Images            []string
 	SupplyPriceAmount *decimal.Decimal
 	SKUID             uint
 	IsListed          bool
@@ -296,6 +300,8 @@ func (s *ProductSettingService) saveSettings(profile *resellerdomain.Profile, pr
 				return productcontract.ErrProductSKUInvalid
 			}
 			setting.ResellerID = profile.ID
+			setting.UpdateTitle = item.Title != nil
+			setting.UpdateImages = item.Images != nil
 			setting.UpdateSupplyPrice = input.admin && item.SupplyPriceAmount != nil
 			if _, err := store.UpsertSetting(*setting); err != nil {
 				return err
@@ -326,6 +332,34 @@ func mergeProductSettings(existing []resellerdomain.ProductSetting, input Produc
 				break
 			}
 		}
+		if item.Title != nil {
+			if item.SKUID != 0 {
+				return nil, resellercontract.ErrProductTitleInvalid
+			}
+			setting.TitleJSON = jsonmap.JSON{}
+			for lang, raw := range item.Title {
+				value := strings.TrimSpace(raw)
+				if (lang != "zh-CN" && lang != "zh-TW" && lang != "en-US") || utf8.RuneCountInString(value) > 200 {
+					return nil, resellercontract.ErrProductTitleInvalid
+				}
+				if value != "" {
+					setting.TitleJSON[lang] = value
+				}
+			}
+		}
+		if item.Images != nil {
+			if item.SKUID != 0 || len(item.Images) > 10 {
+				return nil, newResellerFieldError("image")
+			}
+			setting.Images = make([]string, 0, len(item.Images))
+			for _, raw := range item.Images {
+				value, err := validateHTTPOrUploadPath(raw)
+				if err != nil || value == "" || len(raw) > 500 {
+					return nil, newResellerFieldError("image")
+				}
+				setting.Images = append(setting.Images, value)
+			}
+		}
 		if input.admin && item.SupplyPriceAmount != nil {
 			value := *item.SupplyPriceAmount
 			if value.IsNegative() || (value.IsPositive() && value.Round(2).IsZero()) {
@@ -343,6 +377,8 @@ func mergeProductSettings(existing []resellerdomain.ProductSetting, input Produc
 }
 
 func copySupplySetting(setting, existing resellerdomain.ProductSetting) resellerdomain.ProductSetting {
+	setting.TitleJSON = existing.TitleJSON
+	setting.Images = existing.Images
 	setting.ID = existing.ID
 	setting.ProductID = existing.ProductID
 	setting.ResellerID = existing.ResellerID

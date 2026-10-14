@@ -9,14 +9,16 @@ import (
 )
 
 type ProductSettingRequest struct {
-	SKUID             uint    `json:"sku_id"`
-	IsListed          bool    `json:"is_listed"`
-	PricingMode       string  `json:"pricing_mode"`
-	MarkupPercent     string  `json:"markup_percent"`
-	FixedMarkupAmount string  `json:"fixed_markup_amount"`
-	FixedPriceAmount  string  `json:"fixed_price_amount"`
-	SupplyPriceAmount *string `json:"supply_price_amount"`
-	SortOrder         int     `json:"sort_order"`
+	Title             map[string]string `json:"title"`
+	Images            []string          `json:"images"`
+	SKUID             uint              `json:"sku_id"`
+	IsListed          bool              `json:"is_listed"`
+	PricingMode       string            `json:"pricing_mode"`
+	MarkupPercent     string            `json:"markup_percent"`
+	FixedMarkupAmount string            `json:"fixed_markup_amount"`
+	FixedPriceAmount  string            `json:"fixed_price_amount"`
+	SupplyPriceAmount *string           `json:"supply_price_amount"`
+	SortOrder         int               `json:"sort_order"`
 }
 
 type ProductSettingsUpdateRequest struct {
@@ -49,6 +51,8 @@ func (req ProductSettingsUpdateRequest) ToInput() (resellerapplication.ProductSe
 			supply = &value
 		}
 		input.Settings = append(input.Settings, resellerapplication.ProductSettingInput{
+			Title:             item.Title,
+			Images:            item.Images,
 			SupplyPriceAmount: supply,
 			SKUID:             item.SKUID,
 			IsListed:          item.IsListed,

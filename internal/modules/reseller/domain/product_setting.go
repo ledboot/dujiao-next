@@ -3,22 +3,29 @@ package domain
 import (
 	"time"
 
+	"github.com/dujiao-next/internal/shared/jsonmap"
+	"github.com/dujiao-next/internal/shared/jsonslice"
+
 	productdomain "github.com/dujiao-next/internal/modules/catalog/product/domain"
 	"github.com/dujiao-next/internal/shared/money"
 )
 
 // ProductSetting 分销商商品配置。
 type ProductSetting struct {
-	ID                uint         `gorm:"primarykey" json:"id"`
-	ResellerID        uint         `gorm:"not null;index;uniqueIndex:idx_reseller_product_setting_scope,priority:1,where:deleted_at IS NULL" json:"reseller_id"`
-	ProductID         uint         `gorm:"not null;index;uniqueIndex:idx_reseller_product_setting_scope,priority:2,where:deleted_at IS NULL" json:"product_id"`
-	SKUID             uint         `gorm:"column:sku_id;not null;default:0;index;uniqueIndex:idx_reseller_product_setting_scope,priority:3,where:deleted_at IS NULL" json:"sku_id"`
-	IsListed          bool         `gorm:"not null;default:true" json:"is_listed"`
-	PricingMode       string       `gorm:"type:varchar(32);not null;default:'inherit'" json:"pricing_mode"`
-	MarkupPercent     money.Amount `gorm:"type:decimal(10,2);not null;default:0" json:"markup_percent"`
-	FixedMarkupAmount money.Amount `gorm:"type:decimal(20,2);not null;default:0" json:"fixed_markup_amount"`
-	FixedPriceAmount  money.Amount `gorm:"type:decimal(20,2);not null;default:0" json:"fixed_price_amount"`
-	SupplyPriceAmount money.Amount `gorm:"type:decimal(20,2);not null;default:0" json:"supply_price_amount"`
+	TitleJSON         jsonmap.JSON      `gorm:"type:json" json:"title"`
+	UpdateTitle       bool              `gorm:"-" json:"-"`
+	Images            jsonslice.Strings `gorm:"type:json" json:"images"`
+	UpdateImages      bool              `gorm:"-" json:"-"`
+	ID                uint              `gorm:"primarykey" json:"id"`
+	ResellerID        uint              `gorm:"not null;index;uniqueIndex:idx_reseller_product_setting_scope,priority:1,where:deleted_at IS NULL" json:"reseller_id"`
+	ProductID         uint              `gorm:"not null;index;uniqueIndex:idx_reseller_product_setting_scope,priority:2,where:deleted_at IS NULL" json:"product_id"`
+	SKUID             uint              `gorm:"column:sku_id;not null;default:0;index;uniqueIndex:idx_reseller_product_setting_scope,priority:3,where:deleted_at IS NULL" json:"sku_id"`
+	IsListed          bool              `gorm:"not null;default:true" json:"is_listed"`
+	PricingMode       string            `gorm:"type:varchar(32);not null;default:'inherit'" json:"pricing_mode"`
+	MarkupPercent     money.Amount      `gorm:"type:decimal(10,2);not null;default:0" json:"markup_percent"`
+	FixedMarkupAmount money.Amount      `gorm:"type:decimal(20,2);not null;default:0" json:"fixed_markup_amount"`
+	FixedPriceAmount  money.Amount      `gorm:"type:decimal(20,2);not null;default:0" json:"fixed_price_amount"`
+	SupplyPriceAmount money.Amount      `gorm:"type:decimal(20,2);not null;default:0" json:"supply_price_amount"`
 	// UpdateSupplyPrice is set only by the administrator application path.
 	UpdateSupplyPrice bool       `gorm:"-" json:"-"`
 	SortOrder         int        `gorm:"not null;default:0;index" json:"sort_order"`

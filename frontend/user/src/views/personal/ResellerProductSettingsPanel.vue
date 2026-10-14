@@ -49,7 +49,7 @@
         <div class="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
           <div class="min-w-0">
             <div class="flex flex-wrap items-center gap-2">
-              <div class="truncate font-bold text-foreground">{{ getProductTitle(row.product.title) }}</div>
+              <div class="truncate font-bold text-foreground">{{ getProductTitle({ ...row.product.title, ...row.product_setting?.title }) }}</div>
               <Badge :variant="countListedSkus(row) > 0 ? 'success' : 'neutral'" size="xs">
                 {{ countListedSkus(row) > 0 ? t('personalCenter.reseller.productSettings.displayed') : t('personalCenter.reseller.productSettings.hidden') }}
               </Badge>
@@ -59,7 +59,7 @@
           <Button
             type="button"
             size="sm"
-            :disabled="detailLoading || saving"
+            :disabled="detailLoading || saving || imageUploads > 0"
             @click="openEditor(row.product.id)"
           >
             {{ t('personalCenter.reseller.productSettings.edit') }}
@@ -93,13 +93,33 @@
                 <Badge variant="accent" size="xs">{{ t('personalCenter.reseller.productSettings.effectivePrice') }} {{ summarizeProductEffectivePrice(editing) }}</Badge>
               </div>
             </div>
-            <Button type="button" variant="outline" size="sm" @click="closeEditor">
+            <Button type="button" variant="outline" size="sm" :disabled="saving || imageUploads > 0" @click="closeEditor">
               {{ t('common.cancel') }}
             </Button>
           </div>
 
           <div v-if="detailLoading" class="h-24 animate-pulse rounded-xl border bg-muted"></div>
           <div v-else class="space-y-4">
+            <fieldset class="space-y-3" :disabled="saving">
+              <p class="text-sm font-medium">{{ t('personalCenter.reseller.productSettings.customTitle') }}</p>
+              <p class="text-xs text-muted-foreground">{{ t('personalCenter.reseller.productSettings.titleHint') }}</p>
+              <label v-for="lang in resellerLocales" :key="lang" class="block space-y-1">
+                <span class="text-xs text-muted-foreground">{{ t(`personalCenter.reseller.productSettings.titleLocales.${lang}`) }}</span>
+                <Input v-model="productTitle[lang]" :maxlength="200" :placeholder="editing.product.title[lang] || getProductTitle(editing.product.title)" />
+              </label>
+            </fieldset>
+            <fieldset class="space-y-3" :disabled="saving || imageUploads > 0">
+              <p class="text-sm font-medium">{{ t('personalCenter.reseller.productSettings.images') }}</p>
+              <p class="text-xs text-muted-foreground">{{ t('personalCenter.reseller.productSettings.imagesHint') }}</p>
+              <ResellerImageField
+                v-for="(_, index) in productImages"
+                :key="index"
+                @uploading="trackImageUpload"
+                :model-value="productImages[index] || ''"
+                @update:model-value="value => productImages.splice(index, 1, ...(value ? [value] : []))"
+              />
+              <ResellerImageField v-if="productImages.length < 10" model-value="" @uploading="trackImageUpload" @update:model-value="value => value && productImages.push(value)" />
+            </fieldset>
             <ResellerProductRuleEditor
               v-model="productForm"
               :label="t('personalCenter.reseller.productSettings.productLevelRule')"
@@ -120,10 +140,10 @@
               />
             </div>
             <div class="flex flex-wrap gap-3">
-              <Button type="button" :disabled="saving" @click="saveEditing">
+              <Button type="button" :disabled="saving || imageUploads > 0" @click="saveEditing">
                 {{ saving ? t('personalCenter.reseller.productSettings.saving') : t('personalCenter.reseller.productSettings.save') }}
               </Button>
-              <Button type="button" variant="outline" :disabled="saving" @click="resetProductRule">
+              <Button type="button" variant="outline" :disabled="saving || imageUploads > 0" @click="resetProductRule">
                 {{ t('personalCenter.reseller.productSettings.resetProductRule') }}
               </Button>
             </div>
@@ -165,7 +185,7 @@ import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { type PageAlert } from '../../utils/alerts'
-import { getLocalizedText } from '../../utils/resellerSiteConfig'
+import { getLocalizedText, normalizeLocalizedTextForForm, resellerLocales } from '../../utils/resellerSiteConfig'
 import {
   buildResellerProductSettingPayload,
   countActiveSkus,
@@ -177,6 +197,7 @@ import {
   summarizeProductEffectivePrice,
 } from '../../utils/resellerProductSettings'
 import { formatSkuSpecValues } from '../../utils/sku'
+import ResellerImageField from '../../components/reseller/ResellerImageField.vue'
 import ResellerProductRuleEditor from './ResellerProductRuleEditor.vue'
 
 withDefaults(defineProps<{ embedded?: boolean }>(), { embedded: false })
@@ -190,6 +211,10 @@ const rows = ref<ResellerProductSettingDetailData[]>([])
 const editing = ref<ResellerProductSettingDetailData | null>(null)
 const panelAlert = ref<PageAlert | null>(null)
 const productForm = ref<ResellerProductSettingPayloadItem>(normalizeResellerProductSettingForm({ sku_id: 0 }))
+const productTitle = ref(normalizeLocalizedTextForForm())
+const productImages = ref<string[]>([])
+const imageUploads = ref(0)
+const trackImageUpload = (active: boolean) => { imageUploads.value += active ? 1 : -1 }
 const skuForms = reactive<Record<number, ResellerProductSettingPayloadItem>>({})
 const pagination = reactive({ page: 1, page_size: 20, total: 0, total_page: 1 })
 
@@ -242,6 +267,8 @@ const seedPreviewFromDetail = (detail: ResellerProductSettingDetailData) => {
 }
 
 const applyDetailToEditor = (detail: ResellerProductSettingDetailData) => {
+  productTitle.value = normalizeLocalizedTextForForm(detail.product_setting?.title)
+  productImages.value = [...(detail.product_setting?.images || [])]
   productForm.value = formFromSetting(detail.product_setting, 0)
   clearSkuForms()
   detail.skus.forEach((sku) => {
@@ -395,7 +422,11 @@ const saveEditing = async () => {
       productForm.value,
       ...editing.value.skus.map((sku) => skuFormFor(sku.id)),
     ])
-    const response = await resellerAPI.updateProductSettings(editing.value.product.id, payload)
+    const response = await resellerAPI.updateProductSettings(editing.value.product.id, {
+      settings: payload.settings.map(item => item.sku_id === 0
+        ? { ...item, title: { ...productTitle.value }, images: [...productImages.value] }
+        : item),
+    })
     const detail = unwrapData<ResellerProductSettingDetailData>(response)
     if (detail) {
       applyDetailToEditor(detail)

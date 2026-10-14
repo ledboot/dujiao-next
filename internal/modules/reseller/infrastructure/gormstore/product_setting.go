@@ -155,6 +155,12 @@ func (r *Store) UpsertSetting(setting resellerdomain.ProductSetting) (*resellerd
 	if setting.UpdateSupplyPrice {
 		existing.SupplyPriceAmount = setting.SupplyPriceAmount
 	}
+	if setting.UpdateTitle {
+		existing.TitleJSON = setting.TitleJSON
+	}
+	if setting.UpdateImages {
+		existing.Images = setting.Images
+	}
 	existing.IsListed = setting.IsListed
 	existing.PricingMode = setting.PricingMode
 	existing.MarkupPercent = setting.MarkupPercent
@@ -163,9 +169,19 @@ func (r *Store) UpsertSetting(setting resellerdomain.ProductSetting) (*resellerd
 	existing.SortOrder = setting.SortOrder
 	existing.DeletedAt = nil
 	update := r.db.Model(&resellerdomain.ProductSetting{}).Where("id = ?", existing.ID).Select("*")
+	var omitted []string
+	if !setting.UpdateTitle {
+		omitted = append(omitted, "title_json")
+	}
+	if !setting.UpdateImages {
+		omitted = append(omitted, "images")
+	}
 	if !setting.UpdateSupplyPrice {
 		// Do not overwrite an administrator's concurrent supply-price change.
-		update = update.Omit("supply_price_amount")
+		omitted = append(omitted, "supply_price_amount")
+	}
+	if len(omitted) > 0 {
+		update = update.Omit(omitted...)
 	}
 	if err := update.Updates(&existing).Error; err != nil {
 		return nil, err
@@ -180,13 +196,13 @@ func (r *Store) DeleteSetting(resellerID, productID, skuID uint) error {
 	now := time.Now()
 	if err := r.db.Model(&resellerdomain.ProductSetting{}).
 		Where("reseller_id = ? AND product_id = ? AND sku_id = ? AND deleted_at IS NULL AND supply_price_amount > 0", resellerID, productID, skuID).
-		Updates(map[string]interface{}{"is_listed": true, "pricing_mode": "inherit", "markup_percent": 0, "fixed_markup_amount": 0, "fixed_price_amount": 0, "sort_order": 0, "updated_at": now}).Error; err != nil {
+		Updates(map[string]interface{}{"is_listed": true, "pricing_mode": "inherit", "markup_percent": 0, "fixed_markup_amount": 0, "fixed_price_amount": 0, "sort_order": 0, "images": "[]", "title_json": "{}", "updated_at": now}).Error; err != nil {
 		return err
 	}
 	return r.db.Model(&resellerdomain.ProductSetting{}).
 		Where("reseller_id = ? AND product_id = ? AND sku_id = ? AND deleted_at IS NULL", resellerID, productID, skuID).
 		Where("supply_price_amount = 0").
-		Updates(map[string]interface{}{"deleted_at": &now, "updated_at": now}).Error
+		Updates(map[string]interface{}{"deleted_at": &now, "images": "[]", "title_json": "{}", "updated_at": now}).Error
 }
 
 func (r *Store) ListAdminSettings(filter resellercontract.ProductSettingAdminListFilter) ([]resellerdomain.ProductSetting, int64, error) {

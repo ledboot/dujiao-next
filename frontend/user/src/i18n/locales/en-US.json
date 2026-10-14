@@ -804,6 +804,11 @@
         }
       },
       "productSettings": {
+        "customTitle": "Product name",
+        "titleHint": "Leave a translation blank to use the main-site name for that language. Only affects your store. Up to 200 characters per language; resetting the product rule restores the main-site name.",
+        "titleLocales": {"zh-CN": "Simplified Chinese", "zh-TW": "Traditional Chinese", "en-US": "English"},
+        "images": "Product images",
+        "imagesHint": "Upload up to 10 images; the first is the cover. Leave empty or reset the product rule to use main-site images. Only affects your store.",
         "title": "Product pricing",
         "subtitle": "Choose products for the reseller storefront and configure product or SKU pricing rules.",
         "searchPlaceholder": "Search product name, slug, or product ID",

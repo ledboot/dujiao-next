@@ -657,7 +657,7 @@ func TestResellerPricingResolverDisplayHidesInvalidSKUWithoutFailing(t *testing.
 func TestResellerSupplyPriceDrivesDisplayAndProfitSnapshot(t *testing.T) {
 	for _, skuOverride := range []bool{false, true} {
 		t.Run(fmt.Sprintf("sku_override_%v", skuOverride), func(t *testing.T) {
-			setting := resellerdomain.ProductSetting{ProductID: 1, IsListed: true, PricingMode: resellerdomain.PricingModeFixedPrice, FixedPriceAmount: money.FromDecimal(decimal.NewFromInt(120)), SupplyPriceAmount: money.FromDecimal(decimal.NewFromInt(115))}
+			setting := resellerdomain.ProductSetting{TitleJSON: jsonmap.JSON{"zh-CN": "分销商品"}, ProductID: 1, IsListed: true, PricingMode: resellerdomain.PricingModeFixedPrice, FixedPriceAmount: money.FromDecimal(decimal.NewFromInt(120)), SupplyPriceAmount: money.FromDecimal(decimal.NewFromInt(115))}
 			if skuOverride {
 				setting.SKUID = 2
 			}
@@ -674,6 +674,12 @@ func TestResellerSupplyPriceDrivesDisplayAndProfitSnapshot(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
+			if !skuOverride && result.Plans[0].Item.TitleJSON["zh-CN"] != "分销商品" {
+				t.Fatal("order title override missing")
+			}
+			if result.Plans[0].Product.TitleJSON["zh-CN"] != "p1" {
+				t.Fatal("catalog title mutated")
+			}
 			if ctx.BaseAmount.StringFixed(2) != "230.00" || ctx.ResellerAmount.StringFixed(2) != "240.00" || ctx.ProfitAmount.StringFixed(2) != "10.00" || ctx.EffectiveProfit.StringFixed(2) != "10.00" {
 				t.Fatalf("wrong snapshot: %+v", ctx)
 			}
@@ -687,6 +693,9 @@ func TestResellerSupplyPriceDrivesDisplayAndProfitSnapshot(t *testing.T) {
 				t.Fatal(err)
 			}
 			display, err := resolver.ResolveDisplayPrices(testResellerTenant(), &product, batch)
+			if !skuOverride && display != nil && display.Title["zh-CN"] != "分销商品" {
+				t.Fatal("display title override missing")
+			}
 			if err != nil || !display.Visible || display.DisplayPrice.StringFixed(2) != "120.00" {
 				t.Fatalf("display mismatch: %+v %v", display, err)
 			}

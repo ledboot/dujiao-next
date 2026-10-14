@@ -2,6 +2,7 @@ package producthttp
 
 import (
 	"errors"
+	"github.com/dujiao-next/internal/shared/jsonmap"
 	"testing"
 
 	productcontract "github.com/dujiao-next/internal/modules/catalog/product/contract"
@@ -84,6 +85,8 @@ func TestDecoratePublicProductForTenantUsesResellerPricesAndHidesMainDiscounts(t
 		},
 	}
 	h := &PublicHandler{pricer: stubResellerDisplayPricer{result: &reseller.DisplayPriceResult{
+		Title:        jsonmap.JSON{"zh-CN": "分销商品"},
+		Images:       []string{"/uploads/reseller.png"},
 		Visible:      true,
 		ProductID:    1,
 		DisplaySKUID: 11,
@@ -98,6 +101,15 @@ func TestDecoratePublicProductForTenantUsesResellerPricesAndHidesMainDiscounts(t
 	item, err := h.decoratePublicProductForTenant(product, nil, tenant, &reseller.DisplayPricingBatch{})
 	if err != nil {
 		t.Fatalf("decoratePublicProductForTenant failed: %v", err)
+	}
+	if item.Title["zh-CN"] != "分销商品" {
+		t.Fatalf("title override missing: %v", item.Title)
+	}
+	if len(item.Images) != 1 || item.Images[0] != "/uploads/reseller.png" {
+		t.Fatalf("override missing: %v", item.Images)
+	}
+	if len(product.Images) != 0 {
+		t.Fatal("source product was mutated")
 	}
 	if !item.PriceAmount.Decimal.Equal(decimal.NewFromInt(130)) {
 		t.Fatalf("expected reseller product price 130, got %s", item.PriceAmount.String())

@@ -22,7 +22,8 @@ var (
 	// ErrDomainMainHostNotAllowed 表示域名命中主站 Host 保留区。
 	ErrDomainMainHostNotAllowed = errors.New("reseller domain main host not allowed")
 	// ErrSiteConfigInvalid 表示站点配置校验失败。
-	ErrSiteConfigInvalid = errors.New("reseller site config invalid")
+	ErrSiteConfigInvalid   = errors.New("reseller site config invalid")
+	ErrProductTitleInvalid = errors.New("reseller product title invalid")
 	// ErrSiteConfigNotFound 表示站点配置不存在。
 	ErrSiteConfigNotFound = errors.New("reseller site config not found")
 	// ErrPriceBelowBase 表示分销价低于底价或成本价。

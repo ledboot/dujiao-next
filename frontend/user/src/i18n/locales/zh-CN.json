@@ -757,6 +757,11 @@
         }
       },
       "productSettings": {
+        "customTitle": "商品名称",
+        "titleHint": "留空时使用对应语言的主站名称，仅影响自己的店铺。每种语言最多 200 个字符；重置商品规则后恢复主站名称。",
+        "titleLocales": {"zh-CN": "简体中文", "zh-TW": "繁体中文", "en-US": "英文"},
+        "images": "商品图片",
+        "imagesHint": "最多上传 10 张，第一张为封面。留空或重置商品规则后使用主站图片，仅影响自己的店铺。",
         "title": "商品售价配置",
         "subtitle": "选择分销站可售商品，并设置商品或 SKU 的售价规则。",
         "searchPlaceholder": "搜索商品名称、Slug 或商品 ID",

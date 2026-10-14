@@ -78,6 +78,9 @@ func (r *ResellerPricingResolver) ApplyToOrderBuildResult(tenant resellercontrac
 			return nil, ErrResellerProductNotListed
 		}
 
+		if productSetting != nil {
+			plan.Item.TitleJSON = resellercontract.ResolveProductTitle(plan.Product.TitleJSON, productSetting.TitleJSON)
+		}
 		baseUnit := resellerapplication.ResolveSupplyPrice(plan.SKU.PriceAmount.Decimal, productSetting, skuSetting, plan.SKU.DefaultSupplyPriceAmount.Decimal, plan.Product.DefaultSupplyPriceAmount.Decimal)
 		if err := resellerapplication.ValidateSupplyPrice(plan.SKU.CostPriceAmount.Decimal, baseUnit, productSetting, skuSetting, plan.SKU.DefaultSupplyPriceAmount.Decimal, plan.Product.DefaultSupplyPriceAmount.Decimal); err != nil {
 			return nil, err
@@ -200,6 +203,10 @@ func (r *ResellerPricingResolver) ResolveDisplayPrices(tenant resellercontract.T
 		ProductID:    product.ID,
 		SKUPrices:    map[uint]money.Amount{},
 		HiddenSKUIDs: map[uint]bool{},
+	}
+	if productSetting != nil {
+		result.Title = resellercontract.ResolveProductTitle(product.TitleJSON, productSetting.TitleJSON)
+		result.Images = append([]string(nil), productSetting.Images...)
 	}
 	for _, sku := range product.SKUs {
 		if !sku.IsActive {

@@ -2,6 +2,8 @@ package integrationtest
 
 import (
 	"fmt"
+	resellermodule "github.com/dujiao-next/internal/modules/reseller/application"
+	"strings"
 	"testing"
 	"time"
 
@@ -350,5 +352,132 @@ func TestResellerSupplyPriceAdminOwnershipAndFallback(t *testing.T) {
 		if _, err := svc.SaveAdminProductSettings(profile.ID, product.ID, payload); err == nil {
 			t.Fatalf("accepted invalid supply price %s", invalid)
 		}
+	}
+}
+
+func TestResellerProductImagesPersistAndRemainIsolated(t *testing.T) {
+	db := openResellerProductSettingServiceTestDB(t)
+	sqlDB, _ := db.DB()
+	sqlDB.SetMaxOpenConns(1)
+	user, _, product, skus := seedResellerProductSettingServiceData(t, db)
+	otherUser := userdomain.User{Email: "other-images@example.test", PasswordHash: "hash", Status: constants.UserStatusActive}
+	if err := db.Create(&otherUser).Error; err != nil {
+		t.Fatal(err)
+	}
+	otherProfile := resellerdomain.Profile{UserID: otherUser.ID, Status: resellerdomain.ProfileStatusActive}
+	if err := db.Create(&otherProfile).Error; err != nil {
+		t.Fatal(err)
+	}
+	svc := newResellerProductSettingServiceForTest(db)
+	save := func(images []string) *resellermodule.ProductSettingDetail {
+		t.Helper()
+		detail, err := svc.SaveUserProductSettings(user.ID, product.ID, ResellerProductSettingSaveInput{Settings: []ResellerProductSettingInput{{IsListed: true, PricingMode: "inherit", Images: images}}})
+		if err != nil {
+			t.Fatal(err)
+		}
+		return detail
+	}
+	images := []string{"/uploads/reseller-cover.png", "https://example.com/detail.png"}
+	detail := save(images)
+	if len(detail.Settings[0].Images) != 2 {
+		t.Fatalf("images not persisted: %+v", detail.Settings)
+	}
+	detail = save(nil)
+	if len(detail.Settings[0].Images) != 2 {
+		t.Fatal("omitted images erased override")
+	}
+	other, err := svc.GetUserProductSetting(otherUser.ID, product.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(other.Settings) != 0 {
+		t.Fatal("images leaked to another reseller")
+	}
+	var main productdomain.Product
+	if err := db.First(&main, product.ID).Error; err != nil {
+		t.Fatal(err)
+	}
+	if len(main.Images) != len(product.Images) {
+		t.Fatal("main product images changed")
+	}
+	for _, input := range []ResellerProductSettingInput{
+		{IsListed: true, Images: []string{"javascript:alert(1)"}},
+		{IsListed: true, SKUID: skus[0].ID, Images: images},
+		{IsListed: true, Images: make([]string, 11)},
+	} {
+		if _, err := svc.SaveUserProductSettings(user.ID, product.ID, ResellerProductSettingSaveInput{Settings: []ResellerProductSettingInput{input}}); err == nil {
+			t.Fatal("invalid image input accepted")
+		}
+	}
+	detail = save([]string{})
+	if len(detail.Settings[0].Images) != 0 {
+		t.Fatal("empty images did not restore inheritance")
+	}
+	save(images)
+	if err := svc.ResetUserProductSetting(user.ID, product.ID, 0); err != nil {
+		t.Fatal(err)
+	}
+	detail, err = svc.GetUserProductSetting(user.ID, product.ID)
+	if err != nil || len(detail.Settings) != 0 {
+		t.Fatalf("reset failed: %+v %v", detail, err)
+	}
+	detail = save(nil)
+	if len(detail.Settings[0].Images) != 0 {
+		t.Fatal("reset images returned after saving price rule")
+	}
+}
+
+func TestResellerProductTitleOverrides(t *testing.T) {
+	db := openResellerProductSettingServiceTestDB(t)
+	sqlDB, _ := db.DB()
+	sqlDB.SetMaxOpenConns(1)
+	user, _, product, skus := seedResellerProductSettingServiceData(t, db)
+	svc := newResellerProductSettingServiceForTest(db)
+	save := func(title map[string]string) *resellermodule.ProductSettingDetail {
+		t.Helper()
+		detail, err := svc.SaveUserProductSettings(user.ID, product.ID, ResellerProductSettingSaveInput{Settings: []ResellerProductSettingInput{{IsListed: true, PricingMode: "inherit", Title: title}}})
+		if err != nil {
+			t.Fatal(err)
+		}
+		return detail
+	}
+	detail := save(map[string]string{"zh-CN": " 自定义商品 ", "en-US": ""})
+	if detail.Settings[0].TitleJSON["zh-CN"] != "自定义商品" {
+		t.Fatalf("title not saved: %+v", detail.Settings)
+	}
+	if _, exists := detail.Settings[0].TitleJSON["en-US"]; exists {
+		t.Fatal("blank translation must inherit")
+	}
+	detail = save(nil)
+	if detail.Settings[0].TitleJSON["zh-CN"] != "自定义商品" {
+		t.Fatal("omitted title erased override")
+	}
+	var main productdomain.Product
+	if err := db.First(&main, product.ID).Error; err != nil {
+		t.Fatal(err)
+	}
+	if main.TitleJSON["zh-CN"] != product.TitleJSON["zh-CN"] {
+		t.Fatal("main title changed")
+	}
+	for _, input := range []ResellerProductSettingInput{
+		{IsListed: true, Title: map[string]string{"fr": "invalid"}},
+		{IsListed: true, Title: map[string]string{"zh-CN": strings.Repeat("字", 201)}},
+		{IsListed: true, SKUID: skus[0].ID, Title: map[string]string{"zh-CN": "invalid"}},
+	} {
+		if _, err := svc.SaveUserProductSettings(user.ID, product.ID, ResellerProductSettingSaveInput{Settings: []ResellerProductSettingInput{input}}); err == nil {
+			t.Fatal("invalid title accepted")
+		}
+	}
+	detail = save(map[string]string{})
+	if len(detail.Settings[0].TitleJSON) != 0 {
+		t.Fatal("empty title did not restore inheritance")
+	}
+	save(map[string]string{"zh-CN": "override"})
+	if err := svc.ResetUserProductSetting(user.ID, product.ID, 0); err != nil {
+		t.Fatal(err)
+	}
+	detail = save(nil)
+	if len(detail.Settings[0].TitleJSON) != 0 {
+		t.Fatal("reset title returned after saving rule")
 	}
 }

@@ -54,6 +54,8 @@ type OrderPricingItem struct {
 
 // DisplayPriceResult 分销站商品展示价结果。
 type DisplayPriceResult struct {
+	Title        jsonmap.JSON
+	Images       []string
 	Visible      bool
 	ProductID    uint
 	DisplaySKUID uint
@@ -225,4 +227,18 @@ func SnapshotDomain(tenant TenantContext) string {
 		return NormalizeHost(host)
 	}
 	return NormalizeHost(tenant.Host)
+}
+
+// ResolveProductTitle overlays non-empty reseller translations without mutating the catalog title.
+func ResolveProductTitle(main, override jsonmap.JSON) jsonmap.JSON {
+	title := make(jsonmap.JSON, len(main)+len(override))
+	for lang, value := range main {
+		title[lang] = value
+	}
+	for lang, value := range override {
+		if text, ok := value.(string); ok && strings.TrimSpace(text) != "" {
+			title[lang] = text
+		}
+	}
+	return title
 }

@@ -144,22 +144,25 @@ type AdminResellerSiteConfigResp struct {
 }
 
 type ResellerProductSettingResp struct {
-	SupplyPriceAmount    string     `json:"supply_price_amount"`
-	ID                   uint       `json:"id"`
-	ProductID            uint       `json:"product_id"`
-	SKUID                uint       `json:"sku_id"`
-	IsListed             bool       `json:"is_listed"`
-	PricingMode          string     `json:"pricing_mode"`
-	MarkupPercent        string     `json:"markup_percent"`
-	FixedMarkupAmount    string     `json:"fixed_markup_amount"`
-	FixedPriceAmount     string     `json:"fixed_price_amount"`
-	EffectivePriceAmount string     `json:"effective_price_amount,omitempty"`
-	RuleSource           string     `json:"rule_source,omitempty"`
-	SortOrder            int        `json:"sort_order"`
-	UpdatedAt            *time.Time `json:"updated_at,omitempty"`
+	Title                jsonmap.JSON `json:"title"`
+	Images               []string     `json:"images"`
+	SupplyPriceAmount    string       `json:"supply_price_amount"`
+	ID                   uint         `json:"id"`
+	ProductID            uint         `json:"product_id"`
+	SKUID                uint         `json:"sku_id"`
+	IsListed             bool         `json:"is_listed"`
+	PricingMode          string       `json:"pricing_mode"`
+	MarkupPercent        string       `json:"markup_percent"`
+	FixedMarkupAmount    string       `json:"fixed_markup_amount"`
+	FixedPriceAmount     string       `json:"fixed_price_amount"`
+	EffectivePriceAmount string       `json:"effective_price_amount,omitempty"`
+	RuleSource           string       `json:"rule_source,omitempty"`
+	SortOrder            int          `json:"sort_order"`
+	UpdatedAt            *time.Time   `json:"updated_at,omitempty"`
 }
 
 type ResellerProductSettingProductResp struct {
+	Images          []string     `json:"images"`
 	BasePriceAmount string       `json:"base_price_amount"`
 	ID              uint         `json:"id"`
 	Slug            string       `json:"slug"`
@@ -392,6 +395,7 @@ func NewResellerProductSettingDetailResp(input ResellerProductSettingDTOInput) R
 	productSetting := findResellerProductSetting(input.Settings, 0)
 	resp := ResellerProductSettingDetailResp{
 		Product: ResellerProductSettingProductResp{
+			Images:          input.Product.Images,
 			BasePriceAmount: resellerapplication.ResolveSupplyPrice(input.Product.PriceAmount.Decimal, productSetting, nil, input.Product.DefaultSupplyPriceAmount.Decimal).StringFixed(2),
 			ID:              input.Product.ID,
 			Slug:            input.Product.Slug,
@@ -474,6 +478,8 @@ func NewResellerProductSettingPreviewResp(items []ResellerProductSettingPreviewI
 func newResellerProductSettingResp(setting resellerdomain.ProductSetting, effectivePrice string, ruleSource string) *ResellerProductSettingResp {
 	updatedAt := setting.UpdatedAt
 	return &ResellerProductSettingResp{
+		Title:                setting.TitleJSON,
+		Images:               setting.Images,
 		SupplyPriceAmount:    setting.SupplyPriceAmount.String(),
 		ID:                   setting.ID,
 		ProductID:            setting.ProductID,
