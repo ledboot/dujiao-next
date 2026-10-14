@@ -24,6 +24,8 @@ import (
 	notificationsmtp "github.com/dujiao-next/internal/modules/notification/infrastructure/smtp"
 	orderapp "github.com/dujiao-next/internal/modules/order/application"
 	reseller "github.com/dujiao-next/internal/modules/reseller/application"
+	"github.com/dujiao-next/internal/modules/reseller/application/domainhosting"
+	resellercloudflare "github.com/dujiao-next/internal/modules/reseller/infrastructure/cloudflare"
 	settingsapp "github.com/dujiao-next/internal/modules/settings/application"
 	settingsmessaging "github.com/dujiao-next/internal/modules/settings/schema/messaging"
 	settingssecurity "github.com/dujiao-next/internal/modules/settings/schema/security"
@@ -51,6 +53,7 @@ func (c *Container) initPolicyAndSettingServices() {
 	c.ResellerDomainResolver = reseller.NewDomainResolver(c.ResellerStore, c.Config.Reseller)
 	c.ResellerPricingResolver = orderapp.NewResellerPricingResolver(c.ResellerStore)
 	c.ResellerManagementService = reseller.NewManagementService(c.ResellerStore, c.Config.Reseller)
+	c.ResellerManagementService.Hosting = domainhosting.New(c.ResellerStore, resellercloudflare.New(c.Config.Reseller.Cloudflare), c.Config.Reseller.Cloudflare)
 	c.ResellerSiteConfigService = reseller.NewSiteConfigService(c.ResellerStore)
 	c.ResellerProductSettingService = reseller.NewProductSettingService(c.ResellerStore, c.ProductRepo)
 	c.ResellerAccountingQuery = reseller.NewAccountingQueryService(c.ResellerStore)

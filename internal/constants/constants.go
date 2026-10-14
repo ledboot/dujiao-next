@@ -389,6 +389,7 @@ const (
 	TaskAffiliateConfirmCommissions = "affiliate:confirm_commissions"
 	TaskAffiliateOrderPaid          = "affiliate:order_paid"
 	TaskResellerConfirmLedger       = "reseller:confirm_ledger"
+	TaskResellerDomainSync          = "reseller:domain_sync"
 	TaskProcurementSubmit           = "procurement:submit"
 	TaskProcurementPollStatus       = "procurement:poll_status"
 	TaskProcurementSyncAccepted     = "procurement:sync_accepted"

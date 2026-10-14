@@ -292,3 +292,97 @@ gateways and the like) outside it.
 ## Online Documentation
 
 - https://dujiao-next.com
+
+## Reseller custom domains: Cloudflare for SaaS + Tunnel
+
+This optional integration uses one dedicated Tunnel for all reseller hostnames. New domains do
+not require new 1Panel/OpenResty websites. Existing manually managed domains remain unchanged;
+the integration applies to new submissions after enabling it. To migrate an existing custom domain,
+unbind it and submit it again (plan for downtime). System-assigned subdomains keep their existing
+DNS/TLS setup.
+
+### One-time infrastructure setup
+
+1. Enable Cloudflare for SaaS on the platform zone. Create a **dedicated, locally managed Tunnel**
+   using `cloudflared tunnel login` and `cloudflared tunnel create dujiao-resellers` on a trusted
+   administrator machine. Local management is used here to keep the catch-all ingress explicit and
+   reproducible. Never commit the account certificate or Tunnel credential JSON.
+2. Copy `deploy/cloudflare/config.yml.example` to `deploy/cloudflare/config.yml`, replace the
+   Tunnel UUID and `dujiao-next:8080` with the real application Docker service and internal port.
+   Copy the generated Tunnel credential JSON to `deploy/cloudflare/credentials.json`. Ensure both
+   files are readable by the container user, but do not make credentials world-readable. If needed,
+   assign file ownership to the cloudflared image's runtime UID/GID.
+3. Attach the application container to the existing `1panel-network`. From `deploy/cloudflare/`,
+   run `docker compose up -d`. The Tunnel container publishes no ports. Its catch-all ingress goes
+   directly to the application's full-stack HTTP listener, preserving the original `Host`.
+   Use a dedicated Tunnel: the catch-all must not unintentionally expose unrelated local services.
+4. In the same Cloudflare zone create proxied (orange-cloud) DNS records:
+   `origin.example.com CNAME <Tunnel-UUID>.cfargotunnel.com` and
+   `connect.example.com CNAME origin.example.com`.
+   Set the SaaS **Fallback Origin** to `origin.example.com` and wait for `Active`.
+5. Keep `reseller.trusted_forwarded_host: false` so the application uses the preserved `Host`.
+   Put only actual main storefront hosts in `reseller.main_hosts`. Do not add customer hostnames,
+   the CNAME target, or Tunnel origin there. Keep the existing main-site proxy configuration.
+
+The browser-to-Cloudflare HTTPS certificate is managed per Custom Hostname. Cloudflare-to-server
+traffic uses the encrypted Tunnel; the final HTTP hop stays inside the same-host Docker network.
+No per-customer origin certificate or public application port is needed for this deployment.
+If the final hop crosses an untrusted network, use a validated HTTPS origin instead.
+
+### Server configuration
+
+```yaml
+reseller:
+  enabled: true
+  main_hosts: [mall.example.com]
+  trusted_forwarded_host: false
+  cloudflare:
+    enabled: true
+    zone_id: YOUR_PLATFORM_ZONE_ID
+    cname_target: connect.example.com
+    token_env: DUJIAO_CLOUDFLARE_API_TOKEN
+```
+
+Set `DUJIAO_CLOUDFLARE_API_TOKEN` in the **application and worker** process/container environment.
+Use a token scoped to this zone with Custom Hostnames read/write permissions (Cloudflare's
+SSL and Certificates permission category); do not use a global API key. It is separate from the
+Tunnel credential. The token value is never stored in domain records or returned to the browser.
+Changing these configuration values requires restarting the app/worker; environment changes in
+Compose require recreating the containers. Keep the zone stable while bindings exist: a zone
+mismatch fails closed rather than creating or deleting resources in a different zone.
+
+Enable Redis and `queue.enabled`, and run the worker (`-mode all` or a separate `-mode worker`).
+The worker scans every minute and checks up to 100 due domains; each domain is normally checked
+again after five minutes. API-only mode has manual checks but **no periodic synchronization**.
+Manual checks have a shared 30-second cooldown; database leases prevent concurrent provider
+operations across API and worker processes. New config is disabled by default.
+
+### Domain onboarding and removal
+
+1. An active reseller submits a hostname such as `shop.customer.com` in their domain console.
+2. The console shows the CNAME target and a unique `_dujiao-verification.shop.customer.com` TXT
+   record. Use **DNS-only** for the customer's CNAME; this version verifies the visible CNAME
+   chain and does not support a proxied/flattened customer record or apex-only onboarding.
+3. After the ownership TXT is visible, a check creates or recovers the Cloudflare Custom Hostname.
+   Any additional Cloudflare ownership/certificate TXT records appear in the console. Preserve
+   these records; verification continues after activation. Click **Check / retry** to refresh.
+4. An administrator approves the binding. Approval can happen before or after DNS verification;
+   the domain only becomes usable after the local ownership TXT, CNAME, Cloudflare hostname
+   status and certificate status all pass. Technical success never grants administrative approval.
+5. Disabling immediately stops application access and schedules provider deletion. The reseller
+   can also unbind a custom domain: the local record is retained for retry until remote cleanup
+   succeeds, then soft-deleted so it can be submitted again. Reactivating a disabled managed
+   domain requires administrator approval and provisioning again. Do not remove verification
+   records until unbinding finishes, especially after an interrupted provider request.
+
+Provider outages, missing ownership records and certificate failures revoke verification until a
+successful recheck. Existing domains on a different Cloudflare zone are not silently migrated.
+No request body, provider error body or API credential is exposed in error messages.
+
+Before production, test a new customer hostname end-to-end: correct reseller branding and price,
+login, checkout/payment return, HTTPS, unknown-host rejection, disable, cleanup and resubmission.
+Cloudflare API tests use a local fake server; they do not prove a real zone/Tunnel is configured.
+
+References: [SaaS setup](https://developers.cloudflare.com/cloudflare-for-platforms/cloudflare-for-saas/start/getting-started/),
+[SaaS and Tunnel architecture](https://developers.cloudflare.com/reference-architecture/design-guides/extending-cloudflares-benefits-to-saas-providers-end-customers/),
+[Tunnel ingress configuration](https://developers.cloudflare.com/cloudflare-one/networks/connectors/cloudflare-tunnel/do-more-with-tunnels/local-management/configuration-file/).

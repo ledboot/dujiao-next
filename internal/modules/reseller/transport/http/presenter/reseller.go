@@ -74,16 +74,17 @@ type ResellerManagementProfileResp struct {
 }
 
 type ResellerDomainResp struct {
-	ID                 uint       `json:"id"`
-	Domain             string     `json:"domain"`
-	Type               string     `json:"type"`
-	VerificationToken  string     `json:"verification_token,omitempty"`
-	VerificationStatus string     `json:"verification_status"`
-	Status             string     `json:"status"`
-	IsPrimary          bool       `json:"is_primary"`
-	VerifiedAt         *time.Time `json:"verified_at,omitempty"`
-	CreatedAt          time.Time  `json:"created_at"`
-	UpdatedAt          time.Time  `json:"updated_at"`
+	Hosting            resellerdomain.DomainHosting `json:"hosting"`
+	ID                 uint                         `json:"id"`
+	Domain             string                       `json:"domain"`
+	Type               string                       `json:"type"`
+	VerificationToken  string                       `json:"verification_token,omitempty"`
+	VerificationStatus string                       `json:"verification_status"`
+	Status             string                       `json:"status"`
+	IsPrimary          bool                         `json:"is_primary"`
+	VerifiedAt         *time.Time                   `json:"verified_at,omitempty"`
+	CreatedAt          time.Time                    `json:"created_at"`
+	UpdatedAt          time.Time                    `json:"updated_at"`
 }
 
 type ResellerManagementSnapshotResp struct {
@@ -265,6 +266,7 @@ func NewResellerDomainResp(row *resellerdomain.Domain) ResellerDomainResp {
 		return ResellerDomainResp{}
 	}
 	return ResellerDomainResp{
+		Hosting:            row.Hosting,
 		ID:                 row.ID,
 		Domain:             row.Domain,
 		Type:               row.Type,

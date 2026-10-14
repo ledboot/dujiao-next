@@ -292,13 +292,23 @@ type WebConfig struct {
 	AdminPath string `mapstructure:"admin_path"`
 }
 
+// CloudflareSaaSConfig configures server-side custom hostname provisioning.
+type CloudflareSaaSConfig struct {
+	Enabled     bool   `mapstructure:"enabled"`
+	ZoneID      string `mapstructure:"zone_id"`
+	CNAMETarget string `mapstructure:"cname_target"`
+	// TokenEnv names a server-only environment variable; credentials are never returned by APIs.
+	TokenEnv string `mapstructure:"token_env"`
+}
+
 // ResellerConfig 分销商模式配置。
 type ResellerConfig struct {
-	Enabled              bool     `mapstructure:"enabled"`
-	MainHosts            []string `mapstructure:"main_hosts"`
-	TrustedForwardedHost bool     `mapstructure:"trusted_forwarded_host"`
-	SubdomainBase        string   `mapstructure:"subdomain_base"`
-	SelfApplyEnabled     bool     `mapstructure:"self_apply_enabled"`
+	Cloudflare           CloudflareSaaSConfig `mapstructure:"cloudflare"`
+	Enabled              bool                 `mapstructure:"enabled"`
+	MainHosts            []string             `mapstructure:"main_hosts"`
+	TrustedForwardedHost bool                 `mapstructure:"trusted_forwarded_host"`
+	SubdomainBase        string               `mapstructure:"subdomain_base"`
+	SelfApplyEnabled     bool                 `mapstructure:"self_apply_enabled"`
 	// SettlementConfirmDays 分销利润入账后转为可提现的确认天数（0 表示即时到账）。
 	SettlementConfirmDays int `mapstructure:"settlement_confirm_days"`
 }

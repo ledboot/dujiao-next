@@ -25,6 +25,7 @@ const (
 	TaskAffiliateOrderPaid = constants.TaskAffiliateOrderPaid
 	// TaskResellerConfirmLedger 分销商账务到期确认任务
 	TaskResellerConfirmLedger = constants.TaskResellerConfirmLedger
+	TaskResellerDomainSync    = constants.TaskResellerDomainSync
 	// TaskUpstreamSyncStock 上游库存同步任务
 	TaskUpstreamSyncStock = constants.TaskUpstreamSyncStock
 	// TaskProcurementSubmit 采购提交任务

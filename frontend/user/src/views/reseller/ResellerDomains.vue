@@ -188,6 +188,8 @@
                   </div>
 
                   <div class="flex flex-wrap items-center gap-2 md:justify-end">
+                    <Button v-if="item.hosting?.managed" variant="outline" size="sm" :disabled="operatingId !== null" @click="operateDomain(item.id, false)">{{ t('resellerConsole.domains.hosting.refresh') }}</Button>
+                    <Button v-if="!item.hosting?.removal_requested" variant="ghost" size="sm" :disabled="operatingId !== null" @click="operateDomain(item.id, true)">{{ t('resellerConsole.domains.hosting.remove') }}</Button>
                     <ResellerCopyButton :value="item.domain" :label="t('resellerConsole.common.copy')" />
                     <Button v-if="isActiveVerifiedDomain(item)" as-child variant="ghost" size="sm">
                       <a :href="`https://${item.domain}`" target="_blank" rel="noopener noreferrer">
@@ -195,6 +197,23 @@
                         {{ t('resellerConsole.domains.visit') }}
                       </a>
                     </Button>
+                  </div>
+                  <div v-if="item.hosting?.managed" class="space-y-2 rounded-lg bg-muted/40 p-3 text-xs md:col-span-5">
+                    <p class="font-semibold">{{ t('resellerConsole.domains.hosting.title') }}</p>
+                    <p>{{ t('resellerConsole.domains.hosting.instructions') }}</p>
+                    <p>{{ t(item.hosting.approved ? 'resellerConsole.domains.hosting.approved' : 'resellerConsole.domains.hosting.review') }}</p>
+                    <p v-if="item.hosting.removal_requested">{{ t('resellerConsole.domains.hosting.removing') }}</p>
+                    <div class="flex flex-wrap gap-3">
+                      <span>{{ t('resellerConsole.domains.hosting.hostname') }}: {{ t(item.hosting.hostname_status === 'active' ? 'resellerConsole.domains.hosting.ready' : 'resellerConsole.domains.hosting.pending') }}</span>
+                      <span>{{ t('resellerConsole.domains.hosting.certificate') }}: {{ t(item.hosting.ssl_status === 'active' ? 'resellerConsole.domains.hosting.ready' : 'resellerConsole.domains.hosting.pending') }}</span>
+                      <span>{{ t('resellerConsole.domains.hosting.dns') }}: {{ t(item.hosting.dns_ready ? 'resellerConsole.domains.hosting.ready' : 'resellerConsole.domains.hosting.pending') }}</span>
+                    </div>
+                    <div v-for="record in item.hosting.records || []" :key="`${record.type}:${record.name}`" class="flex flex-wrap items-center gap-2 rounded border border-border p-2">
+                      <code class="break-all">{{ record.type }} {{ record.name }} → {{ record.value }}</code>
+                      <ResellerCopyButton :value="record.value" :label="t('resellerConsole.common.copy')" />
+                    </div>
+                    <p v-if="item.hosting.error_key" class="text-destructive">{{ hostingError(item.hosting.error_key) }}</p>
+                    <p v-if="item.hosting.checked_at">{{ t('resellerConsole.domains.hosting.checked') }}: {{ formatResellerConsoleDate(item.hosting.checked_at) }}</p>
                   </div>
                 </div>
               </div>
@@ -217,6 +236,7 @@
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
+import { useConfirmDialog } from '../../composables/useConfirmDialog'
 import { CircleAlert, ExternalLink, Globe2, Link2, Plus, RotateCw } from 'lucide-vue-next'
 import { resellerAPI, type ResellerDomainData, type ResellerManagementSnapshotData } from '../../api'
 import { Alert, AlertDescription } from '@/components/ui/alert'
@@ -244,6 +264,21 @@ import { getResellerDomainStatusKey } from '../../utils/resellerManagement'
 const { t } = useI18n()
 const loading = ref(false)
 const submitting = ref(false)
+const operatingId = ref<number | null>(null)
+const { confirm } = useConfirmDialog()
+const hostingError = (key: string) => t(`resellerConsole.domains.hosting.${({ dns: 'errorDNS', provider: 'provider', configuration: 'configuration', validation: 'validation' } as Record<string, string>)[key] || 'provider'}`)
+const operateDomain = async (id: number, remove: boolean) => {
+  if (remove && !await confirm({ title: t('resellerConsole.domains.hosting.remove'), message: t('resellerConsole.domains.hosting.removeConfirm'), variant: 'danger' })) return
+  operatingId.value = id
+  try {
+    if (remove) await resellerAPI.removeDomain(id)
+    else await resellerAPI.refreshDomain(id)
+    await load()
+    alert.value = { level: 'success', message: t('resellerConsole.domains.hosting.saved') }
+  } catch (err) {
+    alert.value = { level: 'error', message: err instanceof Error ? err.message : t('personalCenter.common.saveFailed') }
+  } finally { operatingId.value = null }
+}
 const snapshot = ref<ResellerManagementSnapshotData | null>(null)
 const alert = ref<PageAlert | null>(null)
 const domainForm = reactive({ domain: '' })

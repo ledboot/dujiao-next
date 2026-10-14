@@ -36,6 +36,7 @@ func (r *Store) UpsertDomain(input resellerdomain.Domain) (*resellerdomain.Domai
 	if existing.DeletedAt == nil {
 		return nil, errors.New("reseller domain already exists")
 	}
+	existing.Hosting = input.Hosting
 	existing.ResellerID = input.ResellerID
 	existing.Type = input.Type
 	existing.VerificationToken = input.VerificationToken
@@ -204,4 +205,23 @@ func (r *Store) ListDomains(filter resellercontract.DomainListFilter) ([]reselle
 
 func normalizeDomainForRepository(raw string) string {
 	return strings.TrimSuffix(strings.ToLower(strings.TrimSpace(raw)), ".")
+}
+
+// ClaimDomainSync also throttles manual refreshes across API replicas.
+func (r *Store) ClaimDomainSync(id uint, now, until time.Time) (bool, error) {
+	result := r.db.Model(&resellerdomain.Domain{}).Where("id = ? AND deleted_at IS NULL AND hosting_managed = ?", id, true).
+		Where("(hosting_lease_until IS NULL OR hosting_lease_until < ?)", now).
+		Where("(hosting_checked_at IS NULL OR hosting_checked_at < ?)", now.Add(-30*time.Second)).
+		Update("hosting_lease_until", until)
+	return result.RowsAffected == 1, result.Error
+}
+
+func (r *Store) DueDomainIDs(now time.Time, limit int) ([]uint, error) {
+	var ids []uint
+	err := r.db.Model(&resellerdomain.Domain{}).
+		Where("deleted_at IS NULL AND hosting_managed = ?", true).
+		Where("status <> ? OR hosting_hostname_status <> ?", resellerdomain.DomainStatusDisabled, "deleted").
+		Where("hosting_next_check_at IS NULL OR hosting_next_check_at <= ?", now).
+		Order("hosting_next_check_at ASC, id ASC").Limit(limit).Pluck("id", &ids).Error
+	return ids, err
 }

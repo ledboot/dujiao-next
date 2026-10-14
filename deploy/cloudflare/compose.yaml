@@ -1,0 +1,15 @@
+# Run from this directory after preparing config.yml and credentials.json.
+# The application must already be connected to 1panel-network.
+services:
+  cloudflared:
+    image: ${CLOUDFLARED_IMAGE:-cloudflare/cloudflared:latest}
+    restart: unless-stopped
+    command: ["tunnel", "--no-autoupdate", "--config", "/etc/cloudflared/config.yml", "run"]
+    volumes:
+      - ./config.yml:/etc/cloudflared/config.yml:ro
+      - ./credentials.json:/etc/cloudflared/credentials.json:ro
+    networks:
+      - 1panel-network
+networks:
+  1panel-network:
+    external: true

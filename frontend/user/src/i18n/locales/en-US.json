@@ -1421,6 +1421,27 @@
       "benefitsTitle": "After activation you get"
     },
     "domains": {
+      "hosting": {
+        "title": "Domain connection",
+        "instructions": "Add the DNS records below. Use DNS-only mode for the CNAME. The TXT proves domain ownership; keep verification records for future checks. DNS, certificate and platform approval must all be ready.",
+        "refresh": "Check / retry",
+        "remove": "Unbind domain",
+        "removeConfirm": "Unbind this domain? The storefront will no longer be accessible through it.",
+        "removing": "Access stopped; removing the domain binding",
+        "approved": "Approved by platform",
+        "review": "Awaiting platform approval",
+        "hostname": "Hostname validation",
+        "certificate": "HTTPS certificate",
+        "dns": "DNS records",
+        "ready": "Ready",
+        "pending": "Pending",
+        "checked": "Last checked",
+        "provider": "Provider request failed. Retry later or contact the platform to check its configuration.",
+        "configuration": "Connection configuration error. Contact the platform.",
+        "validation": "Validation or certificate error. Check DNS and retry.",
+        "errorDNS": "The expected CNAME and ownership TXT records have not been detected.",
+        "saved": "Saved. Domain connection status will continue syncing in the background."
+      },
       "title": "Domain Management",
       "description": "Manage system and custom reseller domains with review and verification status.",
       "emptyDescription": "System subdomains are assigned by administrators. Custom domains can also be submitted.",

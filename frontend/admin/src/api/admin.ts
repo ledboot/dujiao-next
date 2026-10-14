@@ -494,6 +494,7 @@ export const adminAPI = {
     api.post(`/admin/resellers/profiles/${id}/disable`, data),
   restoreResellerProfile: (id: number) =>
     api.post(`/admin/resellers/profiles/${id}/restore`, {}),
+  refreshResellerDomain: (id: number) => api.post(`/admin/resellers/domains/${id}/refresh`),
   getResellerDomains: (params?: Record<string, unknown>) =>
     api.get('/admin/resellers/domains', { params }),
   approveResellerDomain: (id: number) =>

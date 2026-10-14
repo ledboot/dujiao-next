@@ -22,3 +22,5 @@ internal/web/dist/
 # Agents 配置
 .agents/
 skills-lock.json
+# Cloudflare Tunnel credentials (deployment templates remain tracked)
+deploy/cloudflare/credentials.json

@@ -1421,6 +1421,27 @@
       "benefitsTitle": "開通後你將獲得"
     },
     "domains": {
+      "hosting": {
+        "title": "網域接入",
+        "instructions": "依下方記錄設定 DNS。CNAME 請使用僅 DNS 模式，TXT 用於驗證網域歸屬；保留驗證記錄以供後續檢查。驗證、憑證及平台審核全部通過後生效。",
+        "refresh": "檢查 / 重試",
+        "remove": "解除綁定",
+        "removeConfirm": "確定解除此網域綁定？之後將無法透過此網域存取商店。",
+        "removing": "已停止存取，正在清理網域綁定",
+        "approved": "平台審核已通過",
+        "review": "等待平台審核",
+        "hostname": "網域驗證",
+        "certificate": "HTTPS 憑證",
+        "dns": "DNS 記錄",
+        "ready": "已就緒",
+        "pending": "等待就緒",
+        "checked": "最近檢查",
+        "provider": "服務商請求失敗，請稍後重試或聯絡平台檢查設定。",
+        "configuration": "接入設定異常，請聯絡平台。",
+        "validation": "驗證或憑證異常，請核對 DNS 後重試。",
+        "errorDNS": "尚未偵測到正確的 CNAME 與歸屬驗證 TXT 記錄。",
+        "saved": "操作已儲存；背景將持續同步接入狀態。"
+      },
       "title": "域名管理",
       "description": "管理分銷站系統域名和自訂域名的審核、驗證狀態。",
       "emptyDescription": "系統二級域名由管理員分配，也可以提交自訂域名。",

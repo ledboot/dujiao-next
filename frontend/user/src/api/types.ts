@@ -218,7 +218,21 @@ export interface ResellerManagementProfileData {
     updated_at: string
 }
 
+export interface DomainHostingData {
+  managed: boolean
+  approved: boolean
+  removal_requested: boolean
+  cname_target: string
+  hostname_status: string
+  ssl_status: string
+  dns_ready: boolean
+  records: { type: string; name: string; value: string }[] | null
+  error_key: string
+  checked_at?: string
+}
+
 export interface ResellerDomainData {
+  hosting?: DomainHostingData
     id: number
     domain: string
     type: string

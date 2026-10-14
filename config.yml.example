@@ -164,6 +164,12 @@ order:
   max_refund_days: 30
 
 reseller:
+  # Cloudflare for SaaS：先配置统一 Tunnel 回源；密钥仅从服务器环境变量读取。
+  cloudflare:
+    enabled: false
+    zone_id: ""
+    cname_target: "" # 例如 connect.example.com，不含协议或路径
+    token_env: "DUJIAO_CLOUDFLARE_API_TOKEN"
   enabled: false
   # 主站域名列表。启用分销模式后，请把正式主站域名写入这里。
   # 命中 main_hosts 的请求按主站上下文处理；未命中则尝试解析 reseller_domains。

@@ -142,7 +142,7 @@ const approveDomain = async (row: AdminResellerDomain) => {
   operatingId.value = row.id
   try {
     await adminAPI.approveResellerDomain(row.id)
-    notifySuccess(t('admin.resellerDomains.actions.approveSuccess'))
+    notifySuccess(t(row.hosting?.managed ? 'admin.resellerDomains.hosting.saved' : 'admin.resellerDomains.actions.approveSuccess'))
     await fetchRows(pagination.value.page, { preserveRows: true })
   } catch (err: any) {
     notifyError(err?.message || t('admin.resellerDomains.actions.approveFailed'))
@@ -166,6 +166,13 @@ const disableDomain = async (row: AdminResellerDomain) => {
   }
 }
 
+const hostingError = (key: string) => t(`admin.resellerDomains.hosting.${({ dns: 'errorDNS', provider: 'provider', configuration: 'configuration', validation: 'validation' } as Record<string, string>)[key] || 'provider'}`)
+const refreshDomain = async (row: AdminResellerDomain) => {
+  operatingId.value = row.id
+  try { await adminAPI.refreshResellerDomain(row.id); await fetchRows(pagination.value.page, { preserveRows: true }) }
+  catch { notifyError(t('admin.resellerDomains.hosting.provider')) }
+  finally { operatingId.value = null }
+}
 onMounted(() => {
   fetchRows()
 })
@@ -285,7 +292,17 @@ onMounted(() => {
                 <span class="ml-1 font-mono text-muted-foreground">/ R#{{ item.reseller_id }}</span>
               </div>
             </TableCell>
-            <TableCell class="min-w-[220px] px-6 py-4 font-mono text-xs break-all">{{ item.domain }}</TableCell>
+            <TableCell class="min-w-[220px] max-w-md px-6 py-4 text-xs break-all">
+              <div class="font-mono">{{ item.domain }}</div>
+              <div v-if="item.hosting?.managed" class="mt-2 space-y-2 text-muted-foreground">
+                <p>{{ t(item.hosting.approved ? 'admin.resellerDomains.hosting.approved' : 'admin.resellerDomains.hosting.review') }}</p>
+                <p>{{ t('admin.resellerDomains.hosting.certificate') }}: {{ t(item.hosting.ssl_status === 'active' ? 'admin.resellerDomains.hosting.ready' : 'admin.resellerDomains.hosting.pending') }}</p>
+                <p v-if="item.hosting.removal_requested">{{ t('admin.resellerDomains.hosting.removing') }}</p>
+                <div v-for="record in item.hosting.records || []" :key="`${record.type}:${record.name}`" class="font-mono">{{ record.type }} {{ record.name }} → {{ record.value }}</div>
+                <p v-if="item.hosting.error_key" class="text-destructive">{{ hostingError(item.hosting.error_key) }}</p>
+                <Button size="sm" variant="outline" :disabled="operatingId !== null" @click="refreshDomain(item)">{{ t('admin.resellerDomains.hosting.refresh') }}</Button>
+              </div>
+            </TableCell>
             <TableCell class="px-6 py-4 text-xs text-foreground">{{ typeLabel(item.type) }}</TableCell>
             <TableCell class="px-6 py-4 text-xs">
               <span class="inline-flex rounded-full border px-2.5 py-1 text-xs" :class="verificationClass(item.verification_status)">

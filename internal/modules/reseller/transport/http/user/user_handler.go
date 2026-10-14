@@ -144,6 +144,11 @@ func (h *UserHandler) SubmitCustomDomain(c *gin.Context) {
 		respondUserManagementError(c, err, "error.save_failed")
 		return
 	}
+	if hosted, ok := h.management.(domainActions); ok && row.Hosting.Managed {
+		if updated, syncErr := hosted.RefreshUserDomain(c.Request.Context(), uid, row.ID); syncErr == nil && updated != nil {
+			row = updated
+		}
+	}
 	response.Success(c, dto.NewResellerDomainResp(row))
 }
 
@@ -219,4 +224,39 @@ func (h *UserHandler) UploadImage(c *gin.Context) {
 		"filename": result.Filename,
 		"size":     result.Size,
 	})
+}
+
+type domainActions interface {
+	RefreshUserDomain(context.Context, uint, uint) (*resellerdomain.Domain, error)
+	RemoveUserDomain(context.Context, uint, uint) (*resellerdomain.Domain, error)
+}
+
+func (h *UserHandler) RefreshDomain(c *gin.Context) { h.domainAction(c, false) }
+func (h *UserHandler) RemoveDomain(c *gin.Context)  { h.domainAction(c, true) }
+func (h *UserHandler) domainAction(c *gin.Context, remove bool) {
+	uid, ok := ginutil.GetUserID(c)
+	if !ok {
+		return
+	}
+	id, err := ginutil.ParseParamUint(c, "id")
+	if err != nil {
+		ginutil.RespondError(c, response.CodeBadRequest, "error.bad_request", nil)
+		return
+	}
+	actions, ok := h.management.(domainActions)
+	if !ok {
+		ginutil.RespondError(c, response.CodeBadRequest, "error.bad_request", nil)
+		return
+	}
+	var row *resellerdomain.Domain
+	if remove {
+		row, err = actions.RemoveUserDomain(c.Request.Context(), uid, id)
+	} else {
+		row, err = actions.RefreshUserDomain(c.Request.Context(), uid, id)
+	}
+	if err != nil {
+		respondUserManagementError(c, err, "error.save_failed")
+		return
+	}
+	response.Success(c, dto.NewResellerDomainResp(row))
 }

@@ -1,0 +1,7 @@
+# Dedicated locally managed tunnel: replace the UUID and application service address.
+tunnel: REPLACE_WITH_TUNNEL_UUID
+credentials-file: /etc/cloudflared/credentials.json
+# No hostname filter: SaaS forwards the original customer Host.
+# Do not set httpHostHeader to the platform hostname.
+ingress:
+  - service: http://dujiao-next:8080

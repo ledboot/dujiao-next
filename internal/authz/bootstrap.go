@@ -171,6 +171,7 @@ func BuiltinRoleSeeds() []RoleSeed {
 				{Object: "/admin/resellers/profiles/:id/approve", Action: "POST"},
 				{Object: "/admin/resellers/profiles/:id/reject", Action: "POST"},
 				{Object: "/admin/resellers/domains", Action: "GET"},
+				{Object: "/admin/resellers/domains/:id/refresh", Action: "POST"},
 				{Object: "/admin/resellers/domains/:id/approve", Action: "POST"},
 				{Object: "/admin/resellers/domains/:id/set-primary", Action: "POST"},
 				{Object: "/admin/resellers/site-configs", Action: "GET"},

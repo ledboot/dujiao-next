@@ -2,7 +2,10 @@ package application
 
 import (
 	"context"
+	"crypto/rand"
+	"encoding/hex"
 	"github.com/dujiao-next/internal/i18n"
+	"net"
 	"strings"
 	"time"
 
@@ -18,9 +21,16 @@ import (
 	"github.com/shopspring/decimal"
 )
 
+type DomainHostingService interface {
+	Sync(context.Context, uint) (*resellerdomain.Domain, error)
+	SyncDue(context.Context) error
+	Enabled() bool
+}
+
 type ManagementService struct {
-	store resellercontract.ManagementStore
-	cfg   config.ResellerConfig
+	Hosting DomainHostingService
+	store   resellercontract.ManagementStore
+	cfg     config.ResellerConfig
 }
 
 type ResellerApplyInput struct {
@@ -335,11 +345,25 @@ func (s *ManagementService) SubmitUserCustomDomain(userID uint, rawDomain string
 	if err != nil {
 		return nil, err
 	}
-	// 暂不启用 DNS 自动校验，自定义域名走后台人工审核。
+	hosting := resellerdomain.DomainHosting{}
+	if s.cfg.Cloudflare.Enabled {
+		target := strings.TrimSuffix(strings.ToLower(strings.TrimSpace(s.cfg.Cloudflare.CNAMETarget)), ".")
+		if !validCustomHostname(target) || domain == target {
+			return nil, resellercontract.ErrDomainInvalid
+		}
+		var token [24]byte
+		if _, err := rand.Read(token[:]); err != nil {
+			return nil, err
+		}
+		hosting = resellerdomain.DomainHosting{Managed: true, ZoneID: s.cfg.Cloudflare.ZoneID, CNAMETarget: target, OwnershipToken: hex.EncodeToString(token[:])}
+		hosting.Records = []resellerdomain.DNSRecord{{Type: "CNAME", Name: domain, Value: target}, {Type: "TXT", Name: "_dujiao-verification." + domain, Value: hosting.OwnershipToken}}
+	}
+	// Provider enrollment is persisted before any external request. Manual review remains separate.
 	row, err := s.store.UpsertDomain(resellerdomain.Domain{
 		ResellerID:         profile.ID,
 		Domain:             domain,
 		Type:               resellerdomain.DomainTypeCustom,
+		Hosting:            hosting,
 		VerificationStatus: resellerdomain.DomainVerificationPending,
 		Status:             resellerdomain.DomainStatusPendingReview,
 		IsPrimary:          false,
@@ -354,6 +378,43 @@ func (s *ManagementService) SubmitUserCustomDomain(userID uint, rawDomain string
 }
 
 func (s *ManagementService) ApproveDomain(ctx context.Context, adminID, domainID uint) (*resellerdomain.Domain, error) {
+	if adminID == 0 {
+		return nil, resellercontract.ErrDomainStatusInvalid
+	}
+	row, err := s.store.GetDomainByID(domainID)
+	if err != nil {
+		return nil, err
+	}
+	if row != nil && row.Hosting.Managed {
+		err = s.store.WithinManagementTransaction(func(tx resellercontract.ManagementStore) error {
+			current, err := tx.GetDomainByIDForUpdate(domainID)
+			if err != nil {
+				return err
+			}
+			if current == nil {
+				return productcontract.ErrNotFound
+			}
+			if current.Hosting.RemovalRequested {
+				return resellercontract.ErrDomainStatusInvalid
+			}
+			current.Hosting.Approved = true
+			current.Status = resellerdomain.DomainStatusPendingReview
+			if current.Hosting.HostnameStatus == "deleted" {
+				current.Hosting.HostnameStatus = ""
+			}
+			current.Hosting.CheckedAt = nil
+			current.Hosting.NextCheckAt = nil
+			return tx.UpdateDomain(current)
+		})
+		if err != nil {
+			return nil, err
+		}
+		_ = cache.DelResellerDomain(ctx, row.Domain)
+		if s.Hosting != nil {
+			return s.Hosting.Sync(ctx, domainID)
+		}
+		return s.store.GetDomainByID(domainID)
+	}
 	return s.updateDomainStatus(ctx, adminID, domainID, resellerdomain.DomainStatusActive)
 }
 
@@ -506,6 +567,13 @@ func (s *ManagementService) updateDomainStatus(ctx context.Context, adminID, dom
 				return resellercontract.ErrDomainStatusInvalid
 			}
 			domain.Status = resellerdomain.DomainStatusDisabled
+			if domain.Hosting.Managed {
+				domain.Hosting.Approved = false
+				domain.VerificationStatus = resellerdomain.DomainVerificationPending
+				domain.VerifiedAt = nil
+				domain.Hosting.NextCheckAt = nil
+				domain.Hosting.CheckedAt = nil
+			}
 			wasPrimary := domain.IsPrimary
 			domain.IsPrimary = false
 			if wasPrimary {
@@ -536,6 +604,9 @@ func (s *ManagementService) updateDomainStatus(ctx context.Context, adminID, dom
 	}
 	for _, domain := range cacheDomains {
 		_ = cache.DelResellerDomain(ctx, domain)
+	}
+	if targetStatus == resellerdomain.DomainStatusDisabled && s.Hosting != nil {
+		return s.Hosting.Sync(ctx, domainID)
 	}
 	return s.store.GetDomainByID(domainID)
 }
@@ -568,7 +639,7 @@ func normalizeAndValidateCustomDomain(raw string, cfg config.ResellerConfig) (st
 	if trimmed == "" {
 		return "", resellercontract.ErrDomainInvalid
 	}
-	if strings.Contains(trimmed, "://") || strings.ContainsAny(trimmed, "/?#") {
+	if strings.Contains(trimmed, "://") || strings.ContainsAny(trimmed, "/?#") || (cfg.Cloudflare.Enabled && !validCustomHostname(strings.TrimSuffix(strings.ToLower(trimmed), "."))) {
 		return "", resellercontract.ErrDomainInvalid
 	}
 	domain := resellercontract.NormalizeHost(trimmed)
@@ -656,4 +727,107 @@ func (s *ManagementService) ActivatePaidOrder(store resellercontract.PaidActivat
 		ReviewedAt:       &now, CreatedAt: now, UpdatedAt: now,
 	}
 	return store.ActivatePaidProfile(profile)
+}
+
+// RefreshDomain retries provisioning without changing the administrator's review.
+func (s *ManagementService) RefreshDomain(ctx context.Context, adminID, id uint) (*resellerdomain.Domain, error) {
+	if adminID == 0 || s.Hosting == nil {
+		return nil, resellercontract.ErrDomainStatusInvalid
+	}
+	row, err := s.Hosting.Sync(ctx, id)
+	if err == nil && row == nil {
+		return nil, productcontract.ErrNotFound
+	}
+	return row, err
+}
+func (s *ManagementService) RefreshUserDomain(ctx context.Context, userID, id uint) (*resellerdomain.Domain, error) {
+	profile, err := s.store.GetProfileByUserID(userID)
+	if err != nil {
+		return nil, err
+	}
+	row, err := s.store.GetDomainByID(id)
+	if err != nil {
+		return nil, err
+	}
+	if profile == nil || row == nil || row.ResellerID != profile.ID {
+		return nil, resellercontract.ErrDomainInvalid
+	}
+	if s.Hosting == nil {
+		return row, nil
+	}
+	return s.Hosting.Sync(ctx, id)
+}
+func (s *ManagementService) RemoveUserDomain(ctx context.Context, userID, id uint) (*resellerdomain.Domain, error) {
+	profile, err := s.store.GetProfileByUserID(userID)
+	if err != nil {
+		return nil, err
+	}
+	if profile == nil {
+		return nil, resellercontract.ErrNotOpened
+	}
+	var result *resellerdomain.Domain
+	err = s.store.WithinManagementTransaction(func(tx resellercontract.ManagementStore) error {
+		row, err := tx.GetDomainByIDForUpdate(id)
+		if err != nil {
+			return err
+		}
+		if row == nil || row.ResellerID != profile.ID || row.Type != resellerdomain.DomainTypeCustom {
+			return resellercontract.ErrDomainInvalid
+		}
+		if row.IsPrimary {
+			domains, err := tx.ListDomainsByResellerID(row.ResellerID)
+			if err != nil {
+				return err
+			}
+			for i := range domains {
+				candidate := &domains[i]
+				if candidate.ID != row.ID && candidate.Status == resellerdomain.DomainStatusActive && candidate.VerificationStatus == resellerdomain.DomainVerificationVerified {
+					candidate.IsPrimary = true
+					if err := tx.UpdateDomain(candidate); err != nil {
+						return err
+					}
+					break
+				}
+			}
+		}
+		row.Status = resellerdomain.DomainStatusDisabled
+		row.IsPrimary = false
+		row.VerificationStatus = resellerdomain.DomainVerificationPending
+		row.VerifiedAt = nil
+		row.Hosting.Approved = false
+		row.Hosting.RemovalRequested = true
+		row.Hosting.CheckedAt = nil
+		row.Hosting.NextCheckAt = nil
+		now := time.Now()
+		if !row.Hosting.Managed {
+			row.DeletedAt = &now
+		}
+		result = row
+		return tx.UpdateDomain(row)
+	})
+	if err != nil {
+		return nil, err
+	}
+	_ = cache.DelResellerDomain(ctx, result.Domain)
+	if result.Hosting.Managed && s.Hosting != nil {
+		_, err = s.Hosting.Sync(ctx, id)
+	}
+	return result, err
+}
+
+func validCustomHostname(host string) bool {
+	if len(host) > 253 || !strings.Contains(host, ".") || net.ParseIP(host) != nil {
+		return false
+	}
+	for _, label := range strings.Split(host, ".") {
+		if len(label) == 0 || len(label) > 63 || label[0] == '-' || label[len(label)-1] == '-' {
+			return false
+		}
+		for _, c := range label {
+			if !(c >= 'a' && c <= 'z' || c >= '0' && c <= '9' || c == '-') {
+				return false
+			}
+		}
+	}
+	return true
 }

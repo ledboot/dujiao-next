@@ -359,6 +359,10 @@ func (h *AdminManagementHandler) handleDomainAction(
 		respondAdminManagementError(c, err)
 		return
 	}
+	if row == nil {
+		ginutil.RespondError(c, response.CodeNotFound, "error.not_found", nil)
+		return
+	}
 	h.recordAudit(c, action, object, gin.H{
 		"domain_id":   id,
 		"reseller_id": row.ResellerID,
@@ -404,4 +408,15 @@ func parseTimePointer(raw string) *time.Time {
 		return &parsed
 	}
 	return nil
+}
+
+func (h *AdminManagementHandler) RefreshDomain(c *gin.Context) {
+	service, ok := h.management.(interface {
+		RefreshDomain(context.Context, uint, uint) (*resellerdomain.Domain, error)
+	})
+	if !ok {
+		ginutil.RespondError(c, response.CodeBadRequest, "error.bad_request", nil)
+		return
+	}
+	h.handleDomainAction(c, "reseller_domain_refresh", "/admin/resellers/domains/:id/refresh", service.RefreshDomain)
 }

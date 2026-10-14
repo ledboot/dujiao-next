@@ -1374,6 +1374,27 @@
       "benefitsTitle": "开通后你将获得"
     },
     "domains": {
+      "hosting": {
+        "title": "域名接入",
+        "instructions": "按下方记录配置 DNS。CNAME 请使用仅 DNS 模式，TXT 用于验证域名归属；保留验证记录以便后续检查。验证、证书和平台审核全部通过后生效。",
+        "refresh": "检查 / 重试",
+        "remove": "解绑域名",
+        "removeConfirm": "确定解绑该域名？解绑后店铺将无法通过此域名访问。",
+        "removing": "已停止访问，正在清理域名绑定",
+        "approved": "平台审核已通过",
+        "review": "等待平台审核",
+        "hostname": "域名验证",
+        "certificate": "HTTPS 证书",
+        "dns": "DNS 记录",
+        "ready": "已就绪",
+        "pending": "等待就绪",
+        "checked": "最近检查",
+        "provider": "服务商请求失败，请稍后重试或联系平台检查配置。",
+        "configuration": "接入配置异常，请联系平台。",
+        "validation": "验证或证书异常，请核对 DNS 后重试。",
+        "errorDNS": "尚未检测到正确的 CNAME 和归属验证 TXT 记录。",
+        "saved": "操作已保存；后台将继续同步接入状态。"
+      },
       "title": "域名管理",
       "description": "管理分销站系统域名和自定义域名的审核、验证状态。",
       "emptyDescription": "系统二级域名由管理员分配，也可以提交自定义域名。",

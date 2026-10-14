@@ -7,19 +7,45 @@ import (
 )
 
 // Domain 分销商域名绑定。
+type DNSRecord struct {
+	Type  string `json:"type"`
+	Name  string `json:"name"`
+	Value string `json:"value"`
+}
+
+// DomainHosting stores provider state separately from the administrator review.
+type DomainHosting struct {
+	OwnershipToken   string      `json:"-"`
+	Managed          bool        `json:"managed"`
+	Approved         bool        `json:"approved"`
+	RemovalRequested bool        `json:"removal_requested"`
+	ZoneID           string      `json:"-"`
+	HostnameID       string      `json:"-"`
+	CNAMETarget      string      `json:"cname_target"`
+	HostnameStatus   string      `json:"hostname_status"`
+	SSLStatus        string      `json:"ssl_status"`
+	DNSReady         bool        `json:"dns_ready"`
+	Records          []DNSRecord `gorm:"serializer:json;type:text" json:"records"`
+	ErrorKey         string      `json:"error_key"`
+	CheckedAt        *time.Time  `json:"checked_at"`
+	LeaseUntil       *time.Time  `json:"-"`
+	NextCheckAt      *time.Time  `gorm:"index" json:"-"`
+}
+
 type Domain struct {
-	ID                 uint       `gorm:"primarykey" json:"id"`
-	ResellerID         uint       `gorm:"not null;index" json:"reseller_id"`
-	Domain             string     `gorm:"type:varchar(255);not null;index" json:"domain"`
-	Type               string     `gorm:"type:varchar(24);not null" json:"type"`
-	VerificationToken  string     `gorm:"type:varchar(128)" json:"verification_token,omitempty"`
-	VerificationStatus string     `gorm:"type:varchar(24);index;not null;default:'pending'" json:"verification_status"`
-	Status             string     `gorm:"type:varchar(24);index;not null;default:'pending_review'" json:"status"`
-	IsPrimary          bool       `gorm:"not null;default:false" json:"is_primary"`
-	VerifiedAt         *time.Time `gorm:"index" json:"verified_at,omitempty"`
-	CreatedAt          time.Time  `gorm:"index" json:"created_at"`
-	UpdatedAt          time.Time  `gorm:"index" json:"updated_at"`
-	DeletedAt          *time.Time `gorm:"index" json:"-"`
+	Hosting            DomainHosting `gorm:"embedded;embeddedPrefix:hosting_" json:"hosting"`
+	ID                 uint          `gorm:"primarykey" json:"id"`
+	ResellerID         uint          `gorm:"not null;index" json:"reseller_id"`
+	Domain             string        `gorm:"type:varchar(255);not null;index" json:"domain"`
+	Type               string        `gorm:"type:varchar(24);not null" json:"type"`
+	VerificationToken  string        `gorm:"type:varchar(128)" json:"verification_token,omitempty"`
+	VerificationStatus string        `gorm:"type:varchar(24);index;not null;default:'pending'" json:"verification_status"`
+	Status             string        `gorm:"type:varchar(24);index;not null;default:'pending_review'" json:"status"`
+	IsPrimary          bool          `gorm:"not null;default:false" json:"is_primary"`
+	VerifiedAt         *time.Time    `gorm:"index" json:"verified_at,omitempty"`
+	CreatedAt          time.Time     `gorm:"index" json:"created_at"`
+	UpdatedAt          time.Time     `gorm:"index" json:"updated_at"`
+	DeletedAt          *time.Time    `gorm:"index" json:"-"`
 
 	Profile *Profile `gorm:"foreignKey:ResellerID" json:"profile,omitempty"`
 }

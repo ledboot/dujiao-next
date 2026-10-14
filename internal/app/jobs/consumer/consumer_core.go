@@ -1,6 +1,7 @@
 package consumer
 
 import (
+	"context"
 	"github.com/dujiao-next/internal/app/container"
 	"github.com/dujiao-next/internal/logger"
 	orderdomain "github.com/dujiao-next/internal/modules/order/domain"
@@ -37,6 +38,12 @@ func (c *Consumer) Register(mux *asynq.ServeMux) {
 		logger.Debugw("worker_register_skip_nil", "consumer_nil", c == nil, "mux_nil", mux == nil)
 		return
 	}
+	mux.HandleFunc(queue.TaskResellerDomainSync, withPanicRecovery(queue.TaskResellerDomainSync, func(ctx context.Context, _ *asynq.Task) error {
+		if c.ResellerManagementService == nil || c.ResellerManagementService.Hosting == nil {
+			return nil
+		}
+		return c.ResellerManagementService.Hosting.SyncDue(ctx)
+	}))
 	mux.HandleFunc(queue.TaskOrderStatusEmail, withPanicRecovery(queue.TaskOrderStatusEmail, c.handleOrderStatusEmail))
 	mux.HandleFunc(queue.TaskOrderAutoFulfill, withPanicRecovery(queue.TaskOrderAutoFulfill, c.handleOrderAutoFulfill))
 	mux.HandleFunc(queue.TaskOrderTimeoutCancel, withPanicRecovery(queue.TaskOrderTimeoutCancel, c.handleOrderTimeoutCancel))
