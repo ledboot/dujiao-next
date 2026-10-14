@@ -35,6 +35,7 @@ import { notifyError, notifySuccess } from '@/utils/notify'
 import {
   buildResellerProductSettingStatusClass,
   getAdminResellerProductSettingOwnerLabel,
+  normalizeResellerProductSettingPayload,
 } from '@/utils/resellerProductSettings'
 
 const { t } = useI18n()
@@ -218,7 +219,7 @@ const buildPayload = () => ({
   settings: [
     productForm.value,
     ...(detail.value?.skus || []).map((sku) => skuFormFor(sku.id)),
-  ],
+  ].map(normalizeResellerProductSettingPayload),
 })
 
 const fetchRows = async (page = 1, options: ListFetchOptions = {}) => {
@@ -564,7 +565,7 @@ onMounted(() => {
               </div>
               <div>
                 <Label>{{ t('admin.resellerProductSettings.supplyPrice') }}</Label>
-                <Input v-model="productForm.supply_price_amount" type="number" min="0" step="0.01" class="mt-2 h-9 font-mono" />
+                <Input v-model="productForm.supply_price_amount" inputmode="decimal" class="mt-2 h-9 font-mono" />
                 <p class="mt-1 text-xs text-muted-foreground">{{ t('admin.resellerProductSettings.supplyPriceHint') }}</p>
               </div>
               <div>
@@ -625,7 +626,7 @@ onMounted(() => {
                 </div>
                 <div>
                   <Label>{{ t('admin.resellerProductSettings.supplyPrice') }}</Label>
-                  <Input :model-value="skuFormFor(sku.id).supply_price_amount" type="number" min="0" step="0.01" class="mt-2 h-9 font-mono" @update:modelValue="(value) => updateSkuForm(sku.id, { ...skuFormFor(sku.id), supply_price_amount: String(value) })" />
+                  <Input :model-value="skuFormFor(sku.id).supply_price_amount" inputmode="decimal" class="mt-2 h-9 font-mono" @update:modelValue="(value) => updateSkuForm(sku.id, { ...skuFormFor(sku.id), supply_price_amount: String(value) })" />
                   <p class="mt-1 text-xs text-muted-foreground">{{ t('admin.resellerProductSettings.skuSupplyPriceHint') }}</p>
                 </div>
                 <div>
