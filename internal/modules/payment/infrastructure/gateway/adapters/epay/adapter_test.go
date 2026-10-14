@@ -328,3 +328,88 @@ func md5Hex(content string) string {
 	sum := md5.Sum([]byte(content))
 	return strings.ToLower(hex.EncodeToString(sum[:]))
 }
+
+func TestMolaRedirect(t *testing.T) {
+	a := NewMolaAdapter()
+	raw := jsonmap.JSON{"merchant_id": "1001", "merchant_key": "mola-test-key", "notify_url": "https://shop.example/api/v1/payments/callback", "return_url": "https://shop.example/pay"}
+	for channel, want := range map[string]string{"wechat": "wxpay", "alipay": "alipay", "qqpay": "qqpay", "tenpay": "tenpay"} {
+		t.Run(channel, func(t *testing.T) {
+			result, err := a.CreatePayment(context.Background(), raw, paymentcontract.GatewayCreateInput{OrderNo: "DJP001", Subject: "测试 & 商品", Amount: money.FromDecimal(decimal.NewFromInt(10)), Currency: "CNY", ChannelType: channel, Extra: jsonmap.JSON{"interaction_mode": "redirect"}, ReturnURLQuery: map[string]string{"mola_return": "1", "order_no": "ORDER001"}})
+			if err != nil {
+				t.Fatal(err)
+			}
+			u, err := url.Parse(result.RedirectURL)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if u.Scheme != "https" || u.Host != "pay.mygptlife.com" || u.Path != "/submit.php" {
+				t.Fatalf("unexpected URL: %s", u)
+			}
+			q := u.Query()
+			if q.Get("type") != want || q.Get("pid") != "1001" || q.Get("out_trade_no") != "DJP001" || q.Get("money") != "10" || q.Get("name") != "测试 & 商品" || q.Get("sign_type") != "MD5" {
+				t.Fatalf("unexpected params: %v", q)
+			}
+			params := map[string]string{}
+			for k := range q {
+				params[k] = q.Get(k)
+			}
+			if q.Get("sign") != md5Hex(buildEpayAdapterSignContent(params)+"mola-test-key") {
+				t.Fatal("invalid outgoing signature")
+			}
+			back, _ := url.Parse(q.Get("return_url"))
+			if back.Query().Get("mola_return") != "1" || back.Query().Get("order_no") != "ORDER001" {
+				t.Fatal("missing return tracking")
+			}
+			if raw["epay_version"] != nil || raw["gateway_url"] != nil {
+				t.Fatal("mutated channel config")
+			}
+		})
+	}
+	for _, tc := range []struct {
+		name     string
+		extra    jsonmap.JSON
+		currency string
+		config   jsonmap.JSON
+	}{
+		{"qr", jsonmap.JSON{"interaction_mode": "qr"}, "CNY", nil},
+		{"currency", jsonmap.JSON{"interaction_mode": "redirect"}, "USD", nil},
+		{"v2", jsonmap.JSON{"interaction_mode": "redirect"}, "CNY", jsonmap.JSON{"epay_version": "v2"}},
+		{"rsa", jsonmap.JSON{"interaction_mode": "redirect"}, "CNY", jsonmap.JSON{"sign_type": "RSA"}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			cfg := jsonmap.JSON{}
+			for k, v := range raw {
+				cfg[k] = v
+			}
+			for k, v := range tc.config {
+				cfg[k] = v
+			}
+			_, err := a.CreatePayment(context.Background(), cfg, paymentcontract.GatewayCreateInput{OrderNo: "DJP001", Amount: money.FromDecimal(decimal.NewFromInt(10)), Currency: tc.currency, ChannelType: "alipay", Extra: tc.extra})
+			if !errors.Is(err, paymentcontract.ErrGatewayConfigInvalid) {
+				t.Fatalf("expected config error, got %v", err)
+			}
+		})
+	}
+}
+
+func TestMolaCurrencyConversionAndNotificationStatus(t *testing.T) {
+	a := NewMolaAdapter()
+	raw := jsonmap.JSON{"merchant_id": "1001", "merchant_key": "mola-key", "notify_url": "https://shop.example/api/v1/payments/callback", "return_url": "https://shop.example/pay", "target_currency": "CNY", "exchange_rate": "7"}
+	result, err := a.CreatePayment(context.Background(), raw, paymentcontract.GatewayCreateInput{OrderNo: "DJP001", Amount: money.FromDecimal(decimal.NewFromInt(10)), Currency: "USD", ChannelType: "alipay", Extra: jsonmap.JSON{"interaction_mode": "redirect"}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if result.AmountSent != "70" || result.CurrencySent != "CNY" || result.Payload["original_currency"] != "USD" {
+		t.Fatalf("conversion: %+v", result)
+	}
+	for _, status := range []string{"TRADE_SUCCESS", "TRADE_FINISHED", "WAIT_BUYER_PAY"} {
+		form := signEpayV1AdapterCallbackForm(map[string]string{"pid": "1001", "out_trade_no": "DJP001", "trade_no": "MOLA001", "trade_status": status, "money": "70.00"}, "mola-key")
+		callback, err := a.(paymentcontract.GatewayCallbackVerifier).VerifyCallback(raw, form, nil)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if (callback.Status == constants.PaymentStatusSuccess) != (status == "TRADE_SUCCESS") {
+			t.Fatalf("unexpected status for %s: %s", status, callback.Status)
+		}
+	}
+}

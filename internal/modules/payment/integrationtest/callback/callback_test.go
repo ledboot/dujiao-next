@@ -2,15 +2,19 @@ package paymentcallback_test
 
 import (
 	"crypto/hmac"
+	"crypto/md5"
 	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
+	"sort"
 	"strings"
 	"testing"
 	"time"
 
+	epayadapter "github.com/dujiao-next/internal/modules/payment/infrastructure/gateway/adapters/epay"
 	okpayadapter "github.com/dujiao-next/internal/modules/payment/infrastructure/gateway/adapters/okpay"
 
 	paymentapp "github.com/dujiao-next/internal/modules/payment/application"
@@ -67,6 +71,10 @@ func (a callbackServiceTestAdapter) HandleWechatWebhook(input paymentcallback.We
 }
 
 func newOkpayCallbackFixture(t *testing.T) *okpayCallbackFixture {
+	return newCallbackFixture(t, constants.PaymentProviderOkpay)
+}
+
+func newCallbackFixture(t *testing.T, provider string) *okpayCallbackFixture {
 	t.Helper()
 
 	gin.SetMode(gin.TestMode)
@@ -136,6 +144,12 @@ func newOkpayCallbackFixture(t *testing.T) *okpayCallbackFixture {
 		CreatedAt: now,
 		UpdatedAt: now,
 	}
+	if provider == constants.PaymentProviderMola {
+		channel.ProviderType = provider
+		channel.ChannelType = constants.PaymentChannelTypeAlipay
+		channel.InteractionMode = constants.PaymentInteractionRedirect
+		channel.ConfigJSON = jsonmap.JSON{"merchant_id": "1001", "merchant_key": "test-mola-key", "notify_url": "https://example.com/api/v1/payments/callback", "return_url": "https://example.com/pay"}
+	}
 	if err := db.Create(channel).Error; err != nil {
 		t.Fatalf("create channel failed: %v", err)
 	}
@@ -156,6 +170,10 @@ func newOkpayCallbackFixture(t *testing.T) *okpayCallbackFixture {
 		CreatedAt:       now,
 		UpdatedAt:       now,
 	}
+	if provider == constants.PaymentProviderMola {
+		payment.Currency = "CNY"
+		payment.Amount = money.FromDecimal(decimal.NewFromInt(88))
+	}
 	if err := db.Create(payment).Error; err != nil {
 		t.Fatalf("create payment failed: %v", err)
 	}
@@ -167,6 +185,7 @@ func newOkpayCallbackFixture(t *testing.T) *okpayCallbackFixture {
 	productSKURepo := productgormstore.NewSKUStore(db)
 
 	registry := paymentprovider.NewRegistry()
+	registry.Register(constants.PaymentProviderMola, "", epayadapter.NewMolaAdapter())
 	registry.Register(constants.PaymentProviderOkpay, "", okpayadapter.NewOkpayAdapter())
 
 	paymentService := paymentapp.NewPaymentService(paymentapp.PaymentServiceOptions{
@@ -316,4 +335,57 @@ func hmacSHA256HexUpper(base string, token string) string {
 	mac := hmac.New(sha256.New, []byte(token))
 	mac.Write([]byte(base))
 	return strings.ToUpper(hex.EncodeToString(mac.Sum(nil)))
+}
+
+func TestMolaCallback(t *testing.T) {
+	for _, tc := range []struct {
+		name, amount, merchant, order, signature string
+		success                                  bool
+	}{
+		{"success_and_duplicate", "88.00", "1001", "DJP9001", "", true},
+		{"wrong_amount", "0.01", "1001", "DJP9001", "", false},
+		{"wrong_merchant", "88.00", "1002", "DJP9001", "", false},
+		{"wrong_order", "88.00", "1001", "OTHER", "", false},
+		{"invalid_signature", "88.00", "1001", "DJP9001", "invalid", false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			f := newCallbackFixture(t, constants.PaymentProviderMola)
+			form := url.Values{"pid": {tc.merchant}, "out_trade_no": {tc.order}, "trade_no": {"MOLA001"}, "type": {"alipay"}, "name": {"Test"}, "money": {tc.amount}, "trade_status": {"TRADE_SUCCESS"}}
+			keys := make([]string, 0, len(form))
+			for k := range form {
+				keys = append(keys, k)
+			}
+			sort.Strings(keys)
+			pairs := make([]string, 0, len(keys))
+			for _, k := range keys {
+				pairs = append(pairs, k+"="+form.Get(k))
+			}
+			sum := md5.Sum([]byte(strings.Join(pairs, "&") + "test-mola-key"))
+			form.Set("sign", fmt.Sprintf("%x", sum))
+			form.Set("sign_type", "MD5")
+			if tc.signature != "" {
+				form.Set("sign", tc.signature)
+			}
+			for attempt := 0; attempt < 2; attempt++ {
+				recorder := httptest.NewRecorder()
+				c, _ := gin.CreateTestContext(recorder)
+				c.Request = httptest.NewRequest(http.MethodGet, "/api/v1/payments/callback?"+form.Encode(), nil)
+				f.handler.PaymentCallback(c)
+				want := "fail"
+				if tc.success {
+					want = "success"
+				}
+				if recorder.Code != http.StatusOK || recorder.Body.String() != want {
+					t.Fatalf("callback response: %d %q, want %s", recorder.Code, recorder.Body.String(), want)
+				}
+			}
+			payment, err := f.paymentRepo.GetByID(f.payment.ID)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if (payment.Status == constants.PaymentStatusSuccess) != tc.success {
+				t.Fatalf("payment status: %s", payment.Status)
+			}
+		})
+	}
 }

@@ -439,6 +439,8 @@ func resolvePayType(channelType string) string {
 		return constants.PaymentChannelTypeAlipay
 	case constants.PaymentChannelTypeQqpay:
 		return constants.PaymentChannelTypeQqpay
+	case "tenpay":
+		return "tenpay"
 	default:
 		return ""
 	}

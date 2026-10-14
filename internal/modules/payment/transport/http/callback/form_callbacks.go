@@ -99,7 +99,8 @@ func (h *Handler) handleEpayCallback(c *gin.Context) bool {
 		c.String(http.StatusOK, constants.EpayCallbackFail)
 		return true
 	}
-	if strings.ToLower(strings.TrimSpace(channel.ProviderType)) != constants.PaymentProviderEpay {
+	providerType := strings.ToLower(strings.TrimSpace(channel.ProviderType))
+	if providerType != constants.PaymentProviderEpay && providerType != constants.PaymentProviderMola {
 		log.Warnw("epay_callback_provider_invalid", "payment_id", payment.ID, "channel_id", channel.ID, "provider_type", channel.ProviderType)
 		c.String(http.StatusOK, constants.EpayCallbackFail)
 		return true
@@ -111,7 +112,7 @@ func (h *Handler) handleEpayCallback(c *gin.Context) bool {
 		h.enqueuePaymentExceptionAlert(c, jsonmap.JSON{
 			"alert_type": "epay_callback_handle_failed", "alert_level": "error",
 			"payment_id": fmt.Sprintf("%d", payment.ID), "out_trade_no": outTradeNo,
-			"message": strings.TrimSpace(err.Error()), "provider": constants.PaymentProviderEpay,
+			"message": strings.TrimSpace(err.Error()), "provider": channel.ProviderType,
 		})
 		c.String(http.StatusOK, constants.EpayCallbackFail)
 		return true

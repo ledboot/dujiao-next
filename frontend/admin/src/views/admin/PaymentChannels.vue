@@ -115,6 +115,7 @@ const providerTypeLabel = (value?: string) => {
   const map: Record<string, string> = {
     official: t('admin.paymentChannels.providerTypes.official'),
     epay: t('admin.paymentChannels.providerTypes.epay'),
+    mola: t('admin.paymentChannels.providerTypes.mola'),
     bepusdt: t('admin.paymentChannels.providerTypes.bepusdt'),
     epusdt: t('admin.paymentChannels.providerTypes.epusdt'),
     okpay: t('admin.paymentChannels.providerTypes.okpay'),
@@ -129,6 +130,7 @@ const channelTypeLabel = (value?: string) => {
     wechat: t('admin.paymentChannels.channelTypes.wechat'),
     alipay: t('admin.paymentChannels.channelTypes.alipay'),
     qqpay: t('admin.paymentChannels.channelTypes.qqpay'),
+    tenpay: t('admin.paymentChannels.channelTypes.tenpay'),
     paypal: t('admin.paymentChannels.channelTypes.paypal'),
     stripe: t('admin.paymentChannels.channelTypes.stripe'),
     usdt: t('admin.paymentChannels.channelTypes.usdt'),
@@ -335,6 +337,7 @@ watch(
                   </span>
                 </span>
               </SelectItem>
+              <SelectItem value="mola">{{ t('admin.paymentChannels.providerTypes.mola') }}</SelectItem>
               <SelectItem value="epay">{{ t('admin.paymentChannels.providerTypes.epay') }}</SelectItem>
               <SelectItem value="bepusdt">{{ t('admin.paymentChannels.providerTypes.bepusdt') }}</SelectItem>
               <SelectItem value="epusdt">{{ t('admin.paymentChannels.providerTypes.epusdt') }}</SelectItem>

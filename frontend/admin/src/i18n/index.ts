@@ -1194,6 +1194,7 @@ const messages = {
         providerTypes: {
           official: '官方',
           epay: '易支付',
+          mola: '默拉',
           bepusdt: 'BEpusdt',
           epusdt: 'Epusdt',
           okpay: 'OKPAY',
@@ -1202,6 +1203,7 @@ const messages = {
           wallet: '钱包余额',
         },
         channelTypes: {
+          tenpay: '财付通',
           wechat: '微信',
           alipay: '支付宝',
           qqpay: 'QQ钱包',
@@ -1289,6 +1291,8 @@ const messages = {
           memberLevels: '会员等级限制 (选填)',
           memberLevelsPlaceholder: '请选择允许的会员等级 (留空为不限制)',
           sortOrder: '排序权重',
+          molaSection: '默拉配置',
+          molaHint: '使用 MD5 签名跳转至默拉收银台，支付金额为人民币。异步通知地址填写 /api/v1/payments/callback，回跳地址填写 /pay（均需包含本站域名）。',
           epaySection: '易支付配置',
           epayVersion: '版本',
           gatewayUrl: '支付网关',
@@ -5757,6 +5761,7 @@ const messages = {
         providerTypes: {
           official: '官方',
           epay: '易支付',
+          mola: '默拉',
           bepusdt: 'BEpusdt',
           epusdt: 'Epusdt',
           okpay: 'OKPAY',
@@ -5765,6 +5770,7 @@ const messages = {
           wallet: '錢包餘額',
         },
         channelTypes: {
+          tenpay: '財付通',
           wechat: '微信',
           alipay: '支付寶',
           qqpay: 'QQ錢包',
@@ -5852,6 +5858,8 @@ const messages = {
           memberLevels: '會員等級限制 (選填)',
           memberLevelsPlaceholder: '請選擇允許的會員等級 (留空為不限制)',
           sortOrder: '排序權重',
+          molaSection: '默拉設定',
+          molaHint: '使用 MD5 簽名跳轉至默拉收銀台，支付金額為人民幣。非同步通知地址填寫 /api/v1/payments/callback，返回地址填寫 /pay（均需包含本站網域）。',
           epaySection: '易支付配置',
           epayVersion: '版本',
           gatewayUrl: '支付網關',
@@ -10320,6 +10328,7 @@ const messages = {
         providerTypes: {
           official: 'Official',
           epay: 'Epay',
+          mola: 'Mola',
           bepusdt: 'BEpusdt',
           epusdt: 'Epusdt',
           okpay: 'OKPAY',
@@ -10328,6 +10337,7 @@ const messages = {
           wallet: 'Wallet Balance',
         },
         channelTypes: {
+          tenpay: 'Tenpay',
           wechat: 'WeChat',
           alipay: 'Alipay',
           qqpay: 'QQ Wallet',
@@ -10415,6 +10425,8 @@ const messages = {
           memberLevels: 'Member Levels Limit (Optional)',
           memberLevelsPlaceholder: 'Please select the allowed member level (Leave blank means no limit)',
           sortOrder: 'Sort Order',
+          molaSection: 'Mola Config',
+          molaHint: 'Redirects to Mola checkout with MD5 signing and CNY payments. Use /api/v1/payments/callback for notifications and /pay for returns, both including your site origin.',
           epaySection: 'Epay Config',
           epayVersion: 'Version',
           gatewayUrl: 'Gateway URL',

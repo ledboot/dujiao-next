@@ -39,6 +39,7 @@ func buildMinimalPaymentServiceWithRegistry(t *testing.T) *paymentapp.PaymentSer
 	reg.Register(constants.PaymentProviderOfficial, constants.PaymentChannelTypeWechat, wechatpayadapter.NewWechatpayAdapter())
 	reg.Register(constants.PaymentProviderOfficial, constants.PaymentChannelTypeAlipay, alipayadapter.NewAlipayAdapter())
 	reg.Register(constants.PaymentProviderEpay, "", epayadapter.NewEpayAdapter())
+	reg.Register(constants.PaymentProviderMola, "", epayadapter.NewMolaAdapter())
 	reg.Register(constants.PaymentProviderEpusdt, "", epusdtadapter.NewEpusdtAdapter())
 	reg.Register(constants.PaymentProviderBepusdt, "", bepusdtadapter.NewBepusdtAdapter())
 	reg.Register(constants.PaymentProviderDujiaoPay, "", dujiaopayadapter.NewDujiaoPayAdapter())
@@ -101,4 +102,21 @@ func buildWechatTestPrivateKey() string {
 		panic(err)
 	}
 	return string(pem.EncodeToMemory(&pem.Block{Type: "PRIVATE KEY", Bytes: privateKeyDER}))
+}
+
+func TestValidateChannelMolaRequiresRedirect(t *testing.T) {
+	svc := buildMinimalPaymentServiceWithRegistry(t)
+	channel := &paymentdomain.PaymentChannel{
+		ProviderType:    constants.PaymentProviderMola,
+		ChannelType:     constants.PaymentChannelTypeAlipay,
+		InteractionMode: constants.PaymentInteractionRedirect,
+		ConfigJSON:      jsonmap.JSON{"merchant_id": "1001", "merchant_key": "test-key", "notify_url": "https://shop.example/api/v1/payments/callback", "return_url": "https://shop.example/pay"},
+	}
+	if err := svc.ValidateChannel(channel); err != nil {
+		t.Fatal(err)
+	}
+	channel.InteractionMode = constants.PaymentInteractionQR
+	if err := svc.ValidateChannel(channel); err == nil {
+		t.Fatal("Mola QR mode must be rejected")
+	}
 }

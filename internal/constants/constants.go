@@ -58,6 +58,7 @@ const (
 const (
 	PaymentProviderOfficial  = "official"
 	PaymentProviderEpay      = "epay"
+	PaymentProviderMola      = "mola"
 	PaymentProviderEpusdt    = "epusdt"
 	PaymentProviderBepusdt   = "bepusdt"
 	PaymentProviderDujiaoPay = "dujiaopay"
