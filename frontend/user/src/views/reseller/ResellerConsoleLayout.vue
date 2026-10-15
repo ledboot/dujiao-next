@@ -99,6 +99,7 @@ const groupDefs: Array<{ key: string; titleKey: string; items: NavDef[] }> = [
     titleKey: 'resellerConsole.navGroups.config',
     items: [
       { to: '/reseller/domains', label: 'resellerConsole.nav.domains', icon: Globe },
+      { to: '/reseller/announcements', label: 'resellerConsole.announcements.title', icon: FileText },
       { to: '/reseller/site', label: 'resellerConsole.nav.site', icon: Settings },
       { to: '/reseller/products', label: 'resellerConsole.nav.products', icon: Tag },
     ],

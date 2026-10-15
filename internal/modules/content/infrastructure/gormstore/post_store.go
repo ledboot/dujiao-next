@@ -11,6 +11,7 @@ import (
 
 	"github.com/dujiao-next/internal/modules/content/contract"
 	"github.com/dujiao-next/internal/modules/content/domain"
+	reseller "github.com/dujiao-next/internal/modules/reseller/contract"
 	"gorm.io/gorm"
 )
 
@@ -44,6 +45,8 @@ func (s *PostStore) List(ctx context.Context, query contract.PostQuery) ([]domai
 	posts := make([]domain.Post, 0)
 	db := withContext(s.db, ctx)
 	statement := db.Model(&domain.Post{}).Where("posts.deleted_at IS NULL")
+
+	statement = statement.Where("posts.reseller_id = ?", query.ResellerID)
 
 	if query.OnlyPublished {
 		statement = statement.Where("is_published = ?", true)
@@ -200,7 +203,7 @@ func (s *PostStore) ListPostsForProduct(ctx context.Context, productID uint, pos
 	posts := make([]domain.Post, 0)
 	statement := withContext(s.db, ctx).
 		Joins("INNER JOIN post_products pp ON pp.post_id = posts.id").
-		Where("pp.product_id = ? AND posts.deleted_at IS NULL", productID)
+		Where("pp.product_id = ? AND posts.deleted_at IS NULL AND posts.reseller_id = ?", productID, reseller.RequestResellerID(ctx))
 	if postType != "" {
 		statement = statement.Where("posts.type = ?", postType)
 	}

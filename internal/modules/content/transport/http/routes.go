@@ -37,3 +37,11 @@ func RegisterAdminRoutes(admin gin.IRoutes, handler *AdminHandler) {
 	admin.PUT("/media/:id", handler.UpdateMedia)
 	admin.DELETE("/media/:id", handler.DeleteMedia)
 }
+
+// RegisterResellerAnnouncementRoutes exposes only announcement management capabilities.
+func RegisterResellerAnnouncementRoutes(console gin.IRoutes, handler *AdminHandler) {
+	console.GET("/announcements", handler.GetAdminPosts)
+	console.POST("/announcements", handler.CreatePost)
+	console.PUT("/announcements/:id", handler.UpdatePost)
+	console.DELETE("/announcements/:id", handler.DeletePost)
+}

@@ -21,6 +21,9 @@ test('reseller console route gate blocks active-only modules until profile is ac
   } as any)
 
   assert.equal(resolveResellerConsoleModule('/reseller/products'), 'products')
+  assert.equal(resolveResellerConsoleModule('/reseller/announcements'), 'announcements')
+  assert.equal(canRenderResellerConsoleModule('/reseller/announcements', pendingState), false)
+  assert.equal(canRenderResellerConsoleModule('/reseller/announcements', activeState), true)
   assert.equal(canRenderResellerConsoleModule('/reseller/apply', pendingState), true)
   assert.equal(canRenderResellerConsoleModule('/reseller', pendingState), true)
   assert.equal(canRenderResellerConsoleModule('/reseller/products', pendingState), false)

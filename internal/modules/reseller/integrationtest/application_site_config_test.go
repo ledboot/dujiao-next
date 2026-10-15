@@ -268,3 +268,24 @@ func resellerSiteConfigTestMap(value interface{}) map[string]interface{} {
 		return nil
 	}
 }
+
+func TestResellerAnnouncementDoesNotInheritWithoutSiteConfig(t *testing.T) {
+	db := openResellerManagementServiceTestDB(t)
+	user := seedResellerManagementUser(t, db, "no-config-announcement@example.test")
+	profile := resellerdomain.Profile{UserID: user.ID, Status: resellerdomain.ProfileStatusActive}
+	if err := db.Create(&profile).Error; err != nil {
+		t.Fatal(err)
+	}
+	svc := NewResellerSiteConfigService(resellergormstore.New(db))
+	base := map[string]interface{}{"announcement": map[string]interface{}{"version": "main"}}
+	out, err := svc.ApplyPublicConfigOverlay(context.Background(), ResellerTenantContext("shop.test", profile.ID, user.ID, "shop.test"), base)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, ok := out["announcement"]; ok {
+		t.Fatal("main announcement inherited")
+	}
+	if _, ok := base["announcement"]; !ok {
+		t.Fatal("main config was mutated")
+	}
+}

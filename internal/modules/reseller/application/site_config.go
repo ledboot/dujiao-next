@@ -363,6 +363,7 @@ func (s *SiteConfigService) ApplyPublicConfigOverlay(ctx context.Context, tenant
 		return out, nil
 	}
 	resellerID := *tenant.ResellerID
+	delete(out, "announcement")
 	out["tenant"] = map[string]interface{}{
 		"mode":           "reseller",
 		"host":           tenant.Host,

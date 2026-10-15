@@ -162,6 +162,9 @@ func registerStorefrontRoutes(
 			resellertransport.RegisterUserProductSettingRoutes(resellerConsole, userResellerProductSettingHandler)
 			resellertransport.RegisterUserFinanceRoutes(resellerConsole, userResellerFinanceHandler)
 			resellertransport.RegisterUserOrderRoutes(resellerConsole, userResellerOrderHandler)
+			announcementConsole := resellerConsole.Group("")
+			announcementConsole.Use(userResellerHandler.RequireAnnouncementOwner)
+			contenttransport.RegisterResellerAnnouncementRoutes(announcementConsole, contenttransport.NewAdminHandler(c.ContentPostService, nil, nil, nil))
 		}
 
 		// API 对接权限（用户中心）

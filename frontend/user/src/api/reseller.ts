@@ -10,7 +10,21 @@ import type {
     ResellerWithdrawApplyPayload,
 } from './types'
 
+export type ResellerAnnouncement = {
+    id: number
+    slug: string
+    type: 'notice' | 'blog'
+    title: Record<string, string>
+    summary: Record<string, string>
+    content: Record<string, string>
+    is_published: boolean
+}
+
 export const resellerAPI = {
+    announcements: (page = 1) => userApi.get('/reseller/announcements', { params: { page, page_size: 12 } }),
+    createAnnouncement: (data: Omit<ResellerAnnouncement, 'id'>) => userApi.post('/reseller/announcements', data),
+    updateAnnouncement: (id: number, data: Omit<ResellerAnnouncement, 'id'>) => userApi.put(`/reseller/announcements/${id}`, data),
+    deleteAnnouncement: (id: number) => userApi.delete(`/reseller/announcements/${id}`),
     managementProfile: () => userApi.get('/reseller/profile'),
     apply: (data: ResellerApplyPayload) => userApi.post('/reseller/apply', data),
     refreshDomain: (id: number) => userApi.post(`/reseller/domains/${id}/refresh`),

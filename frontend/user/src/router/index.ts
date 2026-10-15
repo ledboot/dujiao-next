@@ -227,6 +227,7 @@ const router = createRouter({
                 { path: '', name: 'reseller-dashboard', component: () => import('../views/reseller/ResellerDashboard.vue') },
                 { path: 'apply', name: 'reseller-apply', component: () => import('../views/reseller/ResellerApply.vue') },
                 { path: 'domains', name: 'reseller-domains', component: () => import('../views/reseller/ResellerDomains.vue') },
+                { path: 'announcements', name: 'reseller-announcements', component: () => import('../views/reseller/ResellerAnnouncements.vue') },
                 { path: 'site', name: 'reseller-site', component: () => import('../views/reseller/ResellerSiteConfig.vue') },
                 { path: 'products', name: 'reseller-products', component: () => import('../views/reseller/ResellerProducts.vue') },
                 { path: 'orders', name: 'reseller-orders', component: () => import('../views/reseller/ResellerOrders.vue') },

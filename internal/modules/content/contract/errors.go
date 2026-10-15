@@ -3,6 +3,9 @@ package contract
 import "errors"
 
 var (
+	ErrResellerPostTitle             = errors.New("reseller post title required or exceeds 120 characters")
+	ErrResellerPostSummary           = errors.New("reseller post summary exceeds 300 characters")
+	ErrResellerPostContent           = errors.New("reseller post content exceeds 10000 characters")
 	ErrNotFound                      = errors.New("not found")
 	ErrSlugExists                    = errors.New("slug exists")
 	ErrCategoryParentInvalid         = errors.New("category parent invalid")

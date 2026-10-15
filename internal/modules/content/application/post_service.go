@@ -6,6 +6,7 @@ import (
 	"github.com/dujiao-next/internal/constants"
 	"github.com/dujiao-next/internal/modules/content/contract"
 	"github.com/dujiao-next/internal/modules/content/domain"
+	reseller "github.com/dujiao-next/internal/modules/reseller/contract"
 	"github.com/dujiao-next/internal/shared/jsonmap"
 )
 
@@ -62,6 +63,7 @@ func NewPostService(posts contract.PostStore, relations contract.PostProductRela
 // ListPublic 获取公开文章列表。
 func (s *PostService) ListPublic(ctx context.Context, query PublicPostQuery) ([]domain.Post, int64, error) {
 	return s.posts.List(ctx, contract.PostQuery{
+		ResellerID:    reseller.RequestResellerID(ctx),
 		Page:          query.Page,
 		PageSize:      query.PageSize,
 		Type:          query.Type,
@@ -77,7 +79,7 @@ func (s *PostService) GetPublicBySlug(ctx context.Context, slug string) (*domain
 	if err != nil {
 		return nil, err
 	}
-	if post == nil {
+	if post == nil || post.ResellerID != reseller.RequestResellerID(ctx) {
 		return nil, contract.ErrNotFound
 	}
 	return post, nil
@@ -86,18 +88,24 @@ func (s *PostService) GetPublicBySlug(ctx context.Context, slug string) (*domain
 // ListAdmin 获取后台文章列表。
 func (s *PostService) ListAdmin(ctx context.Context, query AdminPostQuery) ([]domain.Post, int64, error) {
 	return s.posts.List(ctx, contract.PostQuery{
-		Page:     query.Page,
-		PageSize: query.PageSize,
-		Type:     query.Type,
-		Search:   query.Search,
-		Order:    contract.PostOrderCreatedDesc,
+		ResellerID: contract.PostOwner(ctx),
+		Page:       query.Page,
+		PageSize:   query.PageSize,
+		Type:       query.Type,
+		Search:     query.Search,
+		Order:      contract.PostOrderCreatedDesc,
 	})
 }
 
 // Create 创建文章。
 func (s *PostService) Create(ctx context.Context, input CreatePostInput) (*domain.Post, error) {
-	if !isAllowedPostType(input.Type) {
+	if !isAllowedPostType(input.Type) || (contract.PostOwner(ctx) != 0 && (input.ProductIDs != nil || input.CategoryID != nil)) {
 		return nil, contract.ErrInvalidPostType
+	}
+	if contract.PostOwner(ctx) != 0 {
+		if err := validateResellerPost(input); err != nil {
+			return nil, err
+		}
 	}
 	categoryID := normalizePostCategoryID(input.CategoryID)
 	if err := s.validateCategoryAssignment(ctx, input.Type, categoryID, nil); err != nil {
@@ -117,6 +125,7 @@ func (s *PostService) Create(ctx context.Context, input CreatePostInput) (*domai
 		isPublished = *input.IsPublished
 	}
 	post := domain.Post{
+		ResellerID:  contract.PostOwner(ctx),
 		Slug:        input.Slug,
 		Type:        input.Type,
 		TitleJSON:   jsonmap.JSON(input.TitleJSON),
@@ -147,7 +156,7 @@ func (s *PostService) Create(ctx context.Context, input CreatePostInput) (*domai
 
 // Update 更新文章。
 func (s *PostService) Update(ctx context.Context, id string, input CreatePostInput) (*domain.Post, error) {
-	if !isAllowedPostType(input.Type) {
+	if !isAllowedPostType(input.Type) || (contract.PostOwner(ctx) != 0 && (input.ProductIDs != nil || input.CategoryID != nil)) {
 		return nil, contract.ErrInvalidPostType
 	}
 
@@ -155,8 +164,13 @@ func (s *PostService) Update(ctx context.Context, id string, input CreatePostInp
 	if err != nil {
 		return nil, err
 	}
-	if post == nil {
+	if post == nil || post.ResellerID != contract.PostOwner(ctx) {
 		return nil, contract.ErrNotFound
+	}
+	if contract.PostOwner(ctx) != 0 {
+		if err := validateResellerPost(input); err != nil {
+			return nil, err
+		}
 	}
 	categoryID := normalizePostCategoryID(input.CategoryID)
 	if err := s.validateCategoryAssignment(ctx, input.Type, categoryID, post.CategoryID); err != nil {
@@ -222,7 +236,7 @@ func (s *PostService) Delete(ctx context.Context, id string) error {
 	if err != nil {
 		return err
 	}
-	if post == nil {
+	if post == nil || post.ResellerID != contract.PostOwner(ctx) {
 		return contract.ErrNotFound
 	}
 	return s.posts.Delete(ctx, id)

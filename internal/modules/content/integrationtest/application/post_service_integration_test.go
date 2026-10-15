@@ -2,7 +2,10 @@ package application_test
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"strconv"
+	"strings"
 	"testing"
 	"time"
 
@@ -11,6 +14,7 @@ import (
 	contentcontract "github.com/dujiao-next/internal/modules/content/contract"
 	contentdomain "github.com/dujiao-next/internal/modules/content/domain"
 	"github.com/dujiao-next/internal/modules/content/infrastructure/gormstore"
+	reseller "github.com/dujiao-next/internal/modules/reseller/contract"
 	"github.com/dujiao-next/internal/shared/jsonmap"
 	"github.com/glebarez/sqlite"
 	"gorm.io/gorm"
@@ -445,5 +449,161 @@ func TestPostServiceListPostsForProductFiltersTypeAndPublication(t *testing.T) {
 	}
 	if len(limited) != 1 || limited[0].Slug != "first-blog" {
 		t.Fatalf("expected first related published blog, got %#v", limited)
+	}
+}
+
+func TestAnnouncementTenantIsolation(t *testing.T) {
+	for _, postType := range []string{constants.PostTypeNotice, constants.PostTypeBlog} {
+		t.Run(postType, func(t *testing.T) {
+			svc, db := newPostServiceForTest(t)
+			sqlDB, _ := db.DB()
+			sqlDB.SetMaxOpenConns(1)
+			ctx := context.Background()
+			published := true
+			input := contentapp.CreatePostInput{Type: postType, TitleJSON: map[string]interface{}{"zh-CN": "Title"}, ContentJSON: map[string]interface{}{"zh-CN": "Content"}, IsPublished: &published}
+			posts := map[uint]*contentdomain.Post{}
+			for _, owner := range []uint{0, 7, 8} {
+				input.Slug = fmt.Sprintf("notice-%d", owner)
+				post, err := svc.Create(contentcontract.WithPostOwner(ctx, owner), input)
+				if err != nil {
+					t.Fatal(err)
+				}
+				posts[owner] = post
+			}
+			for _, owner := range []uint{0, 7, 8} {
+				publicCtx := ctx
+				if owner != 0 {
+					publicCtx = reseller.WithTenantContext(ctx, reseller.ResellerTenantContext("shop.test", owner, 1, "shop.test"))
+				}
+				for _, typ := range []string{"", postType} {
+					rows, total, err := svc.ListPublic(publicCtx, contentapp.PublicPostQuery{Type: typ, Page: 1, PageSize: 20})
+					if err != nil || total != 1 || len(rows) != 1 || rows[0].ResellerID != owner {
+						t.Fatalf("public owner %d: %+v %d %v", owner, rows, total, err)
+					}
+				}
+				managementCtx := contentcontract.WithPostOwner(ctx, owner)
+				rows, total, err := svc.ListAdmin(managementCtx, contentapp.AdminPostQuery{Page: 1, PageSize: 20})
+				if err != nil || total != 1 || rows[0].ResellerID != owner {
+					t.Fatalf("management owner %d: %+v %v", owner, rows, err)
+				}
+				for other, post := range posts {
+					_, err := svc.GetPublicBySlug(publicCtx, post.Slug)
+					if other == owner {
+						if err != nil {
+							t.Fatal(err)
+						}
+						continue
+					}
+					if !errors.Is(err, contentcontract.ErrNotFound) {
+						t.Fatalf("cross-tenant read: %v", err)
+					}
+					input.Slug = post.Slug
+					id := strconv.Itoa(int(post.ID))
+					if _, err := svc.Update(managementCtx, id, input); !errors.Is(err, contentcontract.ErrNotFound) {
+						t.Fatalf("cross-tenant update: %v", err)
+					}
+					if err := svc.Delete(managementCtx, id); !errors.Is(err, contentcontract.ErrNotFound) {
+						t.Fatalf("cross-tenant delete: %v", err)
+					}
+				}
+			}
+			ownerCtx := contentcontract.WithPostOwner(ctx, 7)
+			input.Slug = "draft"
+			published = false
+			draft, err := svc.Create(ownerCtx, input)
+			if err != nil {
+				t.Fatal(err)
+			}
+			publicCtx := reseller.WithTenantContext(ctx, reseller.ResellerTenantContext("shop.test", 7, 1, "shop.test"))
+			if _, err := svc.GetPublicBySlug(publicCtx, draft.Slug); !errors.Is(err, contentcontract.ErrNotFound) {
+				t.Fatalf("draft exposed: %v", err)
+			}
+			input.Type = "invalid"
+			if _, err := svc.Create(ownerCtx, input); !errors.Is(err, contentcontract.ErrInvalidPostType) {
+				t.Fatalf("invalid type accepted: %v", err)
+			}
+			input.Type = postType
+			ids := []uint{1}
+			input.ProductIDs = &ids
+			if _, err := svc.Create(ownerCtx, input); !errors.Is(err, contentcontract.ErrInvalidPostType) {
+				t.Fatalf("reseller relation accepted: %v", err)
+			}
+			input.ProductIDs = nil
+			input.Slug = draft.Slug
+			published = true
+			id := strconv.Itoa(int(draft.ID))
+			if _, err := svc.Update(ownerCtx, id, input); err != nil {
+				t.Fatal(err)
+			}
+			if _, err := svc.GetPublicBySlug(publicCtx, draft.Slug); err != nil {
+				t.Fatal(err)
+			}
+			if err := svc.Delete(ownerCtx, id); err != nil {
+				t.Fatal(err)
+			}
+			if _, err := svc.GetPublicBySlug(publicCtx, draft.Slug); !errors.Is(err, contentcontract.ErrNotFound) {
+				t.Fatalf("deleted exposed: %v", err)
+			}
+		})
+	}
+}
+
+func TestResellerPostCreateAndUpdateEnforceLimits(t *testing.T) {
+	svc, _ := newPostServiceForTest(t)
+	ctx := contentcontract.WithPostOwner(context.Background(), 7)
+	for _, typ := range []string{constants.PostTypeBlog, constants.PostTypeNotice} {
+		input := contentapp.CreatePostInput{Slug: "limit-" + typ, Type: typ, TitleJSON: map[string]interface{}{"zh-CN": "Title"}}
+		post, err := svc.Create(ctx, input)
+		if err != nil {
+			t.Fatal(err)
+		}
+		id := strconv.Itoa(int(post.ID))
+		invalid := []struct {
+			field  string
+			length int
+			want   error
+		}{
+			{"title", 121, contentcontract.ErrResellerPostTitle},
+			{"summary", 301, contentcontract.ErrResellerPostSummary},
+			{"content", 10001, contentcontract.ErrResellerPostContent},
+		}
+		for _, tc := range invalid {
+			changed := input
+			value := map[string]interface{}{"zh-CN": strings.Repeat("字", tc.length)}
+			switch tc.field {
+			case "title":
+				changed.TitleJSON = value
+			case "summary":
+				changed.SummaryJSON = value
+			case "content":
+				changed.ContentJSON = value
+			}
+			if _, err := svc.Update(ctx, id, changed); !errors.Is(err, tc.want) {
+				t.Fatalf("update %s: %v", tc.field, err)
+			}
+			changed.Slug = "invalid-" + typ
+			if _, err := svc.Create(ctx, changed); !errors.Is(err, tc.want) {
+				t.Fatalf("create %s: %v", tc.field, err)
+			}
+		}
+	}
+}
+
+func TestResellerProductDoesNotExposeMainBlog(t *testing.T) {
+	svc, _ := newPostServiceForTest(t)
+	published := true
+	ids := []uint{42}
+	_, err := svc.Create(context.Background(), contentapp.CreatePostInput{Slug: "main-related-blog", Type: constants.PostTypeBlog, TitleJSON: map[string]interface{}{"zh-CN": "Main blog"}, IsPublished: &published, ProductIDs: &ids})
+	if err != nil {
+		t.Fatal(err)
+	}
+	mainRows, err := svc.ListPostsForProduct(context.Background(), 42, 10)
+	if err != nil || len(mainRows) != 1 {
+		t.Fatalf("main related posts: %v %v", mainRows, err)
+	}
+	ctx := reseller.WithTenantContext(context.Background(), reseller.ResellerTenantContext("shop.test", 7, 1, "shop.test"))
+	rows, err := svc.ListPostsForProduct(ctx, 42, 10)
+	if err != nil || len(rows) != 0 {
+		t.Fatalf("main blog exposed to reseller: %v %v", rows, err)
 	}
 }

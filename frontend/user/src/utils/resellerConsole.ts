@@ -5,6 +5,7 @@ export type ResellerModuleKey =
   | 'dashboard'
   | 'domains'
   | 'site'
+  | 'announcements'
   | 'products'
   | 'orders'
   | 'finance'
@@ -28,6 +29,7 @@ const activeModules: ResellerModuleKey[] = [
   'dashboard',
   'domains',
   'site',
+  'announcements',
   'products',
   'orders',
   'finance',
@@ -39,6 +41,7 @@ const pathModuleMap: Record<string, ResellerModuleKey> = {
   apply: 'apply',
   domains: 'domains',
   site: 'site',
+  announcements: 'announcements',
   products: 'products',
   orders: 'orders',
   finance: 'finance',

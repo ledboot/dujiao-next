@@ -5,6 +5,7 @@ import (
 	"errors"
 	"mime/multipart"
 
+	contentcontract "github.com/dujiao-next/internal/modules/content/contract"
 	resellerdomain "github.com/dujiao-next/internal/modules/reseller/domain"
 
 	resellermodule "github.com/dujiao-next/internal/modules/reseller/application"
@@ -255,4 +256,21 @@ func (h *UserHandler) RefreshDomain(c *gin.Context) {
 		return
 	}
 	response.Success(c, dto.NewResellerDomainResp(row))
+}
+
+// RequireAnnouncementOwner authenticates the active reseller before content management.
+func (h *UserHandler) RequireAnnouncementOwner(c *gin.Context) {
+	uid, ok := ginutil.GetUserID(c)
+	if !ok {
+		c.Abort()
+		return
+	}
+	profile, _, canEdit, err := h.siteConfig.GetUserSiteConfig(uid)
+	if err != nil || !canEdit || profile == nil || profile.ID == 0 {
+		ginutil.RespondError(c, response.CodeForbidden, "error.forbidden", nil)
+		c.Abort()
+		return
+	}
+	c.Request = c.Request.WithContext(contentcontract.WithPostOwner(c.Request.Context(), profile.ID))
+	c.Next()
 }

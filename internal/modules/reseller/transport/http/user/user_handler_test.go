@@ -10,6 +10,7 @@ import (
 	"strings"
 	"testing"
 
+	contentcontract "github.com/dujiao-next/internal/modules/content/contract"
 	resellerdomain "github.com/dujiao-next/internal/modules/reseller/domain"
 
 	resellermodule "github.com/dujiao-next/internal/modules/reseller/application"
@@ -157,5 +158,20 @@ func TestResellerCannotDeleteDomainThroughUserRoute(t *testing.T) {
 	router.ServeHTTP(response, httptest.NewRequest(http.MethodDelete, "/api/v1/user/reseller/domains/1", nil))
 	if response.Code != http.StatusNotFound {
 		t.Fatalf("user deletion route still reachable: %d", response.Code)
+	}
+}
+
+func TestAnnouncementOwnerGuard(t *testing.T) {
+	for _, allowed := range []bool{false, true} {
+		h := &UserHandler{siteConfig: siteConfigStub{profile: &resellerdomain.Profile{ID: 17}, canEdit: allowed}}
+		c, _ := newUserHandlerTestContext("GET", "/announcements", nil, 3)
+		h.RequireAnnouncementOwner(c)
+		if allowed {
+			if c.IsAborted() || contentcontract.PostOwner(c.Request.Context()) != 17 {
+				t.Fatal("owner context missing")
+			}
+		} else if !c.IsAborted() {
+			t.Fatal("inactive reseller allowed")
+		}
 	}
 }

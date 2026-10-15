@@ -89,6 +89,12 @@ func (h *AdminHandler) CreatePost(c *gin.Context) {
 	post, err := h.posts.Create(c.Request.Context(), request.toInput())
 	if err != nil {
 		switch {
+		case errors.Is(err, contentcontract.ErrResellerPostTitle):
+			ginutil.RespondError(c, response.CodeBadRequest, "error.reseller_post_title", nil)
+		case errors.Is(err, contentcontract.ErrResellerPostSummary):
+			ginutil.RespondError(c, response.CodeBadRequest, "error.reseller_post_summary", nil)
+		case errors.Is(err, contentcontract.ErrResellerPostContent):
+			ginutil.RespondError(c, response.CodeBadRequest, "error.reseller_post_content", nil)
 		case errors.Is(err, contentcontract.ErrInvalidPostType):
 			ginutil.RespondError(c, response.CodeBadRequest, "error.post_type_invalid", nil)
 		case errors.Is(err, contentcontract.ErrPostCategoryInvalid):
@@ -116,6 +122,12 @@ func (h *AdminHandler) UpdatePost(c *gin.Context) {
 	post, err := h.posts.Update(c.Request.Context(), c.Param("id"), request.toInput())
 	if err != nil {
 		switch {
+		case errors.Is(err, contentcontract.ErrResellerPostTitle):
+			ginutil.RespondError(c, response.CodeBadRequest, "error.reseller_post_title", nil)
+		case errors.Is(err, contentcontract.ErrResellerPostSummary):
+			ginutil.RespondError(c, response.CodeBadRequest, "error.reseller_post_summary", nil)
+		case errors.Is(err, contentcontract.ErrResellerPostContent):
+			ginutil.RespondError(c, response.CodeBadRequest, "error.reseller_post_content", nil)
 		case errors.Is(err, contentcontract.ErrInvalidPostType):
 			ginutil.RespondError(c, response.CodeBadRequest, "error.post_type_invalid", nil)
 		case errors.Is(err, contentcontract.ErrPostCategoryInvalid):

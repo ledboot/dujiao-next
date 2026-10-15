@@ -8,6 +8,7 @@ import (
 
 // Post 文章/公告表
 type Post struct {
+	ResellerID  uint         `gorm:"not null;default:0;index" json:"reseller_id"`
 	ID          uint         `gorm:"primarykey" json:"id"`                    // 主键
 	Slug        string       `gorm:"uniqueIndex;not null" json:"slug"`        // 唯一标识
 	Type        string       `gorm:"not null;index" json:"type"`              // 类型（blog/notice）
