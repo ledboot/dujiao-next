@@ -1,19 +1,24 @@
 <template>
-  <div>
+  <div :class="gallery ? 'w-24 shrink-0' : ''">
     <span v-if="label" class="mb-2 block text-sm font-medium text-muted-foreground">{{ label }}</span>
     <div class="flex items-start gap-3">
       <div
         class="group relative flex shrink-0 items-center justify-center overflow-hidden rounded-xl border border-dashed border-input bg-muted/40 transition-colors hover:border-primary/60 hover:bg-muted focus-within:ring-2 focus-within:ring-ring"
-        :class="wide ? 'h-20 w-32' : 'h-20 w-20'"
+        :class="gallery ? ['h-24 w-24 !rounded-lg', modelValue ? 'border-solid' : 'border-2'] : wide ? 'h-20 w-32' : 'h-20 w-20'"
       >
         <img v-if="modelValue && !broken" :src="preview" alt="" class="h-full w-full object-contain" @error="broken = true" />
         <Loader2 v-else-if="uploading" class="h-5 w-5 animate-spin text-muted-foreground" />
         <ImageOff v-else-if="modelValue && broken" class="h-5 w-5 text-destructive/60" />
+        <Plus v-else-if="gallery" class="h-6 w-6 text-muted-foreground" />
         <span v-else class="flex flex-col items-center gap-1 text-muted-foreground">
           <ImagePlus class="h-5 w-5" />
           <span class="text-[10px] leading-none">{{ uploadLabel }}</span>
         </span>
-        <span v-if="modelValue" class="pointer-events-none absolute inset-x-0 bottom-0 bg-background/90 py-1 text-center text-xs">{{ replaceLabel }}</span>
+        <span v-if="modelValue && !gallery" class="pointer-events-none absolute inset-x-0 bottom-0 bg-background/90 py-1 text-center text-xs">{{ replaceLabel }}</span>
+        <div v-if="gallery && modelValue" class="pointer-events-none absolute inset-0 z-10 flex flex-col items-center justify-center gap-1.5 bg-black/50 opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100 max-sm:opacity-100">
+          <span class="w-[calc(100%-12px)] truncate rounded-md bg-white/90 px-2 py-1 text-center text-[11px] font-medium text-black shadow-sm">{{ replaceLabel }}</span>
+          <button type="button" class="pointer-events-auto relative z-20 rounded-md bg-destructive/90 px-2.5 py-1 text-[11px] font-medium text-destructive-foreground shadow-sm hover:bg-destructive" :aria-label="removeLabel" :disabled="uploading" @click="emit('update:modelValue', '')">&times;</button>
+        </div>
         <input
           type="file"
           accept="image/*"
@@ -24,7 +29,7 @@
         />
       </div>
 
-      <div class="min-w-0 flex-1 space-y-1.5">
+      <div v-if="!gallery" class="min-w-0 flex-1 space-y-1.5">
         <div class="flex flex-wrap items-center gap-2">
           <Button
             v-if="modelValue"
@@ -43,14 +48,14 @@
         <p v-else-if="hint" class="text-xs text-muted-foreground">{{ hint }}</p>
       </div>
     </div>
-
+    <p v-if="gallery && error" role="alert" class="mt-1 text-xs text-destructive">{{ error }}</p>
   </div>
 </template>
 
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { ImageOff, ImagePlus, Loader2, Trash2 } from 'lucide-vue-next'
+import { ImageOff, ImagePlus, Loader2, Plus, Trash2 } from 'lucide-vue-next'
 import { Button } from '@/components/ui/button'
 import { resellerAPI } from '../../api'
 import { getImageUrl } from '../../utils/image'
@@ -60,6 +65,7 @@ const props = defineProps<{
   label?: string
   hint?: string
   wide?: boolean
+  gallery?: boolean
 }>()
 const emit = defineEmits<{
   (e: 'update:modelValue', value: string): void

@@ -111,14 +111,20 @@
             <fieldset class="space-y-3" :disabled="saving || imageUploads > 0">
               <p class="text-sm font-medium">{{ t('personalCenter.reseller.productSettings.images') }}</p>
               <p class="text-xs text-muted-foreground">{{ t('personalCenter.reseller.productSettings.imagesHint') }}</p>
-              <ResellerImageField
-                v-for="(_, index) in productImages"
-                :key="index"
-                @uploading="trackImageUpload"
-                :model-value="productImages[index] || ''"
-                @update:model-value="value => productImages.splice(index, 1, ...(value ? [value] : []))"
-              />
-              <ResellerImageField v-if="productImages.length < 10" model-value="" @uploading="trackImageUpload" @update:model-value="value => value && productImages.push(value)" />
+              <div class="rounded-xl border-2 border-dashed border-border p-4 transition-colors hover:border-primary/40">
+                <div class="flex flex-wrap gap-3">
+                  <ResellerImageField
+                    v-for="(_, index) in productImages"
+                    :key="index"
+                    gallery
+                    @uploading="trackImageUpload"
+                    :model-value="productImages[index] || ''"
+                    @update:model-value="value => productImages.splice(index, 1, ...(value ? [value] : []))"
+                  />
+                  <ResellerImageField v-if="productImages.length < 10" gallery model-value="" @uploading="trackImageUpload" @update:model-value="value => value && productImages.push(value)" />
+                </div>
+                <p class="mt-3 border-t border-border pt-3 text-xs text-muted-foreground">{{ t('personalCenter.reseller.siteConfig.uploadHint') }}</p>
+              </div>
             </fieldset>
             <ResellerProductRuleEditor
               v-model="productForm"
