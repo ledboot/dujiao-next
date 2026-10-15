@@ -64,6 +64,11 @@ func NewService(policy Policy, store contract.Store) *Service {
 func (s *Service) SaveFileWithMeta(file *multipart.FileHeader, scene string) (*contract.Result, error) {
 	normalizedScene := normalizeUploadScene(scene)
 
+	// 图片上限不能被旧站点配置放宽。Telegram 附件在识别 MIME 后检查。
+	if normalizedScene != "telegram" && file.Size > contract.MaxImageSizeBytes {
+		return nil, contract.ErrImageTooLarge
+	}
+
 	// 验证文件大小
 	if file.Size > s.policy.MaxSize {
 		return nil, newUploadValidationError("文件大小超过限制（最大 %d MB）", s.policy.MaxSize/1024/1024)
@@ -98,6 +103,9 @@ func (s *Service) SaveFileWithMeta(file *multipart.FileHeader, scene string) (*c
 	// http.DetectContentType 无法识别 SVG，需根据扩展名和内容特征补充判断
 	if ext == ".svg" && isSVGContent(buffer) {
 		contentType = "image/svg+xml"
+	}
+	if strings.HasPrefix(contentType, "image/") && file.Size > contract.MaxImageSizeBytes {
+		return nil, contract.ErrImageTooLarge
 	}
 	if normalizedScene != "telegram" && len(s.policy.AllowedTypes) > 0 {
 		allowed := false

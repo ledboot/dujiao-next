@@ -1,4 +1,5 @@
-import { userApi } from './client'
+import { isImageTooLarge } from '../utils/upload'
+import { t, userApi } from './client'
 import type {
     ResellerApplyPayload,
     ResellerCustomDomainPayload,
@@ -18,6 +19,9 @@ export const resellerAPI = {
     siteConfig: () => userApi.get('/reseller/site-config'),
     updateSiteConfig: (data: ResellerSiteConfigPayload) => userApi.put('/reseller/site-config', data),
     uploadImage: (file: File) => {
+        if (isImageTooLarge(file)) {
+            return Promise.reject(new Error(t('personalCenter.reseller.siteConfig.imageTooLarge')))
+        }
         const formData = new FormData()
         formData.append('file', file)
         return userApi.post('/reseller/upload', formData)

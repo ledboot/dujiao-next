@@ -49,6 +49,10 @@ func (h *AdminHandler) UploadFile(c *gin.Context) {
 
 	result, err := h.uploader.SaveFileWithMeta(file, scene)
 	if err != nil {
+		if errors.Is(err, uploadcontract.ErrImageTooLarge) {
+			ginutil.RespondError(c, response.CodeBadRequest, "error.image_too_large", nil)
+			return
+		}
 		if isUploadValidationError(err) {
 			ginutil.RespondErrorWithMsg(c, response.CodeBadRequest, err.Error(), nil)
 			return

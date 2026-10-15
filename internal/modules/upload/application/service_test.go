@@ -2,6 +2,10 @@ package application
 
 import (
 	"bytes"
+	"errors"
+	"fmt"
+	"image"
+	"image/png"
 	"io"
 	"mime/multipart"
 	"path/filepath"
@@ -231,4 +235,40 @@ func createMultipartFile(t *testing.T, filename string, content []byte) *multipa
 		t.Fatalf("expected one file, got %d", len(files))
 	}
 	return files[0]
+}
+
+func TestImageUploadHardSizeLimit(t *testing.T) {
+	var encoded bytes.Buffer
+	if err := png.Encode(&encoded, image.NewRGBA(image.Rect(0, 0, 1, 1))); err != nil {
+		t.Fatal(err)
+	}
+	for _, scene := range []string{"product", "post", "banner", "editor", "common", "category", "reseller", "telegram"} {
+		for _, delta := range []int64{-1, 0, 1} {
+			t.Run(fmt.Sprintf("%s/%d", scene, delta), func(t *testing.T) {
+				size := contract.MaxImageSizeBytes + delta
+				data := make([]byte, size)
+				copy(data, encoded.Bytes())
+				store := &memoryStore{}
+				svc := NewService(Policy{MaxSize: 10 * 1024 * 1024}, store)
+				_, err := svc.SaveFileWithMeta(createMultipartFile(t, "image.png", data), scene)
+				if delta > 0 {
+					if !errors.Is(err, contract.ErrImageTooLarge) {
+						t.Fatalf("expected size rejection, got %v", err)
+					}
+					if len(store.data) != 0 {
+						t.Fatal("oversized image was stored")
+					}
+				} else if err != nil {
+					t.Fatalf("image at or below limit rejected: %v", err)
+				}
+			})
+		}
+	}
+	t.Run("non-image telegram attachment retains configured limit", func(t *testing.T) {
+		svc := NewService(Policy{MaxSize: 10 * 1024 * 1024}, &memoryStore{})
+		_, err := svc.SaveFileWithMeta(createMultipartFile(t, "archive.zip", bytes.Repeat([]byte("a"), int(contract.MaxImageSizeBytes+1))), "telegram")
+		if err != nil {
+			t.Fatal(err)
+		}
+	})
 }

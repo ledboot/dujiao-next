@@ -212,6 +212,10 @@ func (h *UserHandler) UploadImage(c *gin.Context) {
 	}
 	result, err := h.uploads.SaveFileWithMeta(file, "reseller")
 	if err != nil {
+		if errors.Is(err, uploadcontract.ErrImageTooLarge) {
+			ginutil.RespondError(c, response.CodeBadRequest, "error.image_too_large", nil)
+			return
+		}
 		if isUploadValidationError(err) {
 			ginutil.RespondErrorWithMsg(c, response.CodeBadRequest, err.Error(), nil)
 			return

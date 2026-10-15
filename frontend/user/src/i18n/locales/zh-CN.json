@@ -709,7 +709,8 @@
         "unsavedHint": "有未保存的修改",
         "upload": "上传图片",
         "replace": "更换图片",
-        "uploadHint": "支持 JPG / PNG / WebP / GIF / SVG，大小不超过站点限制",
+        "uploadHint": "JPG / PNG / WebP / GIF / SVG，单张不超过 1.5 MB",
+        "imageTooLarge": "单张图片不能超过 1.5 MB",
         "uploadFailed": "图片上传失败，请重试",
         "editor": {
           "placeholder": "输入公告内容，可插入图片、链接与排版…",

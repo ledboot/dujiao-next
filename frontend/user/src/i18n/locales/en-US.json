@@ -756,7 +756,8 @@
         "unsavedHint": "You have unsaved changes",
         "upload": "Upload",
         "replace": "Replace",
-        "uploadHint": "JPG / PNG / WebP / GIF / SVG, within the site size limit",
+        "uploadHint": "JPG / PNG / WebP / GIF / SVG, up to 1.5 MB per image",
+        "imageTooLarge": "Each image must not exceed 1.5 MB",
         "uploadFailed": "Image upload failed, please try again",
         "editor": {
           "placeholder": "Write the announcement, with images, links and formatting…",

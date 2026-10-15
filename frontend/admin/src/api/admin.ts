@@ -1,3 +1,5 @@
+import i18n from '../i18n'
+import { DEFAULT_UPLOAD_MAX_SIZE_BYTES, formatFileSizeLimit } from '../utils/upload'
 import { api } from './client'
 import type {
   AdminCategory,
@@ -344,6 +346,10 @@ export const adminAPI = {
   getAuthzAdminRoles: (id: number) => api.get(`/admin/authz/admins/${id}/roles`),
   setAuthzAdminRoles: (id: number, data: { roles: string[] }) => api.put(`/admin/authz/admins/${id}/roles`, data),
   upload: (formData: FormData, scene = 'common') => {
+    const file = formData.get('file')
+    if (file instanceof File && (scene !== 'telegram' || file.type.startsWith('image/')) && file.size > DEFAULT_UPLOAD_MAX_SIZE_BYTES) {
+      return Promise.reject(new Error(i18n.global.t('admin.media.errors.fileTooLarge', { count: 1, max: formatFileSizeLimit(DEFAULT_UPLOAD_MAX_SIZE_BYTES) })))
+    }
     const payload = new FormData()
     formData.forEach((value, key) => {
       payload.append(key, value)

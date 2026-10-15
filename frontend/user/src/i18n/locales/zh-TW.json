@@ -756,7 +756,8 @@
         "unsavedHint": "有未儲存的修改",
         "upload": "上傳圖片",
         "replace": "更換圖片",
-        "uploadHint": "支援 JPG / PNG / WebP / GIF / SVG，大小不超過站點限制",
+        "uploadHint": "JPG / PNG / WebP / GIF / SVG，單張不超過 1.5 MB",
+        "imageTooLarge": "單張圖片不能超過 1.5 MB",
         "uploadFailed": "圖片上傳失敗，請重試",
         "editor": {
           "placeholder": "輸入公告內容，可插入圖片、連結與排版…",
