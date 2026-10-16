@@ -192,6 +192,7 @@ func BuiltinRoleSeeds() []RoleSeed {
 			Policies: []Policy{
 				{Object: "/admin/payments", Action: "GET"},
 				{Object: "/admin/payments/:id", Action: "GET"},
+				{Object: "/admin/payments/:id/recover-order", Action: "POST"},
 				{Object: "/admin/payments/export", Action: "GET"},
 				{Object: "/admin/payment-channels", Action: "*"},
 				{Object: "/admin/payment-channels/:id", Action: "*"},

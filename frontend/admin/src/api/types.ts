@@ -466,6 +466,8 @@ export interface AdminGatewaySecurityTestResult {
 
 // --- Payment ---
 export interface AdminPayment {
+  recovered_at?: string
+  recovered_by?: string
   id: number
   payment_no: string
   order_id: number

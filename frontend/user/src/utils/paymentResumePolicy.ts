@@ -94,7 +94,16 @@ export const getCachedPaymentRestorePolicy = (): CachedPaymentRestorePolicy => (
 })
 
 export const shouldAutoOpenPaymentLink = (payment?: { interaction_mode?: unknown; pay_url?: unknown; fee_policy?: unknown } | null) => {
-  if (!payment || isCustomerSurchargePayment(payment)) return false
+  if (!payment) return false
   const payURL = String(payment.pay_url || '').trim()
   return isRedirectPaymentInteractionMode(payment.interaction_mode) && payURL !== ''
+}
+
+// Re-evaluate with the current server-adjusted time on every attempt, including
+// when a background tab resumes after its countdown was throttled.
+export const paymentLinkBlockReason = (order: { status?: string; expires_at?: string } | null, serverNow: number) => {
+  if (!order || order.status !== 'pending_payment') return 'payment.orderNotPayable'
+  const deadline = new Date(order.expires_at || '').getTime()
+  if (Number.isFinite(deadline) && deadline <= serverNow) return 'payment.orderExpired'
+  return null
 }

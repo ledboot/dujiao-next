@@ -1,3 +1,4 @@
+import { useOrderPaymentEntry } from './useOrderPaymentEntry'
 import { computed, onMounted, onUnmounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
@@ -23,6 +24,8 @@ export function useGuestOrderDetail() {
     order_password: '',
   })
   const fulfillmentDownloading = ref(false)
+
+  const paymentEntry = useOrderPaymentEntry(order, () => guestOrderAPI.detail(order.value.order_no, { email: auth.value.email, order_password: auth.value.order_password }, { silentBusinessError: true }), true)
 
   const helpers = useOrderDisplayHelpers(order)
 
@@ -121,6 +124,7 @@ export function useGuestOrderDetail() {
   })
 
   return {
+    ...paymentEntry,
     loading,
     order,
     authError,

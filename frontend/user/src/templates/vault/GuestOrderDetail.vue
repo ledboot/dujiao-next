@@ -48,8 +48,8 @@
         </div>
         <div class="flex flex-wrap items-center gap-2.5">
           <Badge :variant="statusVariant(order.status)" class="rounded-full">{{ statusLabel(order.status) }}</Badge>
-          <Button v-if="order.status === 'pending_payment'" as-child size="sm" class="rounded-full">
-            <RouterLink :to="`/pay?guest=1&order_no=${order.order_no}`">{{ t('orders.payNow') }}</RouterLink>
+          <Button v-if="order.status === 'pending_payment'" :disabled="checkingPayment" @click="goToPayment" size="sm" class="rounded-full">
+            {{ t('orders.payNow') }}
           </Button>
         </div>
       </div>
@@ -76,6 +76,7 @@ import { useGuestOrderDetail } from '../../composables/useGuestOrderDetail'
 const { t } = useI18n()
 
 const {
+  goToPayment, checkingPayment,
   order, authError, auth, viewState, handleAuthSubmit, clearAuth,
   fulfillmentDownloading, handleDownloadFulfillment,
   statusLabel, statusVariant, formatDate, formatMoney,

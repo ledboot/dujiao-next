@@ -119,7 +119,7 @@
 
               <div v-else class="bg-secondary border rounded-2xl p-6">
                 <div class="text-sm text-muted-foreground mb-3">{{ t('payment.openPayLink') }}</div>
-                <Button type="button" variant="default" class="font-bold" @click="handleOpenPayLink">
+                <Button type="button" variant="default" class="font-bold" :disabled="payLinkDisabled" @click="handleOpenPayLink">
                   <ExternalLink class="h-4 w-4" aria-hidden="true" />
                   {{ t('payment.openPayLink') }}
                 </Button>
@@ -130,7 +130,7 @@
                   {{ t('payment.telegramExternalHint') }}
                 </div>
                 <div class="mt-3 flex flex-wrap items-center gap-2">
-                  <Button type="button" variant="outline" size="sm" class="font-semibold" @click="handleCopyPayLink">
+                  <Button type="button" variant="outline" size="sm" class="font-semibold" :disabled="payLinkDisabled" @click="handleCopyPayLink">
                     <Copy class="h-4 w-4" aria-hidden="true" />
                     {{ t('payment.copyPayLink') }}
                   </Button>
@@ -413,7 +413,7 @@
                   </div>
                 </div>
                 <div v-if="paymentResult.pay_url" class="pt-2 flex flex-wrap items-center gap-2">
-                  <Button type="button" variant="outline" size="sm" class="font-semibold" @click="handleCopyPayLink">
+                  <Button type="button" variant="outline" size="sm" class="font-semibold" :disabled="payLinkDisabled" @click="handleCopyPayLink">
                     <Copy class="h-4 w-4" aria-hidden="true" />
                     {{ t('payment.copyPayLink') }}
                   </Button>
@@ -423,11 +423,11 @@
             </div>
 
             <div v-if="showPayLink" class="mt-6 flex flex-col md:flex-row md:items-center gap-3">
-              <Button type="button" variant="default" class="font-bold" @click="handleOpenPayLink">
+              <Button type="button" variant="default" class="font-bold" :disabled="payLinkDisabled" @click="handleOpenPayLink">
                 <ExternalLink class="h-4 w-4" aria-hidden="true" />
                 {{ t('payment.openPayLink') }}
               </Button>
-              <Button type="button" variant="outline" class="font-semibold" @click="handleCopyPayLink">
+              <Button type="button" variant="outline" class="font-semibold" :disabled="payLinkDisabled" @click="handleCopyPayLink">
                 <Copy class="h-4 w-4" aria-hidden="true" />
                 {{ t('payment.copyPayLink') }}
               </Button>
@@ -516,7 +516,8 @@ const {
   expectedWalletPaidDisplay, expectedOnlinePayDisplay, expectedOnlinePayCents, requiresOnlineChannel,
   paymentWalletPaidDisplay, paymentOnlinePayDisplay, isChannelDisabledForAmount, channelAmountLimitHint, canSubmitPayment,
   formatDate, statusLabel, formatMoney, hasDiscountAmount, formatDiscountMoney, getLocalizedText, orderItemSkuText, fulfillmentTypeLabelText,
-  handleCopyPayLink, handleCopyWalletAddress, handleOpenPayLink, restoreCachedPayment, handleChangePaymentMethod,
+  handleCopyPayLink,
+  payLinkDisabled, handleCopyWalletAddress, handleOpenPayLink, restoreCachedPayment, handleChangePaymentMethod,
   handlePayment, handleGuestAuthSubmit, handleRefresh,
 } = usePayment()
 </script>

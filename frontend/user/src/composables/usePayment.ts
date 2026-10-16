@@ -1,9 +1,11 @@
+import { takePaymentTab } from '../utils/paymentTab'
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { NavigationFailureType, isNavigationFailure, useRoute, useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { guestOrderAPI, paymentAPI, userOrderAPI, walletAPI } from '../api'
 import { useAppStore } from '../stores/app'
 import { useTelegramMiniAppStore } from '../stores/telegramMiniApp'
+import { useConfirmDialog } from './useConfirmDialog'
 import { orderStatusLabel } from '../utils/status'
 import { fulfillmentTypeLabel } from '../utils/fulfillment'
 import { debounceAsync } from '../utils/debounce'
@@ -15,10 +17,11 @@ import {
   getPaymentResetPolicy,
   isCustomerSurchargePayment,
   resolvePaymentInteractionLabelKey,
-  resolvePaymentLinkNavigationTarget,
+  isRedirectPaymentInteractionMode,
   resolvePaymentPresentationMode,
   resolvePaymentResultTitleKey,
   shouldAutoOpenPaymentLink,
+  paymentLinkBlockReason,
   type PaymentResetReason,
 } from '../utils/paymentResumePolicy'
 import QRCode from 'qrcode'
@@ -35,6 +38,10 @@ export function usePayment() {
   const appStore = useAppStore()
   const telegramMiniAppStore = useTelegramMiniAppStore()
   const { t } = useI18n()
+  const paymentDialog = useConfirmDialog()
+  const awaitingPaymentConfirmation = ref(false)
+  let reservedPaymentTab: Window | null = null
+  let disposed = false
 
   const loading = ref(true)
   const submitting = ref(false)
@@ -105,6 +112,8 @@ export function usePayment() {
   }
 
   const paymentReturnMarkers = ['mola_return', 'epay_return', 'alipay_return', 'wechat_return', 'epusdt_return', 'bepusdt_return', 'tokenpay_return', 'okpay_return', 'pp_return', 'stripe_return']
+  const returnedFromPayment = ref(paymentReturnMarkers.some(marker => readRouteQueryFlag(marker)))
+  const openingPayLink = ref(false)
   const rechargeBizType = computed(() => readRouteQueryValue('biz_type').toLowerCase())
   const rechargeNoQuery = computed(() => {
     const rechargeNo = readRouteQueryValue('recharge_no')
@@ -342,6 +351,7 @@ export function usePayment() {
     if (Number.isNaN(ts)) return false
     return ts <= appStore.getServerTime()
   })
+  const payLinkDisabled = computed(() => openingPayLink.value || paymentLinkBlockReason(order.value, now.value) !== null)
   const orderCanceled = computed(() => order.value?.status === 'canceled')
   const paymentAlert = computed<PageAlert | null>(() => {
     if (redirecting.value) {
@@ -711,7 +721,7 @@ export function usePayment() {
   }
 
   const handleCopyPayLink = async () => {
-    if (!payLink.value) return
+    if (!payLink.value || !(await validatePayLinkOrder())) return
     try {
       await copyText(payLink.value)
       copied.value = true
@@ -744,25 +754,73 @@ export function usePayment() {
     }
   }
 
-  const openPayLinkInCompatibleWindow = (automatic = false) => {
-    if (!payLink.value) return
-    if (isTelegramMiniApp.value) {
-      telegramMiniAppStore.openLink(payLink.value)
-    } else if (resolvePaymentLinkNavigationTarget(automatic) === 'current-tab') {
-      // 支付请求返回后已脱离原始点击事件，浏览器通常会拦截此时创建的新窗口。
-      // 自动收银台跳转使用当前标签页，既可靠也能保留当前 sessionStorage。
-      window.location.assign(payLink.value)
-      return
-    } else {
-      // 先创建同源空白页，让浏览器按规范复制当前标签页的 sessionStorage；
-      // 随后立即切断 opener 再跳转到支付站。这样第三方回跳仍能恢复游客订单，
-      // 同时不给外部收银台保留反向控制原页面的能力。
-      const paymentWindow = window.open('', '_blank')
-      if (!paymentWindow) return
-      paymentWindow.opener = null
-      paymentWindow.location.replace(payLink.value)
+  const validatePayLinkOrder = async () => {
+    try {
+      const response = isGuest.value
+        ? await guestOrderAPI.detail(orderNoResolved.value, {
+            email: guestAuth.value.email,
+            order_password: guestAuth.value.order_password,
+          }, { silentBusinessError: true })
+        : await userOrderAPI.detail(orderNoResolved.value, { silentBusinessError: true })
+      order.value = response.data.data
+      const blocked = paymentLinkBlockReason(order.value, appStore.getServerTime())
+      if (blocked) {
+        error.value = t(blocked)
+        return false
+      }
+      return true
+    } catch {
+      error.value = t('payment.verifyOrderFailed')
+      return false
     }
-    openedPayWindow.value = true
+  }
+
+  const openPayLinkInCompatibleWindow = async () => {
+    if (!payLink.value || openingPayLink.value || awaitingPaymentConfirmation.value) return
+    openingPayLink.value = true
+    const paymentWindow = isTelegramMiniApp.value ? null : (reservedPaymentTab || takePaymentTab(orderNoResolved.value) || window.open('', '_blank'))
+    reservedPaymentTab = null
+    try {
+      if (paymentWindow) paymentWindow.opener = null
+      if (!isTelegramMiniApp.value && !paymentWindow) {
+        error.value = t('payment.payTabBlocked')
+        return
+      }
+      if (!(await validatePayLinkOrder()) || disposed) {
+        paymentWindow?.close()
+        return
+      }
+      if (isTelegramMiniApp.value) {
+        telegramMiniAppStore.openLink(payLink.value)
+      } else {
+        // Checkout may have saved guest credentials after reserving the blank tab.
+        // Copy only this site's session storage while it is still same-origin.
+        try {
+          if (paymentWindow!.location.href === 'about:blank') {
+            for (let i = 0; i < window.sessionStorage.length; i++) {
+              const key = window.sessionStorage.key(i)
+              if (key) paymentWindow!.sessionStorage.setItem(key, window.sessionStorage.getItem(key) || '')
+            }
+          }
+        } catch { /* Storage may be disabled; the original page still retains its session. */ }
+        paymentWindow!.location.replace(payLink.value)
+      }
+      openedPayWindow.value = true
+      awaitingPaymentConfirmation.value = true
+      stopPolling()
+      // This is navigation only: both answers lead to the server-backed order detail.
+      await paymentDialog.confirm({
+        title: t('payment.payResultQuestion'),
+        message: '',
+      })
+      if (!disposed) redirectToOrderDetail()
+    } catch {
+      paymentWindow?.close()
+      if (!disposed) error.value = t('payment.payTabBlocked')
+    } finally {
+      openingPayLink.value = false
+      awaitingPaymentConfirmation.value = false
+    }
   }
 
   const handleOpenPayLink = () => {
@@ -795,8 +853,8 @@ export function usePayment() {
         void captureCurrentPayment({ silent: true })
         startCountdown()
         // 对 redirect / WAP / page 跳转类模式自动进入收银台。
-        if (shouldAutoOpenPaymentLink(data)) {
-          openPayLinkInCompatibleWindow(true)
+        if (!returnedFromPayment.value && shouldAutoOpenPaymentLink(data)) {
+          openPayLinkInCompatibleWindow()
         }
       }
     } catch (err) {
@@ -940,6 +998,7 @@ export function usePayment() {
   }
 
   const performPayment = async () => {
+    returnedFromPayment.value = false
     error.value = ''
     if (!orderNoResolved.value) {
       error.value = t('payment.orderNotFound')
@@ -968,6 +1027,9 @@ export function usePayment() {
       void captureCurrentPayment({ silent: true })
       startCountdown()
       window.scrollTo({ top: 0, behavior: 'smooth' })
+      if (shouldAutoOpenPaymentLink(paymentResult.value)) {
+        await openPayLinkInCompatibleWindow()
+      }
       return
     }
     submitting.value = true
@@ -1025,7 +1087,7 @@ export function usePayment() {
       }
       window.scrollTo({ top: 0, behavior: 'smooth' })
       if (shouldAutoOpenPaymentLink(paymentResult.value)) {
-        openPayLinkInCompatibleWindow(true)
+        openPayLinkInCompatibleWindow()
       }
     } catch (err: any) {
       error.value = err.message || t('payment.createFailed')
@@ -1034,7 +1096,25 @@ export function usePayment() {
     }
   }
 
-  const handlePayment = debounceAsync(performPayment, 200)
+  const handlePayment = async () => {
+    if (submitting.value || openingPayLink.value || awaitingPaymentConfirmation.value || !canSubmitPayment.value) return
+    // Reserve the tab inside the original click, before payment creation and validation.
+    // Otherwise browsers may block a new tab after the asynchronous API calls.
+    if (!isTelegramMiniApp.value && requiresOnlineChannel.value && isRedirectPaymentInteractionMode(selectedChannel.value?.interaction_mode)) {
+      reservedPaymentTab = window.open('', '_blank')
+      if (!reservedPaymentTab) {
+        error.value = t('payment.payTabBlocked')
+        return
+      }
+      reservedPaymentTab.opener = null
+    }
+    try {
+      await performPayment()
+    } finally {
+      reservedPaymentTab?.close()
+      reservedPaymentTab = null
+    }
+  }
 
   const shouldRedirect = (status?: string) => {
     if (!status) return false
@@ -1108,6 +1188,7 @@ export function usePayment() {
   }
 
   const resetPaymentRouteState = () => {
+    returnedFromPayment.value = paymentReturnMarkers.some(marker => readRouteQueryFlag(marker))
     stopPolling()
     stopCountdown()
     resetPayment('route_change')
@@ -1130,7 +1211,7 @@ export function usePayment() {
       startCountdown()
     }
     if (restorePolicy.autoOpenPayLink && shouldAutoOpenPaymentLink(paymentResult.value)) {
-      openPayLinkInCompatibleWindow(true)
+      openPayLinkInCompatibleWindow()
     }
     window.scrollTo({ top: 0, behavior: 'smooth' })
   }
@@ -1238,7 +1319,7 @@ export function usePayment() {
       }
       stopPolling()
       stopCountdown()
-      if (shouldRedirect(status)) {
+      if (shouldRedirect(status) && !awaitingPaymentConfirmation.value && !openingPayLink.value) {
         redirectToOrderDetail()
       }
     }
@@ -1300,6 +1381,11 @@ export function usePayment() {
   })
 
   onUnmounted(() => {
+    disposed = true
+    takePaymentTab(orderNoResolved.value)?.close()
+    reservedPaymentTab?.close()
+    reservedPaymentTab = null
+    if (awaitingPaymentConfirmation.value) paymentDialog.handleCancel()
     stopPolling()
     stopCountdown()
     if (redirectTimer.value) {
@@ -1418,6 +1504,7 @@ export function usePayment() {
     fulfillmentTypeLabelText,
     // actions
     handleCopyPayLink,
+    payLinkDisabled,
     handleCopyWalletAddress,
     handleOpenPayLink,
     restoreCachedPayment,

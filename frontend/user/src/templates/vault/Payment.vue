@@ -71,11 +71,11 @@
           <!-- 跳转链接 -->
           <div v-else class="rounded-xl border bg-secondary p-[22px]">
             <div class="mb-2.5 text-[13px] text-muted-foreground">{{ t('payment.openPayLink') }}</div>
-            <Button size="sm" class="rounded-full" @click="handleOpenPayLink">{{ t('payment.openPayLink') }}</Button>
+            <Button size="sm" class="rounded-full" :disabled="payLinkDisabled" @click="handleOpenPayLink">{{ t('payment.openPayLink') }}</Button>
             <div v-if="openedPayWindow" class="mt-2.5 text-xs text-[color:var(--teal-strong)]">{{ payLinkOpenedTip }}</div>
             <div v-if="showTelegramPayHint" class="mt-2.5 text-xs text-muted-foreground">{{ t('payment.telegramExternalHint') }}</div>
             <div class="mt-2.5 flex items-center gap-2">
-              <Button variant="outline" size="sm" class="rounded-full" @click="handleCopyPayLink">{{ t('payment.copyPayLink') }}</Button>
+              <Button variant="outline" size="sm" class="rounded-full" :disabled="payLinkDisabled" @click="handleCopyPayLink">{{ t('payment.copyPayLink') }}</Button>
               <span v-if="copied" class="text-xs text-[color:var(--teal-strong)]">{{ t('payment.copied') }}</span>
             </div>
           </div>
@@ -223,8 +223,8 @@
             <div v-if="paymentResult.expires_at">{{ t('payment.expiresAt') }}：{{ formatDate(paymentResult.expires_at) }}</div>
           </div>
           <div v-if="showPayLink" class="mt-3.5 flex flex-wrap gap-2">
-            <Button size="sm" class="rounded-full" @click="handleOpenPayLink">{{ t('payment.openPayLink') }}</Button>
-            <Button variant="outline" size="sm" class="rounded-full" @click="handleCopyPayLink">{{ t('payment.copyPayLink') }}</Button>
+            <Button size="sm" class="rounded-full" :disabled="payLinkDisabled" @click="handleOpenPayLink">{{ t('payment.openPayLink') }}</Button>
+            <Button variant="outline" size="sm" class="rounded-full" :disabled="payLinkDisabled" @click="handleCopyPayLink">{{ t('payment.copyPayLink') }}</Button>
           </div>
         </section>
       </div>
@@ -273,7 +273,8 @@ const {
   expectedWalletPaidDisplay, expectedOnlinePayDisplay, expectedOnlinePayCents, requiresOnlineChannel,
   paymentWalletPaidDisplay, paymentOnlinePayDisplay, isChannelDisabledForAmount, channelAmountLimitHint, canSubmitPayment,
   formatDate, statusLabel, formatMoney, hasDiscountAmount, formatDiscountMoney, getLocalizedText, orderItemSkuText, fulfillmentTypeLabelText,
-  handleCopyPayLink, handleCopyWalletAddress, handleOpenPayLink, restoreCachedPayment, handleChangePaymentMethod,
+  handleCopyPayLink,
+  payLinkDisabled, handleCopyWalletAddress, handleOpenPayLink, restoreCachedPayment, handleChangePaymentMethod,
   handlePayment, handleGuestAuthSubmit, handleRefresh,
 } = usePayment()
 </script>

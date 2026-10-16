@@ -62,6 +62,8 @@ type AdminRechargeLookup interface {
 
 // AdminPaymentItem 支付记录返回
 type AdminPaymentItem struct {
+	RecoveredAt string `json:"recovered_at,omitempty"`
+	RecoveredBy string `json:"recovered_by,omitempty"`
 	paymentdomain.Payment
 	ChannelName        string `json:"channel_name"`
 	DisplayChannelType string `json:"display_channel_type,omitempty"`
@@ -131,6 +133,8 @@ func (h *AdminHandler) GetAdminPayments(c *gin.Context) {
 		safePayment := redactAdminPayment(payment)
 		items = append(items, AdminPaymentItem{
 			Payment:            safePayment,
+			RecoveredAt:        paymentRecoveryAudit(payment.ProviderPayload, "closed_order_recovered_at"),
+			RecoveredBy:        paymentRecoveryAudit(payment.ProviderPayload, "closed_order_recovered_by"),
 			ChannelName:        channelNameMap[payment.ChannelID],
 			DisplayChannelType: paymentDisplayChannelType(payment),
 			OrderNo:            orderNoMap[payment.OrderID],
@@ -250,6 +254,8 @@ func (h *AdminHandler) GetAdminPayment(c *gin.Context) {
 	safePayment := redactAdminPayment(*payment)
 	response.Success(c, AdminPaymentItem{
 		Payment:            safePayment,
+		RecoveredAt:        paymentRecoveryAudit(payment.ProviderPayload, "closed_order_recovered_at"),
+		RecoveredBy:        paymentRecoveryAudit(payment.ProviderPayload, "closed_order_recovered_by"),
 		ChannelName:        channelNameMap[payment.ChannelID],
 		DisplayChannelType: paymentDisplayChannelType(*payment),
 		OrderNo:            orderNoMap[payment.OrderID],
@@ -434,4 +440,37 @@ func (h *AdminHandler) resolvePaymentRechargeMeta(payments []paymentdomain.Payme
 		}
 	}
 	return result, nil
+}
+
+type closedOrderRecoverer interface {
+	RecoverClosedOrder(paymentID, adminID uint) (*paymentdomain.Payment, error)
+}
+
+func (h *AdminHandler) RecoverClosedOrder(c *gin.Context) {
+	id, err := ginutil.ParseParamUint(c, "id")
+	if err != nil {
+		ginutil.RespondError(c, response.CodeBadRequest, "error.payment_invalid", nil)
+		return
+	}
+	adminID, ok := ginutil.GetAdminID(c)
+	if !ok {
+		return
+	}
+	recoverer, ok := h.payments.(closedOrderRecoverer)
+	if !ok {
+		ginutil.RespondError(c, response.CodeInternal, "error.payment_recovery_failed", nil)
+		return
+	}
+	if _, err := recoverer.RecoverClosedOrder(id, adminID); err != nil {
+		ginutil.RespondError(c, response.CodeBadRequest, "error.payment_recovery_failed", err)
+		return
+	}
+	h.GetAdminPayment(c)
+}
+
+func paymentRecoveryAudit(payload map[string]interface{}, key string) string {
+	if value := payload[key]; value != nil {
+		return fmt.Sprint(value)
+	}
+	return ""
 }

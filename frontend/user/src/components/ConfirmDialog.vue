@@ -30,7 +30,7 @@
             class="relative z-10 w-full max-w-sm rounded-2xl bg-card text-card-foreground border shadow-2xl p-6"
           >
             <h3 class="text-lg font-bold text-foreground">{{ options.title }}</h3>
-            <p class="mt-2 text-sm text-muted-foreground leading-relaxed">{{ options.message }}</p>
+            <p v-if="options.message" class="mt-2 text-sm text-muted-foreground leading-relaxed">{{ options.message }}</p>
             <div class="mt-6 flex items-center justify-end gap-3">
               <Button variant="secondary" @click="handleCancel">
                 {{ options.cancelText || t('common.cancel') }}

@@ -69,8 +69,8 @@
               <Badge :variant="statusVariant(order.status)" size="sm">
                 {{ statusLabel(order.status) }}
               </Badge>
-              <Button v-if="order.status === 'pending_payment'" as-child size="sm">
-                <router-link :to="`/pay?order_no=${order.order_no}`">{{ t('orderDetail.payNow') }}</router-link>
+              <Button v-if="order.status === 'pending_payment'" :disabled="checkingPayment" @click="goToPayment" size="sm">
+                {{ t('orderDetail.payNow') }}
               </Button>
               <Button v-if="order.status === 'pending_payment'" variant="destructive" size="sm" @click="cancelOrder">
                 {{ t('orderDetail.cancel') }}
@@ -448,6 +448,7 @@ import { useOrderDetail } from '../composables/useOrderDetail'
 const { t } = useI18n()
 
 const {
+  goToPayment, checkingPayment,
   loading, order, debouncedLoadOrder, cancelOrder,
   statusLabel, statusVariant, fulfillmentTypeLabelText, fulfillmentStatusLabelText,
   formatDate, getLocalizedText, formatMoney, formatDiscountMoney, hasDiscountAmount, hasAmount,

@@ -1232,6 +1232,10 @@
     }
   },
   "payment": {
+    "payResultQuestion": "是否付款成功？",
+    "payTabBlocked": "付款分頁未能開啟，請允許瀏覽器彈出視窗後重試。",
+    "orderNotPayable": "訂單已不可付款，請返回訂單查看狀態",
+    "verifyOrderFailed": "暫時無法確認訂單狀態，請重試",
     "title": "發起支付",
     "subtitle": "選擇支付方式並完成支付",
     "backToOrders": "返回訂單",

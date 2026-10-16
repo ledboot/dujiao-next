@@ -20,6 +20,7 @@ import { paymentStatusClass, paymentStatusLabel } from '@/utils/status'
 import ComplianceGuardWrapper from '@/components/ComplianceGuardWrapper.vue'
 import { copyText } from '@/utils/clipboard'
 import { formatDate, toRFC3339 } from '@/utils/format'
+import { useAdminAuthStore } from '@/stores/auth'
 import { adminUrl } from '@/utils/adminBase'
 
 const loading = ref(true)
@@ -48,6 +49,23 @@ const showDetail = ref(false)
 const detailLoading = ref(false)
 const detailError = ref('')
 const detailPayment = ref<AdminPayment | null>(null)
+const authStore = useAdminAuthStore()
+const recovering = ref(false)
+const recoverOrder = async () => {
+  if (!detailPayment.value || recovering.value) return
+  if (!window.confirm(t('admin.payments.recoverConfirm'))) return
+  recovering.value = true
+  detailError.value = ''
+  try {
+    const response = await adminAPI.recoverPaymentOrder(detailPayment.value.id)
+    detailPayment.value = response.data.data
+    await fetchPayments(pagination.value.page, { preserveRows: true })
+  } catch (err: any) {
+    detailError.value = err?.message || t('admin.payments.recoverFailed')
+  } finally {
+    recovering.value = false
+  }
+}
 const exporting = ref(false)
 const exportError = ref('')
 
@@ -554,7 +572,7 @@ watch(
           <div v-else-if="detailError" class="rounded-lg border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive">
             {{ detailError }}
           </div>
-          <div v-else-if="detailPayment" class="space-y-6 text-sm text-muted-foreground">
+          <div v-if="!detailLoading && detailPayment" class="space-y-6 text-sm text-muted-foreground">
             <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
               <Card class="rounded-lg border-border bg-background shadow-none">
                 <CardContent class="p-4">
@@ -652,10 +670,17 @@ watch(
                   <div class="text-foreground text-sm">{{ feePolicyLabel(detailPayment.fee_policy) }}</div>
                 </CardContent>
               </Card>
+              <Card v-if="detailPayment.recovered_at" class="rounded-lg border-border bg-background shadow-none">
+                <CardContent class="p-4">
+                  <div class="text-sm text-foreground">{{ t('admin.payments.recoveredOrder') }}</div>
+                  <div class="mt-2">{{ formatDate(detailPayment.recovered_at) }} · {{ t('admin.payments.recoveredBy', { id: detailPayment.recovered_by }) }}</div>
+                </CardContent>
+              </Card>
               <Card v-if="detailPayment.exception_code" class="rounded-lg border-warning/40 bg-warning/5 shadow-none">
                 <CardContent class="p-4">
                   <div class="text-xs text-warning mb-2">{{ t('admin.payments.detailException') }}</div>
                   <div class="text-warning text-sm">{{ exceptionLabel(detailPayment.exception_code) }}</div>
+                  <Button v-if="detailPayment.status === 'success' && detailPayment.exception_code === 'closed_order_payment_succeeded' && authStore.hasPermission('POST:/admin/payments/:id/recover-order')" class="mt-3" :disabled="recovering" @click="recoverOrder">{{ t('admin.payments.recoverOrder') }}</Button>
                 </CardContent>
               </Card>
               <Card class="rounded-lg border-border bg-background shadow-none">

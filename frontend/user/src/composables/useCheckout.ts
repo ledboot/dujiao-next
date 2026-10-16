@@ -1,3 +1,6 @@
+import { handoffPaymentTab, takePaymentTab } from '../utils/paymentTab'
+import { isRedirectPaymentInteractionMode } from '../utils/paymentResumePolicy'
+import { isTelegramMiniAppEnvironment } from '../utils/telegramMiniApp'
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useI18n } from 'vue-i18n'
@@ -807,6 +810,17 @@ export function useCheckout() {
       return
     }
 
+    const channel = paymentChannels.value.find((item: any) => Number(item.id) === Number(selectedChannelId.value))
+    let paymentTab: Window | null = null
+    if (requiresOnlineChannel.value && isRedirectPaymentInteractionMode(channel?.interaction_mode) && !isTelegramMiniAppEnvironment()) {
+      paymentTab = window.open('', '_blank')
+      if (!paymentTab) {
+        error.value = t('payment.payTabBlocked')
+        return
+      }
+      paymentTab.opener = null
+    }
+    let handedOffOrder = ''
     submitting.value = true
     try {
       await loadPreviewNow()
@@ -850,8 +864,15 @@ export function useCheckout() {
       const query = userAuthStore.isAuthenticated
         ? `order_no=${encodeURIComponent(responseData.order_no)}`
         : `guest=1&order_no=${encodeURIComponent(responseData.order_no)}`
-      router.push(`/pay?${query}`)
+      if (paymentTab) {
+        handedOffOrder = responseData.order_no
+        handoffPaymentTab(handedOffOrder, paymentTab)
+        paymentTab = null
+      }
+      const navigationFailure = await router.push(`/pay?${query}`)
+      if (navigationFailure && handedOffOrder) takePaymentTab(handedOffOrder)?.close()
     } catch (err: any) {
+      if (handedOffOrder) takePaymentTab(handedOffOrder)?.close()
       error.value = err.message || t('checkout.errors.submitFailed')
       if (guestCaptchaEnabled.value && captchaProvider.value === 'image') {
         guestImageCaptchaRef.value?.refresh()
@@ -861,6 +882,7 @@ export function useCheckout() {
         guestTurnstileToken.value = ''
       }
     } finally {
+      paymentTab?.close()
       submitting.value = false
     }
   }

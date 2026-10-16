@@ -1232,6 +1232,10 @@
     }
   },
   "payment": {
+    "payResultQuestion": "Was your payment successful?",
+    "payTabBlocked": "The payment tab could not be opened. Allow pop-ups and try again.",
+    "orderNotPayable": "This order can no longer be paid. Please check the order.",
+    "verifyOrderFailed": "Unable to verify the order. Please try again.",
     "title": "Payment",
     "subtitle": "Choose payment method and proceed",
     "backToOrders": "Back to orders",

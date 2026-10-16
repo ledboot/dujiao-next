@@ -192,3 +192,7 @@ func (a exceptionAlerterAdapter) EnqueuePaymentExceptionAlert(method, path, clie
 		Data:      payload,
 	})
 }
+
+func (a adminQueryAdapter) RecoverClosedOrder(paymentID, adminID uint) (*paymentdomain.Payment, error) {
+	return a.payments.RecoverClosedOrder(paymentID, adminID)
+}

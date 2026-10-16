@@ -437,6 +437,7 @@ export const adminAPI = {
   createFulfillment: (data: Partial<AdminFulfillment>) => api.post('/admin/fulfillments', data),
   downloadFulfillment: (orderId: number) => api.get(`/admin/orders/${orderId}/fulfillment/download`, { blob: true }),
   getPayments: (params?: Record<string, unknown>) => api.get('/admin/payments', { params }),
+  recoverPaymentOrder: (id: number) => api.post(`/admin/payments/${id}/recover-order`),
   getPayment: (id: number) => api.get(`/admin/payments/${id}`),
   exportPayments: (params?: Record<string, unknown>) => api.get('/admin/payments/export', { params, blob: true }),
   createPaymentChannel: (data: Partial<AdminPaymentChannel>) => api.post('/admin/payment-channels', data),

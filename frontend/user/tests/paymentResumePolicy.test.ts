@@ -10,6 +10,7 @@ import {
   resolvePaymentPresentationMode,
   resolvePaymentResultTitleKey,
   shouldAutoOpenPaymentLink,
+  paymentLinkBlockReason,
 } from '../src/utils/paymentResumePolicy.ts'
 
 test('manual payment method changes do not auto resume the latest payment', () => {
@@ -73,11 +74,11 @@ test('redirect-style payments auto open unless a customer fee needs confirmation
   )
   assert.equal(
     shouldAutoOpenPaymentLink({ interaction_mode: 'redirect', pay_url: 'https://pay.example.com', fee_policy: 'customer_surcharge' }),
-    false,
+    true,
   )
   assert.equal(
     shouldAutoOpenPaymentLink({ interaction_mode: 'redirect', pay_url: 'https://pay.example.com', fee_policy: 'legacy_customer_surcharge' }),
-    false,
+    true,
   )
   assert.equal(isCustomerSurchargePayment({ fee_policy: 'merchant_absorbed' }), false)
   assert.equal(isCustomerSurchargePayment({ fee_policy: 'legacy_customer_surcharge' }), true)
@@ -86,4 +87,16 @@ test('redirect-style payments auto open unless a customer fee needs confirmation
 test('automatic cashier navigation uses the current tab to avoid popup blocking', () => {
   assert.equal(resolvePaymentLinkNavigationTarget(true), 'current-tab')
   assert.equal(resolvePaymentLinkNavigationTarget(false), 'new-window')
+})
+
+test('payment link blocks closed orders and expired orders with fresh server time', () => {
+  const deadline = '2026-10-15T22:16:11+08:00'
+  const now = Date.parse(deadline)
+  assert.equal(paymentLinkBlockReason({ status: 'pending_payment', expires_at: deadline }, now - 1), null)
+  assert.equal(paymentLinkBlockReason({ status: 'pending_payment', expires_at: deadline }, now), 'payment.orderExpired')
+  assert.equal(paymentLinkBlockReason({ status: 'pending_payment', expires_at: deadline }, now + 60000), 'payment.orderExpired')
+  for (const status of ['canceled', 'paid', 'fulfilling', 'refunded']) {
+    assert.equal(paymentLinkBlockReason({ status, expires_at: deadline }, now - 1), 'payment.orderNotPayable')
+  }
+  assert.equal(paymentLinkBlockReason(null, now), 'payment.orderNotPayable')
 })

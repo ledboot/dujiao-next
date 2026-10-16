@@ -58,8 +58,8 @@
               <Badge :variant="statusVariant(order.status)" size="sm">
                 {{ statusLabel(order.status) }}
               </Badge>
-              <Button v-if="order.status === 'pending_payment'" as-child size="sm">
-                <router-link :to="`/pay?guest=1&order_no=${order.order_no}`">{{ t('orders.payNow') }}</router-link>
+              <Button v-if="order.status === 'pending_payment'" :disabled="checkingPayment" @click="goToPayment" size="sm">
+                {{ t('orders.payNow') }}
               </Button>
             </div>
           </div>
@@ -429,6 +429,7 @@ import { useGuestOrderDetail } from '../composables/useGuestOrderDetail'
 const { t } = useI18n()
 
 const {
+  goToPayment, checkingPayment,
   order, authError, auth, viewState, handleAuthSubmit, clearAuth,
   fulfillmentDownloading, handleDownloadFulfillment,
   statusLabel, statusVariant, fulfillmentTypeLabelText, fulfillmentStatusLabelText,

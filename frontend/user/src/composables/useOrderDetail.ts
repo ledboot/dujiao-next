@@ -1,3 +1,4 @@
+import { useOrderPaymentEntry } from './useOrderPaymentEntry'
 import { onMounted, onUnmounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
@@ -19,6 +20,8 @@ export function useOrderDetail() {
   const loading = ref(true)
   const order = ref<any>(null)
   const fulfillmentDownloading = ref(false)
+
+  const paymentEntry = useOrderPaymentEntry(order, () => userOrderAPI.detail(order.value.order_no, { silentBusinessError: true }))
 
   const helpers = useOrderDisplayHelpers(order)
 
@@ -84,6 +87,7 @@ export function useOrderDetail() {
   })
 
   return {
+    ...paymentEntry,
     loading,
     order,
     debouncedLoadOrder,
