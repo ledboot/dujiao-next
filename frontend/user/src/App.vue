@@ -4,7 +4,7 @@
     <VaultLayout v-if="isVault && !isResellerConsole">
       <ErrorBoundary>
         <RouterView v-slot="{ Component }">
-          <Transition name="page-fade" mode="out-in">
+          <Transition name="page-fade" :mode="route.name === 'payment' ? undefined : 'out-in'" :css="route.name !== 'payment'">
             <component :is="Component" />
           </Transition>
         </RouterView>
@@ -17,7 +17,7 @@
       <main class="flex-1" :class="isResellerConsole ? '' : 'pb-14 lg:pb-0'">
         <ErrorBoundary>
           <RouterView v-slot="{ Component }">
-            <Transition name="page-fade" mode="out-in">
+            <Transition name="page-fade" :mode="route.name === 'payment' ? undefined : 'out-in'" :css="route.name !== 'payment'">
               <component :is="Component" />
             </Transition>
           </RouterView>
@@ -53,6 +53,8 @@ const VaultLayout = defineAsyncComponent(() => import('./templates/vault/layout/
 
 // config 由 router.beforeEach 统一加载，无需在此重复调用
 const appStore = useAppStore()
+// The payment tab can take focus before /pay mounts. CSS leave transitions wait
+// for animation frames, which browsers suspend in background tabs.
 const route = useRoute()
 const isResellerConsole = computed(() => route.meta.resellerConsole === true)
 // getActiveTemplate 读取 appStore.config（响应式），config 加载后会重新计算
