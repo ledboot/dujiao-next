@@ -1233,6 +1233,8 @@
   },
   "payment": {
     "payResultQuestion": "Was your payment successful?",
+    "returnToPayment": "Return to payment",
+    "openingCashier": "Opening checkout…",
     "payTabBlocked": "The payment tab could not be opened. Allow pop-ups and try again.",
     "orderNotPayable": "This order can no longer be paid. Please check the order.",
     "verifyOrderFailed": "Unable to verify the order. Please try again.",

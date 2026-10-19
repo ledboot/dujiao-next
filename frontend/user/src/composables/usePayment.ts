@@ -1,4 +1,4 @@
-import { takePaymentTab } from '../utils/paymentTab'
+import { openPaymentTab, showPaymentTabError, takeCheckoutPayment, takePaymentTab } from '../utils/paymentTab'
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { NavigationFailureType, isNavigationFailure, useRoute, useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
@@ -778,7 +778,7 @@ export function usePayment() {
   const openPayLinkInCompatibleWindow = async () => {
     if (!payLink.value || openingPayLink.value || awaitingPaymentConfirmation.value) return
     openingPayLink.value = true
-    const paymentWindow = isTelegramMiniApp.value ? null : (reservedPaymentTab || takePaymentTab(orderNoResolved.value) || window.open('', '_blank'))
+    const paymentWindow = isTelegramMiniApp.value ? null : (reservedPaymentTab || takePaymentTab(orderNoResolved.value) || openPaymentTab(t('payment.openingCashier')))
     reservedPaymentTab = null
     try {
       if (paymentWindow) paymentWindow.opener = null
@@ -787,7 +787,8 @@ export function usePayment() {
         return
       }
       if (!(await validatePayLinkOrder()) || disposed) {
-        paymentWindow?.close()
+        if (disposed) paymentWindow?.close()
+        else showPaymentTabError(paymentWindow, error.value, t('payment.returnToPayment'))
         return
       }
       if (isTelegramMiniApp.value) {
@@ -815,8 +816,11 @@ export function usePayment() {
       })
       if (!disposed) redirectToOrderDetail()
     } catch {
-      paymentWindow?.close()
-      if (!disposed) error.value = t('payment.payTabBlocked')
+      if (disposed) paymentWindow?.close()
+      else {
+        error.value = t('payment.payTabBlocked')
+        showPaymentTabError(paymentWindow, error.value, t('payment.returnToPayment'))
+      }
     } finally {
       openingPayLink.value = false
       awaitingPaymentConfirmation.value = false
@@ -1083,7 +1087,7 @@ export function usePayment() {
         openedPayWindow.value = false
         startPolling()
         void captureCurrentPayment({ silent: true })
-        await loadWallet()
+        void loadWallet()
       }
       window.scrollTo({ top: 0, behavior: 'smooth' })
       if (shouldAutoOpenPaymentLink(paymentResult.value)) {
@@ -1101,7 +1105,7 @@ export function usePayment() {
     // Reserve the tab inside the original click, before payment creation and validation.
     // Otherwise browsers may block a new tab after the asynchronous API calls.
     if (!isTelegramMiniApp.value && requiresOnlineChannel.value && isRedirectPaymentInteractionMode(selectedChannel.value?.interaction_mode)) {
-      reservedPaymentTab = window.open('', '_blank')
+      reservedPaymentTab = openPaymentTab(t('payment.openingCashier'))
       if (!reservedPaymentTab) {
         error.value = t('payment.payTabBlocked')
         return
@@ -1111,7 +1115,11 @@ export function usePayment() {
     try {
       await performPayment()
     } finally {
-      reservedPaymentTab?.close()
+      if (reservedPaymentTab && error.value) {
+        showPaymentTabError(reservedPaymentTab, error.value, t('payment.returnToPayment'))
+      } else {
+        reservedPaymentTab?.close()
+      }
       reservedPaymentTab = null
     }
   }
@@ -1295,7 +1303,19 @@ export function usePayment() {
     }
     if (!orderNoQuery.value) return
     guestAuth.value = loadGuestOrderAuth()
-    loadOrder()
+    const checkout = takeCheckoutPayment(orderNoQuery.value)
+    if (checkout && !returnedFromPayment.value && shouldAutoOpenPaymentLink(checkout.payment)) {
+      order.value = checkout.order
+      paymentResult.value = checkout.payment
+      cachedPayment.value = checkout.payment
+      selectedChannelId.value = checkout.payment.channel_id
+      latestLoaded.value = true
+      loading.value = false
+      // Still validate current order state immediately before leaving for the gateway.
+      void openPayLinkInCompatibleWindow()
+    } else {
+      void loadOrder()
+    }
     void loadWallet()
     if (!appStore.config || !Array.isArray(appStore.config?.payment_channels)) {
       appStore.loadConfig(true)

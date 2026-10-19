@@ -1,5 +1,5 @@
-import { handoffPaymentTab, takePaymentTab } from '../utils/paymentTab'
-import { isRedirectPaymentInteractionMode } from '../utils/paymentResumePolicy'
+import { handoffPaymentTab, openPaymentTab, showPaymentTabError, takePaymentTab } from '../utils/paymentTab'
+import { isRedirectPaymentInteractionMode, shouldAutoOpenPaymentLink } from '../utils/paymentResumePolicy'
 import { isTelegramMiniAppEnvironment } from '../utils/telegramMiniApp'
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
@@ -813,7 +813,7 @@ export function useCheckout() {
     const channel = paymentChannels.value.find((item: any) => Number(item.id) === Number(selectedChannelId.value))
     let paymentTab: Window | null = null
     if (requiresOnlineChannel.value && isRedirectPaymentInteractionMode(channel?.interaction_mode) && !isTelegramMiniAppEnvironment()) {
-      paymentTab = window.open('', '_blank')
+      paymentTab = openPaymentTab(t('payment.openingCashier'))
       if (!paymentTab) {
         error.value = t('payment.payTabBlocked')
         return
@@ -864,9 +864,21 @@ export function useCheckout() {
       const query = userAuthStore.isAuthenticated
         ? `order_no=${encodeURIComponent(responseData.order_no)}`
         : `guest=1&order_no=${encodeURIComponent(responseData.order_no)}`
+      // A failed payment or a QR result must not leave the reserved loading tab waiting.
+      if (paymentTab && (responseData.payment_error || !shouldAutoOpenPaymentLink(responseData))) {
+        if (responseData.payment_error) {
+          showPaymentTabError(paymentTab, t('payment.createFailed'), t('payment.returnToPayment'))
+        } else {
+          paymentTab.close()
+        }
+        paymentTab = null
+      }
       if (paymentTab) {
         handedOffOrder = responseData.order_no
-        handoffPaymentTab(handedOffOrder, paymentTab)
+        handoffPaymentTab(handedOffOrder, paymentTab, responseData.order && responseData.pay_url && !responseData.payment_error ? {
+          order: responseData.order,
+          payment: { ...responseData, order: undefined, channel_id: payload.channel_id || null },
+        } : undefined)
         paymentTab = null
       }
       const navigationFailure = await router.push(`/pay?${query}`)
@@ -882,7 +894,11 @@ export function useCheckout() {
         guestTurnstileToken.value = ''
       }
     } finally {
-      paymentTab?.close()
+      if (paymentTab && error.value) {
+        showPaymentTabError(paymentTab, error.value, t('payment.returnToPayment'))
+      } else {
+        paymentTab?.close()
+      }
       submitting.value = false
     }
   }

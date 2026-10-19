@@ -1186,6 +1186,8 @@
   },
   "payment": {
     "payResultQuestion": "是否支付成功？",
+    "returnToPayment": "返回支付页面",
+    "openingCashier": "正在打开收银台…",
     "payTabBlocked": "支付标签页未能打开，请允许浏览器弹出窗口后重试。",
     "orderNotPayable": "订单已不可支付，请返回订单查看状态",
     "verifyOrderFailed": "暂时无法确认订单状态，请重试",
