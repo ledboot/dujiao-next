@@ -14,6 +14,9 @@ import { buildSkuDisplayText, normalizeSkuId } from '../utils/sku'
 import { resolveSkuAvailableStock, resolveSkuStockDisplay, type PublicStockDisplay } from '../utils/publicStock'
 import { useLocalized, useProductLabels } from './useProduct'
 import { toast } from './useToast'
+import { usePageSeo } from './usePageSeo'
+import { getLocalizedText as getSeoText } from '../utils/resellerSiteConfig'
+import { buildProductStructuredData, resolveSeoImageUrl, serializeJsonLd } from '../utils/seo'
 
 /**
  * 商品详情页的全部业务逻辑（数据加载、SKU/数量、促销/会员/批发定价、库存约束、
@@ -524,111 +527,67 @@ export function useProductDetail(options: { onLoaded?: () => void } = {}) {
     router.push(`/auth/login?redirect=${encodeURIComponent(route.fullPath)}`)
   }
 
+  let productRequest = 0
   const loadProduct = async () => {
+    const request = ++productRequest
     loading.value = true
+    product.value = null
+    currentImage.value = ''
     try {
       const slug = route.params.slug as string
       const response = await productAPI.detail(slug)
+      if (request !== productRequest) return
       product.value = response.data.data || null
       if (images.value.length > 0) {
         currentImage.value = images.value[0] || ''
       }
       syncSelectedSku()
       await nextTick()
-      options.onLoaded?.()
+      if (request === productRequest) options.onLoaded?.()
     } catch (error) {
+      if (request !== productRequest) return
       console.error('Failed to load product:', error)
       product.value = null
       selectedSkuId.value = 0
     } finally {
-      loading.value = false
+      if (request === productRequest) loading.value = false
     }
   }
 
   const debouncedLoadProduct = debounceAsync(loadProduct, 300)
 
-  const canonicalUrl = computed(() => {
-    if (!product.value?.slug) return ''
-    const fromConfig = String(appStore.config?.brand?.site_url || '').trim().replace(/\/+$/, '')
-    const base = fromConfig || window.location.origin.replace(/\/+$/, '')
-    return `${base}/products/${product.value.slug}`
+  const localizedSeoText = (value: any): string =>
+    typeof value === 'string' ? value.trim() : getSeoText(value, appStore.locale)
+  const productDescription = computed(() =>
+    localizedSeoText(product.value?.seo_meta?.description) || localizedSeoText(product.value?.description),
+  )
+  const { canonicalUrl, baseUrl, description } = usePageSeo({
+    title: () => localizedSeoText(product.value?.title),
+    description: () => productDescription.value,
+    image: () => images.value[0],
+    canonicalPath: () => `/products/${encodeURIComponent(product.value?.slug || String(route.params.slug || ''))}`,
+    type: () => 'product',
+    noindex: () => !loading.value && !product.value,
   })
 
   useHead({
-    title: () => product.value ? getLocalizedText(product.value.title) : '',
-    link: () => {
-      if (!canonicalUrl.value) return []
-      return [{ rel: 'canonical', href: canonicalUrl.value }]
-    },
     meta: () => {
-      if (!product.value) return []
-      const seoMeta = product.value.seo_meta || {}
-      const seoKeywords = getLocalizedText(seoMeta.keywords) || (typeof seoMeta.keywords === 'string' ? seoMeta.keywords : '')
-      const seoDescription = getLocalizedText(seoMeta.description) || (typeof seoMeta.description === 'string' ? seoMeta.description : '')
-      const tags = []
-
-      if (seoKeywords) tags.push({ name: 'keywords', content: seoKeywords })
-      if (seoDescription) tags.push({ name: 'description', content: seoDescription })
-
-      tags.push({ property: 'og:type', content: 'product' })
-      if (product.value.title) {
-        tags.push({ property: 'og:title', content: getLocalizedText(product.value.title) })
-      }
-      if (seoDescription) {
-        tags.push({ property: 'og:description', content: seoDescription })
-      }
-      if (images.value && images.value.length > 0) {
-        tags.push({ property: 'og:image', content: images.value[0] })
-      }
-      if (canonicalUrl.value) {
-        tags.push({ property: 'og:url', content: canonicalUrl.value })
-      }
-
-      tags.push({ name: 'twitter:card', content: 'summary_large_image' })
-      if (product.value.title) {
-        tags.push({ name: 'twitter:title', content: getLocalizedText(product.value.title) })
-      }
-      if (seoDescription) {
-        tags.push({ name: 'twitter:description', content: seoDescription })
-      }
-      if (images.value && images.value.length > 0) {
-        tags.push({ name: 'twitter:image', content: images.value[0] })
-      }
-
-      return tags
+      const keywords = localizedSeoText(product.value?.seo_meta?.keywords)
+      return keywords ? [{ name: 'keywords', content: keywords }] : []
     },
     script: () => {
-      if (!product.value) return []
-      const title = getLocalizedText(product.value.title)
-      const seoMeta = product.value.seo_meta || {}
-      const description = getLocalizedText(seoMeta.description) || (typeof seoMeta.description === 'string' ? seoMeta.description : '')
-      const priceAmount = product.value.price_amount || '0'
-      const currency = siteCurrency.value || 'CNY'
-
-      const jsonLd: Record<string, any> = {
-        '@context': 'https://schema.org',
-        '@type': 'Product',
-        name: title,
-        url: canonicalUrl.value || window.location.href,
-        offers: {
-          '@type': 'Offer',
-          price: priceAmount,
-          priceCurrency: currency,
-          availability: product.value.stock_status === 'out_of_stock'
-            ? 'https://schema.org/OutOfStock'
-            : 'https://schema.org/InStock',
-        },
-      }
-      if (description) jsonLd.description = description
-      if (images.value.length > 0) jsonLd.image = images.value
-      if (product.value.category?.name) {
-        jsonLd.category = getLocalizedText(product.value.category.name)
-      }
-
-      return [{
-        type: 'application/ld+json',
-        innerHTML: JSON.stringify(jsonLd),
-      }]
+      if (!product.value || !canonicalUrl.value) return []
+      const jsonLd = buildProductStructuredData({
+        title: localizedSeoText(product.value.title),
+        description: description.value,
+        url: canonicalUrl.value,
+        images: images.value.map((image: string) => resolveSeoImageUrl(image, baseUrl.value)).filter(Boolean),
+        price: product.value.price_amount,
+        currency: siteCurrency.value,
+        stockStatus: product.value.stock_status,
+        category: localizedSeoText(product.value.category?.name),
+      })
+      return [{ key: 'product', type: 'application/ld+json', innerHTML: serializeJsonLd(jsonLd) }]
     },
   })
 
@@ -661,7 +620,12 @@ export function useProductDetail(options: { onLoaded?: () => void } = {}) {
     }
   })
 
+  watch(() => route.params.slug, () => {
+    if (route.name === 'product-detail') void loadProduct()
+  })
+
   onUnmounted(() => {
+    productRequest++
     debouncedLoadProduct.cancel()
   })
 

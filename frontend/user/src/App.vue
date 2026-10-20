@@ -37,6 +37,8 @@
 <script setup lang="ts">
 import { computed, defineAsyncComponent } from 'vue'
 import { useRoute } from 'vue-router'
+import { useHead } from '@unhead/vue'
+import { isIndexableStorefrontRoute } from './utils/seo'
 import { useAppStore } from './stores/app'
 import { getActiveTemplate } from './templates/registry'
 import Navbar from './components/Navbar.vue'
@@ -56,6 +58,14 @@ const appStore = useAppStore()
 // The payment tab can take focus before /pay mounts. CSS leave transitions wait
 // for animation frames, which browsers suspend in background tabs.
 const route = useRoute()
+useHead({
+  meta: () => [{
+    name: 'robots',
+    content: isIndexableStorefrontRoute(route.name)
+      ? 'index, follow, max-image-preview:large'
+      : 'noindex, nofollow',
+  }],
+})
 const isResellerConsole = computed(() => route.meta.resellerConsole === true)
 // getActiveTemplate 读取 appStore.config（响应式），config 加载后会重新计算
 const isVault = computed(() => getActiveTemplate() === 'vault')

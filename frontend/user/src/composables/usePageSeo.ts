@@ -2,6 +2,8 @@ import { computed } from 'vue'
 import { useHead } from '@unhead/vue'
 import { useAppStore } from '../stores/app'
 import { getImageUrl } from '../utils/image'
+import { getLocalizedText } from '../utils/resellerSiteConfig'
+import { resolveCanonicalUrl, resolveSeoBaseUrl, resolveSeoImageUrl } from '../utils/seo'
 
 export interface PageSeoOptions {
   /** 页面专属标题；若与站点名相同，仅展示站点名 */
@@ -18,42 +20,37 @@ export interface PageSeoOptions {
   noindex?: () => boolean
 }
 
-const trimSlashEnd = (s: string) => s.replace(/\/+$/, '')
-
 const resolveImage = (raw: string, baseUrl: string): string => {
   const trimmed = raw.trim()
   if (!trimmed) return ''
-  if (/^https?:\/\//i.test(trimmed)) return trimmed
+  if (/^(https?:)?\/\//i.test(trimmed)) return resolveSeoImageUrl(trimmed, baseUrl)
   // 优先走 getImageUrl 处理 uploads 路径，得到的可能是相对 /uploads/...
   const resolved = getImageUrl(trimmed) || trimmed
-  if (/^https?:\/\//i.test(resolved)) return resolved
-  if (baseUrl && resolved.startsWith('/')) return baseUrl + resolved
-  return resolved
+  return resolveSeoImageUrl(resolved, baseUrl)
 }
 
 export function usePageSeo(options: PageSeoOptions = {}) {
   const appStore = useAppStore()
 
   const baseUrl = computed(() => {
-    const fromConfig = trimSlashEnd(String(appStore.config?.brand?.site_url || '').trim())
-    if (fromConfig) return fromConfig
-    if (typeof window !== 'undefined') return trimSlashEnd(window.location.origin)
-    return ''
+    return resolveSeoBaseUrl(
+      String(appStore.config?.brand?.site_url || ''),
+      typeof window !== 'undefined' ? window.location.origin : '',
+    )
   })
 
   const siteName = computed(() => {
     const lang = appStore.locale
     const seo = appStore.config?.seo
-    const localized = seo?.title?.[lang]
-    if (localized && String(localized).trim()) return String(localized).trim()
+    const localized = getLocalizedText(seo?.title, lang)
+    if (localized) return localized
     return String(appStore.config?.brand?.site_name || '').trim()
   })
 
   const siteDescription = computed(() => {
     const lang = appStore.locale
     const seo = appStore.config?.seo
-    const localized = seo?.description?.[lang]
-    return localized ? String(localized).trim() : ''
+    return getLocalizedText(seo?.description, lang)
   })
 
   const defaultImage = computed(() => {
@@ -84,9 +81,7 @@ export function usePageSeo(options: PageSeoOptions = {}) {
     let path = explicit && String(explicit).trim() ? String(explicit).trim() : ''
     if (!path && typeof window !== 'undefined') path = window.location.pathname
     if (!path) path = '/'
-    if (!path.startsWith('/')) path = '/' + path
-    if (!baseUrl.value) return path
-    return baseUrl.value + path
+    return resolveCanonicalUrl(path, baseUrl.value)
   })
 
   const fullImage = computed(() => {
@@ -103,7 +98,7 @@ export function usePageSeo(options: PageSeoOptions = {}) {
   useHead({
     title: () => fullTitle.value,
     link: () => {
-      if (!fullCanonical.value) return []
+      if (!fullCanonical.value || options.noindex?.()) return []
       return [{ key: 'canonical', rel: 'canonical', href: fullCanonical.value }]
     },
     meta: () => {
@@ -124,8 +119,9 @@ export function usePageSeo(options: PageSeoOptions = {}) {
       if (fullCanonical.value) tags.push({ property: 'og:url', content: fullCanonical.value })
       if (fullImage.value) tags.push({ property: 'og:image', content: fullImage.value })
       if (siteName.value) tags.push({ property: 'og:site_name', content: siteName.value })
+      tags.push({ property: 'og:locale', content: appStore.locale.replace('-', '_') })
 
-      tags.push({ name: 'twitter:card', content: 'summary_large_image' })
+      tags.push({ name: 'twitter:card', content: fullImage.value ? 'summary_large_image' : 'summary' })
       if (fullTitle.value) tags.push({ name: 'twitter:title', content: fullTitle.value })
       if (fullDescription.value) tags.push({ name: 'twitter:description', content: fullDescription.value })
       if (fullImage.value) tags.push({ name: 'twitter:image', content: fullImage.value })
@@ -133,4 +129,6 @@ export function usePageSeo(options: PageSeoOptions = {}) {
       return tags
     },
   })
+
+  return { canonicalUrl: fullCanonical, imageUrl: fullImage, title: fullTitle, description: fullDescription, siteName, baseUrl }
 }
