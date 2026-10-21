@@ -91,6 +91,7 @@
             <div v-if="qrUsingPayLinkFallback" class="mt-3 text-[13px] text-muted-foreground">{{ t('payment.qrFallbackHint') }}</div>
           </div>
           <div class="rounded-xl border p-[18px]">
+            <CryptoPaymentNotice v-if="showQRCode && hasCryptoPaymentDetails" />
             <div v-if="hasCryptoPaymentDetails" class="grid gap-2 rounded-md border p-3">
               <div v-for="item in cryptoPaymentDetails" :key="item.key" class="flex justify-between gap-3 border-b pb-1.5 last:border-b-0 last:pb-0">
                 <span class="flex-none text-xs text-muted-foreground">{{ item.label }}</span>
@@ -122,6 +123,7 @@
 </template>
 
 <script setup lang="ts">
+import CryptoPaymentNotice from '@/components/payment/CryptoPaymentNotice.vue'
 import { useI18n } from 'vue-i18n'
 import { AlertCircle, CheckCircle2 } from 'lucide-vue-next'
 import { Badge } from '@/components/ui/badge'

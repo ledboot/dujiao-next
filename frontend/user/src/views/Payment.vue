@@ -96,6 +96,7 @@
                 <div v-if="qrUsingPayLinkFallback" class="mt-3 text-xs text-muted-foreground">
                   {{ t('payment.qrFallbackHint') }}
                 </div>
+                <CryptoPaymentNotice v-if="showQRCode && hasCryptoPaymentDetails" />
                 <div v-if="hasCryptoPaymentDetails" class="mt-4 w-full max-w-xl space-y-2 rounded-xl border bg-white/5 p-3 text-left">
                   <div
                     v-for="item in cryptoPaymentDetails"
@@ -393,6 +394,7 @@
                 <div v-if="qrUsingPayLinkFallback" class="text-xs text-muted-foreground">
                   {{ t('payment.qrFallbackHint') }}
                 </div>
+                <CryptoPaymentNotice v-if="showQRCode && hasCryptoPaymentDetails" />
                 <div v-if="hasCryptoPaymentDetails" class="space-y-2 rounded-xl border bg-white/5 p-3">
                   <div
                     v-for="item in cryptoPaymentDetails"
@@ -489,6 +491,7 @@
 </template>
 
 <script setup lang="ts">
+import CryptoPaymentNotice from '@/components/payment/CryptoPaymentNotice.vue'
 import { useI18n } from 'vue-i18n'
 import { Copy, ExternalLink } from 'lucide-vue-next'
 import { pageAlertVariant, pageAlertToneClass } from '../utils/alerts'

@@ -101,6 +101,7 @@
               </div>
             </div>
             <div class="rounded-xl border p-4">
+              <CryptoPaymentNotice v-if="showQRCode && hasCryptoPaymentDetails" />
               <div v-if="hasCryptoPaymentDetails" class="space-y-2 rounded-xl border bg-muted/40 p-3 text-sm">
                 <div
                   v-for="item in cryptoPaymentDetails"
@@ -146,6 +147,7 @@
 </template>
 
 <script setup lang="ts">
+import CryptoPaymentNotice from '@/components/payment/CryptoPaymentNotice.vue'
 import { useI18n } from 'vue-i18n'
 import { ExternalLink } from 'lucide-vue-next'
 import { Badge } from '@/components/ui/badge'
