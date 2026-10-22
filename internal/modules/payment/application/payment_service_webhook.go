@@ -100,40 +100,7 @@ func (s *PaymentService) HandleDujiaoPayWebhook(input WebhookCallbackInput) (*pa
 	)
 
 	if input.ChannelID == 0 {
-		candidates, _, err := s.channelRepo.List(paymentcontract.ChannelListFilter{
-			ProviderType: constants.PaymentProviderDujiaoPay,
-			ActiveOnly:   true,
-		})
-		if err != nil {
-			log.Errorw("payment_webhook_candidates_list_failed", "error", err)
-			return nil, "", ErrPaymentUpdateFailed
-		}
-		if len(candidates) == 0 {
-			log.Warnw("payment_webhook_no_candidate_channel")
-			return nil, "", ErrPaymentChannelNotFound
-		}
-
-		var lastErr error
-		for i := range candidates {
-			channel := candidates[i]
-			result, err := s.tryParseWebhookWithChannel(&channel, input)
-			if err != nil {
-				log.Debugw("payment_webhook_candidate_parse_failed",
-					"candidate_channel_id", channel.ID,
-					"channel_type", channel.ChannelType,
-					"error", err,
-				)
-				lastErr = err
-				continue
-			}
-			log.Infow("payment_webhook_candidate_matched", "candidate_channel_id", channel.ID, "channel_type", channel.ChannelType)
-			return s.commitVerifiedWebhook(&channel, result, log)
-		}
-		if lastErr == nil {
-			lastErr = ErrPaymentProviderNotSupported
-		}
-		log.Warnw("payment_webhook_all_candidates_failed", "candidate_count", len(candidates), "last_error", lastErr)
-		return nil, "", lastErr
+		return s.handleWebhookByCandidateIteration(input, constants.PaymentProviderDujiaoPay, "", log)
 	}
 
 	channel, err := s.channelRepo.GetByID(input.ChannelID)
@@ -216,7 +183,7 @@ func (s *PaymentService) handleWebhookViaRegistry(
 }
 
 // handleWebhookByCandidateIteration 在 channel_id 缺失时,按 expectedProvider+expectedChannel
-// 拉取所有 active channel,挨个尝试解密验签;首个 ParseWebhook 成功的渠道即为目标渠道。
+// 拉取所有 active channel，验签通过后还需确认支付单归属；多个渠道可能共享密钥。
 func (s *PaymentService) handleWebhookByCandidateIteration(
 	input WebhookCallbackInput,
 	expectedProviderType string,
@@ -238,6 +205,8 @@ func (s *PaymentService) handleWebhookByCandidateIteration(
 	}
 
 	var lastErr error
+	var unmatchedChannel *paymentdomain.PaymentChannel
+	var unmatchedResult *paymentcontract.GatewayCallbackResult
 	for i := range candidates {
 		channel := candidates[i]
 		result, err := s.tryParseWebhookWithChannel(&channel, input)
@@ -249,8 +218,22 @@ func (s *PaymentService) handleWebhookByCandidateIteration(
 			lastErr = err
 			continue
 		}
+		if result.Status != "" {
+			if _, err := s.findWebhookPayment(channel.ID, result); err != nil {
+				if !errors.Is(err, ErrPaymentNotFound) {
+					return nil, result.Status, err
+				}
+				// 签名只能确认凭据，不能区分使用相同凭据的多个渠道。
+				unmatchedChannel, unmatchedResult = &channel, result
+				continue
+			}
+		}
 		log.Infow("payment_webhook_candidate_matched", "candidate_channel_id", channel.ID)
 		return s.commitVerifiedWebhook(&channel, result, log)
+	}
+	if unmatchedResult != nil {
+		// 所有候选均已检查；保留忽略本店未知支付单的既有行为。
+		return s.commitVerifiedWebhook(unmatchedChannel, unmatchedResult, log)
 	}
 	if lastErr == nil {
 		lastErr = ErrPaymentProviderNotSupported
@@ -412,13 +395,19 @@ func (s *PaymentService) findWebhookPayment(channelID uint, result *paymentcontr
 	}
 	if orderNo := strings.TrimSpace(result.OrderNo); orderNo != "" {
 		payment, err := s.paymentRepo.GetByGatewayOrderNo(orderNo)
-		if err == nil && payment != nil && payment.ChannelID == channelID {
+		if err != nil {
+			return nil, ErrPaymentUpdateFailed
+		}
+		if payment != nil && payment.ChannelID == channelID {
 			return payment, nil
 		}
 	}
 	if providerRef := strings.TrimSpace(result.ProviderRef); providerRef != "" {
 		payment, err := s.paymentRepo.GetLatestByProviderRef(providerRef)
-		if err == nil && payment != nil && payment.ChannelID == channelID {
+		if err != nil {
+			return nil, ErrPaymentUpdateFailed
+		}
+		if payment != nil && payment.ChannelID == channelID {
 			return payment, nil
 		}
 	}

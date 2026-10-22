@@ -1600,3 +1600,101 @@ func TestPaidResellerActivationFailureRollsBackWalletPayment(t *testing.T) {
 		t.Fatal("payment state did not roll back")
 	}
 }
+
+// 在旧快照读取后提交另一条回调，确定性覆盖并发回调的危险交错，不依赖 goroutine 调度。
+type interleavedCallbackStore struct {
+	paymentcontract.Store
+	afterRead func()
+}
+
+func (r *interleavedCallbackStore) GetByID(id uint) (*paymentdomain.Payment, error) {
+	payment, err := r.Store.GetByID(id)
+	if r.afterRead != nil {
+		afterRead := r.afterRead
+		r.afterRead = nil
+		afterRead()
+	}
+	return payment, err
+}
+
+func TestCallbackStaleSnapshotCannotOverwriteSuccess(t *testing.T) {
+	for _, wallet := range []bool{false, true} {
+		for _, tc := range []struct{ initial, target string }{
+			{constants.PaymentStatusPending, constants.PaymentStatusPending},
+			{constants.PaymentStatusFailed, constants.PaymentStatusFailed},
+			{constants.PaymentStatusExpired, constants.PaymentStatusExpired},
+			{constants.PaymentStatusExpired, constants.PaymentStatusPending},
+		} {
+			name := "order/"
+			if wallet {
+				name = "wallet/"
+			}
+			t.Run(name+tc.initial+"/"+tc.target, func(t *testing.T) {
+				svc, db := setupPaymentServiceWalletTest(t)
+				sqlDB, err := db.DB()
+				if err != nil {
+					t.Fatal(err)
+				}
+				sqlDB.SetMaxOpenConns(1)
+				t.Cleanup(func() { _ = sqlDB.Close() })
+				var payment *paymentdomain.Payment
+				var recharge *walletdomain.RechargeOrder
+				var order orderdomain.Order
+				var success PaymentCallbackInput
+				if wallet {
+					payment, recharge = createWalletRechargeFixture(t, db, tc.initial, tc.initial)
+					success = buildWalletRechargeCallbackInput(payment, recharge, constants.PaymentStatusSuccess, "paid-ref")
+				} else {
+					amount := money.FromDecimal(decimal.NewFromInt(10))
+					order = orderdomain.Order{OrderNo: "CONCURRENT-ORDER", Status: constants.OrderStatusPendingPayment, Currency: "CNY", TotalAmount: amount}
+					if err := db.Create(&order).Error; err != nil {
+						t.Fatal(err)
+					}
+					payment = &paymentdomain.Payment{OrderID: order.ID, ChannelID: 1, ProviderType: constants.PaymentProviderOfficial, ChannelType: constants.PaymentChannelTypeStripe, InteractionMode: constants.PaymentInteractionRedirect, Amount: amount, Currency: "CNY", Status: tc.initial, GatewayOrderNo: "CONCURRENT-GW"}
+					if err := db.Create(payment).Error; err != nil {
+						t.Fatal(err)
+					}
+					success = PaymentCallbackInput{PaymentID: payment.ID, ChannelID: 1, OrderNo: payment.GatewayOrderNo, Status: constants.PaymentStatusSuccess, Amount: amount, Currency: "CNY", ProviderRef: "paid-ref"}
+				}
+				stale := success
+				stale.Status = tc.target
+				stale.ProviderRef = ""
+				stale.PaidAt = nil
+				stale.Payload = jsonmap.JSON{"event": "old-notification"}
+				svc.paymentRepo = &interleavedCallbackStore{Store: svc.paymentRepo, afterRead: func() {
+					if _, err := svc.HandleCallback(success); err != nil {
+						t.Fatal(err)
+					}
+				}}
+				updated, err := svc.HandleCallback(stale)
+				if err != nil {
+					t.Fatal(err)
+				}
+				if updated.Status != constants.PaymentStatusSuccess {
+					t.Fatalf("returned stale status: %s", updated.Status)
+				}
+				stored, err := svc.paymentRepo.GetByID(payment.ID)
+				if err != nil {
+					t.Fatal(err)
+				}
+				if stored.Status != constants.PaymentStatusSuccess || stored.PaidAt == nil || stored.ProviderRef != "paid-ref" {
+					t.Fatalf("stale callback overwrote success: %+v", stored)
+				}
+				if wallet {
+					// 再次成功回调也不能重复增加钱包余额。
+					if _, err := svc.HandleCallback(success); err != nil {
+						t.Fatal(err)
+					}
+					assertWalletRechargeSuccessState(t, db, payment.ID, recharge.ID, recharge.UserID, recharge.Amount.Decimal)
+				} else {
+					if err := db.First(&order, order.ID).Error; err != nil {
+						t.Fatal(err)
+					}
+					if order.PaidAt == nil || order.Status != constants.OrderStatusPaid {
+						t.Fatalf("order lost payment: %+v", order)
+					}
+				}
+			})
+		}
+	}
+}

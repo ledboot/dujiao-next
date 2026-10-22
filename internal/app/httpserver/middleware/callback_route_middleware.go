@@ -4,7 +4,7 @@ import (
 	"net/http"
 	"strings"
 
-	settingsapp "github.com/dujiao-next/internal/modules/settings/application"
+	settingsintegration "github.com/dujiao-next/internal/modules/settings/schema/integration"
 
 	"github.com/dujiao-next/internal/constants"
 	paymenttransport "github.com/dujiao-next/internal/modules/payment/transport/http"
@@ -23,17 +23,32 @@ var defaultCallbackPaths = map[string]bool{
 	constants.DefaultUpstreamCallbackPath: true,
 }
 
+type callbackRouteSettings interface {
+	GetCallbackRoutesCached() *settingsintegration.CallbackRoutesSetting
+}
+
 // CallbackRouteMiddleware 动态回调路由中间件。
 // 当管理员配置了自定义回调路由时：
 //   - 匹配自定义路径 → 分发到对应 handler
 //   - 匹配默认回调路径 → 返回 404（隐藏默认路径）
 //   - 未配置自定义路由 → 放行，默认路由正常工作
 func CallbackRouteMiddleware(
-	settingService *settingsapp.Service,
+	settingService callbackRouteSettings,
 	callbackHandler *paymentcallbacktransport.Handler,
 	webhookHandler *paymenttransport.WebhookHandler,
 	upstreamHandler *upstreamtransport.Handler,
+	callbackLimit gin.HandlerFunc,
 ) gin.HandlerFunc {
+	if callbackLimit == nil {
+		panic("callback route middleware: rate limit guard is required")
+	}
+	dispatch := func(c *gin.Context, handler gin.HandlerFunc) {
+		callbackLimit(c)
+		if !c.IsAborted() {
+			handler(c)
+		}
+		c.Abort()
+	}
 	return func(c *gin.Context) {
 		path := strings.TrimRight(c.Request.URL.Path, "/")
 		method := c.Request.Method
@@ -61,32 +76,27 @@ func CallbackRouteMiddleware(
 		switch path {
 		case routes.PaymentCallback:
 			if routes.PaymentCallback != "" && (method == http.MethodPost || method == http.MethodGet) {
-				callbackHandler.PaymentCallback(c)
-				c.Abort()
+				dispatch(c, callbackHandler.PaymentCallback)
 				return
 			}
 		case routes.DujiaoPayWebhook:
 			if routes.DujiaoPayWebhook != "" && method == http.MethodPost && webhookHandler != nil {
-				webhookHandler.DujiaoPayWebhook(c)
-				c.Abort()
+				dispatch(c, webhookHandler.DujiaoPayWebhook)
 				return
 			}
 		case routes.PaypalWebhook:
 			if routes.PaypalWebhook != "" && method == http.MethodPost && webhookHandler != nil {
-				webhookHandler.PaypalWebhook(c)
-				c.Abort()
+				dispatch(c, webhookHandler.PaypalWebhook)
 				return
 			}
 		case routes.StripeWebhook:
 			if routes.StripeWebhook != "" && method == http.MethodPost && webhookHandler != nil {
-				webhookHandler.StripeWebhook(c)
-				c.Abort()
+				dispatch(c, webhookHandler.StripeWebhook)
 				return
 			}
 		case routes.UpstreamCallback:
 			if routes.UpstreamCallback != "" && method == http.MethodPost {
-				upstreamHandler.HandleCallback(c)
-				c.Abort()
+				dispatch(c, upstreamHandler.HandleCallback)
 				return
 			}
 		}

@@ -100,20 +100,7 @@ func (s *PaymentService) HandleCallback(input PaymentCallbackInput) (*paymentdom
 		return nil, err
 	}
 
-	// 幂等处理：已成功的不再回退状态
-	if payment.Status == constants.PaymentStatusSuccess {
-		log.Infow("payment_callback_idempotent_success",
-			"current_status", payment.Status,
-		)
-		return s.updateCallbackMeta(payment, constants.PaymentStatusSuccess, input)
-	}
-	if payment.Status == status {
-		log.Infow("payment_callback_idempotent_same_status",
-			"current_status", payment.Status,
-		)
-		return s.updateCallbackMeta(payment, status, input)
-	}
-
+	// 状态判断和元数据更新均在事务锁内完成，避免旧快照覆盖并发成功回调。
 	previousStatus := payment.Status
 	now := time.Now()
 	updated, processedOrder, orderPaid, err := s.applyPaymentUpdate(payment, order, status, input, now)
@@ -208,8 +195,9 @@ func adoptVerifiedLegacyDujiaoPayCurrency(payment *paymentdomain.Payment, status
 	return true
 }
 
-func (s *PaymentService) updateCallbackMeta(payment *paymentdomain.Payment, status string, input PaymentCallbackInput) (*paymentdomain.Payment, error) {
-	return updateCallbackMetaWithRepo(s.paymentRepo, payment, status, input)
+// updateCallbackMeta 仅接收事务句柄和已加锁的支付记录，避免事务外旧快照整行覆盖。
+func (s *PaymentService) updateCallbackMeta(tx paymentcontract.Transaction, payment *paymentdomain.Payment, status string, input PaymentCallbackInput) (*paymentdomain.Payment, error) {
+	return updateCallbackMetaWithRepo(tx.Payments(), payment, status, input)
 }
 
 func updateCallbackMetaWithRepo(repo paymentcontract.Store, payment *paymentdomain.Payment, status string, input PaymentCallbackInput) (*paymentdomain.Payment, error) {
@@ -270,11 +258,11 @@ func (s *PaymentService) applyPaymentUpdate(payment *paymentdomain.Payment, orde
 		processedOrder = lockedOrder
 
 		if lockedPayment.Status == constants.PaymentStatusSuccess {
-			_, err := updateCallbackMetaWithRepo(paymentRepo, lockedPayment, constants.PaymentStatusSuccess, input)
+			_, err := s.updateCallbackMeta(tx, lockedPayment, constants.PaymentStatusSuccess, input)
 			return err
 		}
 		if lockedPayment.Status == status {
-			_, err := updateCallbackMetaWithRepo(paymentRepo, lockedPayment, status, input)
+			_, err := s.updateCallbackMeta(tx, lockedPayment, status, input)
 			return err
 		}
 

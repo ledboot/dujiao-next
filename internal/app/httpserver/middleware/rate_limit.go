@@ -120,10 +120,20 @@ func (l *localRateLimiter) shouldWarnRedisFallback(now time.Time) bool {
 // 多实例部署必须配置共享 Redis 才能获得全局一致的计数。Redis 故障降级和
 // 本地容量耗尽都会输出节流后的 warning，避免故障期间产生日志洪泛。
 func RateLimitMiddleware(client *redis.Client, rule RateLimitRule, keyFunc RateLimitKeyFunc) gin.HandlerFunc {
+	guard := RateLimitGuard(client, rule, keyFunc)
+	return func(c *gin.Context) {
+		guard(c)
+		if !c.IsAborted() {
+			c.Next()
+		}
+	}
+}
+
+// RateLimitGuard 只执行限流检查，不推进 Gin handler 链，供动态路由在分发前调用。
+func RateLimitGuard(client *redis.Client, rule RateLimitRule, keyFunc RateLimitKeyFunc) gin.HandlerFunc {
 	local := &localRateLimiter{}
 	return func(c *gin.Context) {
 		if rule.WindowSeconds <= 0 || rule.MaxRequests <= 0 {
-			c.Next()
 			return
 		}
 
@@ -217,8 +227,6 @@ func RateLimitMiddleware(client *redis.Client, rule RateLimitRule, keyFunc RateL
 			c.Abort()
 			return
 		}
-
-		c.Next()
 	}
 }
 
