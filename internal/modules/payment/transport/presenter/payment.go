@@ -19,6 +19,7 @@ type CreatePaymentResp struct {
 	// 前端必须用这个字段而不是订单币种来展示 PayableAmount，否则会把结算币种数值
 	// 误标成订单币种（例如把 0.11 GBP 显示成 "0.11 CNY"）。
 	Currency        string       `json:"currency"`
+	TaxAmount       money.Amount `json:"tax_amount"`
 	FeeAmount       money.Amount `json:"fee_amount"`
 	FeePolicy       string       `json:"fee_policy,omitempty"`
 	PaymentID       *uint        `json:"payment_id,omitempty"`
@@ -62,6 +63,7 @@ func NewCreatePaymentResp(result *CreatePaymentResultView) CreatePaymentResp {
 		resp.QRCode = result.Payment.QRCode
 		resp.PayableAmount = result.Payment.Amount
 		resp.Currency = result.Payment.Currency
+		resp.TaxAmount = result.Payment.TaxAmount
 		resp.FeeAmount = result.Payment.FeeAmount
 		resp.FeePolicy = result.Payment.FeePolicy
 		resp.ExpiresAt = result.Payment.ExpiredAt
@@ -100,6 +102,7 @@ type LatestPaymentResp struct {
 	PayableAmount   money.Amount `json:"payable_amount"`
 	// Currency 是 PayableAmount 的实际币种，见 CreatePaymentResp.Currency 注释。
 	Currency  string       `json:"currency"`
+	TaxAmount money.Amount `json:"tax_amount"`
 	FeeAmount money.Amount `json:"fee_amount"`
 	FeePolicy string       `json:"fee_policy,omitempty"`
 }
@@ -124,6 +127,7 @@ func NewLatestPaymentResp(payment *paymentdomain.Payment, orderNo string) Latest
 		ExpiresAt:       payment.ExpiredAt,
 		PayableAmount:   payment.Amount,
 		Currency:        payment.Currency,
+		TaxAmount:       payment.TaxAmount,
 		FeeAmount:       payment.FeeAmount,
 		FeePolicy:       payment.FeePolicy,
 	}

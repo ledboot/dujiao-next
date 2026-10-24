@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -1406,5 +1407,53 @@ func TestSupersededPaymentLateSuccessIsRecordedWithoutDuplicateFulfillment(t *te
 	}
 	if duplicate.Status != constants.PaymentStatusSuccess || duplicate.ExceptionCode != constants.PaymentExceptionDuplicateSucceeded {
 		t.Fatalf("duplicate payment was not flagged: %+v", duplicate)
+	}
+}
+
+func TestCreateInvoicePaymentIncludesTaxOnGoodsAndCustomerFee(t *testing.T) {
+	for _, customerFee := range []bool{false, true} {
+		t.Run(fmt.Sprintf("customer_fee_%t", customerFee), func(t *testing.T) {
+			svc, db := setupPaymentServiceWalletTest(t)
+			if _, err := svc.settingService.Update(constants.SettingKeyPaymentConfig, map[string]interface{}{constants.SettingFieldCustomerFeeEnabled: customerFee}); err != nil {
+				t.Fatal(err)
+			}
+			channel, order := createFeePolicyOrderFixture(t, db, "Invoice Gateway", "DJ-INVOICE")
+			if err := db.Model(channel).Updates(map[string]interface{}{"fee_rate": "5.00", "fixed_fee": "0.00"}).Error; err != nil {
+				t.Fatal(err)
+			}
+			if err := db.Model(order).Updates(map[string]interface{}{"invoice_requested": true, "original_amount": "120.00", "total_amount": "123.60", "tax_amount": "3.60", "online_paid_amount": "123.60"}).Error; err != nil {
+				t.Fatal(err)
+			}
+			var gatewayAmount money.Amount
+			registerTestGateway(t, svc, channel.ProviderType, channel.ChannelType, emptyProviderRefProvider{onCreate: func(input paymentcontract.GatewayCreateInput) { gatewayAmount = input.Amount }})
+			result, err := svc.CreatePayment(CreatePaymentInput{OrderID: order.ID, ChannelID: channel.ID, Context: context.Background()})
+			if err != nil {
+				t.Fatal(err)
+			}
+			want, wantTax := "123.60", "0.00"
+			if customerFee {
+				want, wantTax = "129.78", "0.18"
+			}
+			if got := gatewayAmount.StringFixed(2); got != want {
+				t.Fatalf("gateway amount = %s, want %s", got, want)
+			}
+			if got := result.Payment.TaxAmount.StringFixed(2); got != wantTax {
+				t.Fatalf("fee tax = %s, want %s", got, wantTax)
+			}
+			if got := result.Payment.FeeAmount.StringFixed(2); got != "6.00" {
+				t.Fatalf("fee = %s, want 6.00", got)
+			}
+			if got := paymentCoveredOrderAmount(result.Payment, decimal.Zero).StringFixed(2); got != "123.60" {
+				t.Fatalf("covered = %s, want 123.60", got)
+			}
+			// Retrying the payment must reuse its immutable tax snapshot.
+			again, err := svc.CreatePayment(CreatePaymentInput{OrderID: order.ID, ChannelID: channel.ID, Context: context.Background()})
+			if err != nil {
+				t.Fatal(err)
+			}
+			if again.Payment.ID != result.Payment.ID || again.Payment.Amount.StringFixed(2) != want {
+				t.Fatalf("retry changed invoice payment: %+v", again.Payment)
+			}
+		})
 	}
 }

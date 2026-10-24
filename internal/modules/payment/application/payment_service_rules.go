@@ -102,7 +102,7 @@ func paymentCoveredOrderAmount(payment *paymentdomain.Payment, callbackAmount de
 			covered = covered.Sub(fee)
 		}
 	}
-	return normalizeOrderAmount(covered)
+	return normalizeOrderAmount(covered.Sub(payment.TaxAmount.Decimal))
 }
 
 // normalizeOrderAmount 归一化金额精度与下限。

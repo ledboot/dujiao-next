@@ -1698,3 +1698,56 @@ func TestCallbackStaleSnapshotCannotOverwriteSuccess(t *testing.T) {
 		}
 	}
 }
+
+func TestInvoiceWalletAndChannelSwitchAmounts(t *testing.T) {
+	for _, balance := range []string{"61.80", "200.00"} {
+		t.Run(balance, func(t *testing.T) {
+			svc, db := setupPaymentServiceWalletTest(t)
+			if _, err := svc.settingService.Update(constants.SettingKeyPaymentConfig, map[string]interface{}{constants.SettingFieldCustomerFeeEnabled: true}); err != nil {
+				t.Fatal(err)
+			}
+			user := &userdomain.User{Email: "invoice-wallet@example.com", PasswordHash: "hash", Status: constants.UserStatusActive}
+			if err := db.Create(user).Error; err != nil {
+				t.Fatal(err)
+			}
+			if err := db.Create(&walletdomain.Account{UserID: user.ID, Balance: money.FromDecimal(decimal.RequireFromString(balance))}).Error; err != nil {
+				t.Fatal(err)
+			}
+			channel := createUnderpaidChannel(t, db, svc, "Invoice wallet A", constants.PaymentChannelTypeWechat)
+			if err := db.Model(channel).Update("fee_rate", "5.00").Error; err != nil {
+				t.Fatal(err)
+			}
+			order := createUnderpaidOrder(t, db, "DJ-INVOICE-WALLET", user.ID, 120)
+			if err := db.Model(order).Updates(map[string]interface{}{"invoice_requested": true, "total_amount": "123.60", "tax_amount": "3.60", "online_paid_amount": "123.60"}).Error; err != nil {
+				t.Fatal(err)
+			}
+			result, err := svc.CreatePayment(CreatePaymentInput{OrderID: order.ID, ChannelID: channel.ID, UseBalance: true, Context: context.Background()})
+			if err != nil {
+				t.Fatal(err)
+			}
+			if balance == "200.00" {
+				if !result.OrderPaid || result.WalletPaidAmount.StringFixed(2) != "123.60" || walletBalance(t, db, user.ID) != "76.40" {
+					t.Fatalf("wallet full invoice result: %+v", result)
+				}
+				return
+			}
+			if result.Payment.Amount.StringFixed(2) != "64.89" || result.Payment.FeeAmount.StringFixed(2) != "3.00" || result.Payment.TaxAmount.StringFixed(2) != "0.09" {
+				t.Fatalf("mixed invoice result: %+v", result.Payment)
+			}
+			if got := paymentCoveredOrderAmount(result.Payment, decimal.Zero).StringFixed(2); got != "61.80" {
+				t.Fatalf("covered %s", got)
+			}
+			channelB := createUnderpaidChannel(t, db, svc, "Invoice wallet B", constants.PaymentChannelTypeAlipay)
+			if err := db.Model(channelB).Update("fixed_fee", "6.00").Error; err != nil {
+				t.Fatal(err)
+			}
+			switched, err := svc.CreatePayment(CreatePaymentInput{OrderID: order.ID, ChannelID: channelB.ID, UseBalance: false, Context: context.Background()})
+			if err != nil {
+				t.Fatal(err)
+			}
+			if switched.Payment.Amount.StringFixed(2) != "129.78" || switched.Payment.TaxAmount.StringFixed(2) != "0.18" || walletBalance(t, db, user.ID) != "61.80" {
+				t.Fatalf("switched invoice result: %+v", switched.Payment)
+			}
+		})
+	}
+}

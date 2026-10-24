@@ -224,7 +224,25 @@ func (s *PaymentService) CreatePayment(input CreatePaymentInput) (*CreatePayment
 			fixedFee = channel.FixedFee.Decimal.Round(2)
 		}
 
-		paymentAmount, feeAmount, feePolicy := calculatePaymentAmounts(onlineAmount, feeRate, fixedFee, feeConfig.CustomerFeeEnabled)
+		feeBase := onlineAmount
+		if lockedOrder.InvoiceRequested {
+			// Balance covers a proportional part of the tax-inclusive order amount.
+			feeBase = onlineAmount.Div(decimal.RequireFromString("1.03")).Round(2)
+			if lockedOrder.WalletPaidAmount.Decimal.IsZero() {
+				feeBase = lockedOrder.TotalAmount.Decimal.Sub(lockedOrder.TaxAmount.Decimal)
+			}
+		}
+		_, feeAmount, feePolicy := calculatePaymentAmounts(feeBase, feeRate, fixedFee, feeConfig.CustomerFeeEnabled)
+		paymentAmount := onlineAmount
+		taxAmount := decimal.Zero
+		if feePolicy == constants.PaymentFeePolicyCustomerSurcharge {
+			paymentAmount = paymentAmount.Add(feeAmount)
+			if lockedOrder.InvoiceRequested {
+				base := lockedOrder.TotalAmount.Decimal.Sub(lockedOrder.TaxAmount.Decimal)
+				taxAmount = base.Add(feeAmount).Mul(decimal.RequireFromString("0.03")).Round(2).Sub(lockedOrder.TaxAmount.Decimal)
+				paymentAmount = paymentAmount.Add(taxAmount)
+			}
+		}
 		payment = &paymentdomain.Payment{
 			OrderID:         lockedOrder.ID,
 			ChannelID:       channel.ID,
@@ -235,6 +253,7 @@ func (s *PaymentService) CreatePayment(input CreatePaymentInput) (*CreatePayment
 			FeeRate:         money.FromDecimal(feeRate),
 			FixedFee:        money.FromDecimal(fixedFee),
 			FeeAmount:       money.FromDecimal(feeAmount),
+			TaxAmount:       money.FromDecimal(taxAmount),
 			FeePolicy:       feePolicy,
 			Currency:        lockedOrder.Currency,
 			Status:          constants.PaymentStatusInitiated,

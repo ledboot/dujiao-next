@@ -217,9 +217,19 @@
               <span>{{ t('checkout.previewMemberDiscount') }}</span>
               <span class="font-mono text-amber-600 dark:text-amber-300">-{{ formatPrice(previewMemberDiscount, previewCurrency) }}</span>
             </div>
+            <label class="flex cursor-pointer items-center gap-2 py-2 text-foreground">
+              <input v-model="invoiceRequested" type="checkbox" class="accent-primary" />
+              <span>{{ t('checkout.invoiceRequested') }}</span>
+            </label>
+            <div v-if="hasPositiveAmount(checkoutFee)" class="flex items-center justify-between">
+              <span>{{ t('payment.feeAmountLabel') }}</span><span>{{ formatPrice(checkoutFee, previewCurrency) }}</span>
+            </div>
+            <div v-if="invoiceRequested" class="flex items-center justify-between">
+              <span>{{ t('checkout.taxAmount') }}</span><span>{{ formatPrice(checkoutTax, previewCurrency) }}</span>
+            </div>
             <div class="flex items-center justify-between border-t pt-3 text-foreground">
               <span class="font-semibold">{{ t('checkout.previewTotal') }}</span>
-              <span class="font-mono text-lg font-bold">{{ formatPrice(previewTotal, previewCurrency) }}</span>
+              <span class="font-mono text-lg font-bold">{{ formatPrice(checkoutPayableTotal, previewCurrency) }}</span>
             </div>
           </div>
 
@@ -336,7 +346,8 @@ const {
   checkoutMode, guestEmail, guestPassword, guestEmailValid,
   guestCaptchaEnabled, captchaProvider, guestCaptchaPayload, guestTurnstileToken, guestTurnstileSiteKey,
   guestImageCaptchaRef, guestTurnstileRef, handleGuestCaptchaConfigStale,
-  previewCurrency, previewOriginal, previewCoupon, previewPromotion, previewWholesale, previewMemberDiscount, previewTotal,
+  invoiceRequested, checkoutFee, checkoutTax, checkoutPayableTotal,
+  previewCurrency, previewOriginal, previewCoupon, previewPromotion, previewWholesale, previewMemberDiscount,
   previewLoading, couponRefreshing, previewStatusText, hasPositiveAmount, formatDiscountPrice, checkoutAlert,
   showBalanceOption, walletLoading, walletBalance, useBalance, walletOnlyPayment,
   expectedWalletPaidDisplay, expectedOnlinePayDisplay, expectedOnlinePayCents,

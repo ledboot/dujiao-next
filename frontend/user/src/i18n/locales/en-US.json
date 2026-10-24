@@ -1169,6 +1169,8 @@
     "minPurchaseNotMet": "This product requires at least {count} per order"
   },
   "checkout": {
+    "invoiceRequested": "Request an invoice (3% tax)",
+    "taxAmount": "Tax",
     "title": "Checkout",
     "subtitle": "Review order and submit",
     "empty": "Your cart is empty",

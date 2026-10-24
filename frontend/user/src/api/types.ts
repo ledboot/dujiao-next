@@ -494,6 +494,7 @@ export interface PaymentCreateResult {
     // currency 是 payable_amount 的实际币种；换汇渠道下与订单币种不同，
     // 展示 payable_amount 必须搭配这个字段，不能直接套用订单币种。
     currency?: string
+    tax_amount?: string
     fee_amount?: string
     fee_policy?: string
     payment_id?: number

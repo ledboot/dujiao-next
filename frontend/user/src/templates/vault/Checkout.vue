@@ -130,7 +130,17 @@
             <div class="flex items-center justify-between text-[13.5px]"><span class="text-muted-foreground">{{ t('checkout.previewWholesale') }}</span><span class="font-semibold" :class="hasPositiveAmount(previewWholesale) ? 'text-[color:var(--teal-strong)]' : 'text-foreground'">{{ formatDiscountPrice(previewWholesale, previewCurrency) }}</span></div>
           </template>
           <div v-if="Number(previewMemberDiscount) > 0" class="flex items-center justify-between text-[13.5px]"><span class="text-muted-foreground">{{ t('checkout.previewMemberDiscount') }}</span><span class="font-semibold text-[color:var(--gold-strong)]">-{{ formatPrice(previewMemberDiscount, previewCurrency) }}</span></div>
-          <div class="mt-1 flex items-center justify-between border-t pt-3 font-bold text-foreground"><span>{{ t('checkout.previewTotal') }}</span><span class="text-[22px] text-primary tabular-nums">{{ formatPrice(previewTotal, previewCurrency) }}</span></div>
+          <label class="flex cursor-pointer items-center gap-2 py-2 text-foreground">
+              <input v-model="invoiceRequested" type="checkbox" class="accent-primary" />
+              <span>{{ t('checkout.invoiceRequested') }}</span>
+            </label>
+            <div v-if="hasPositiveAmount(checkoutFee)" class="flex items-center justify-between">
+              <span>{{ t('payment.feeAmountLabel') }}</span><span>{{ formatPrice(checkoutFee, previewCurrency) }}</span>
+            </div>
+            <div v-if="invoiceRequested" class="flex items-center justify-between">
+              <span>{{ t('checkout.taxAmount') }}</span><span>{{ formatPrice(checkoutTax, previewCurrency) }}</span>
+            </div>
+            <div class="mt-1 flex items-center justify-between border-t pt-3 font-bold text-foreground"><span>{{ t('checkout.previewTotal') }}</span><span class="text-[22px] text-primary tabular-nums">{{ formatPrice(checkoutPayableTotal, previewCurrency) }}</span></div>
         </div>
 
         <div v-if="previewLoading || couponRefreshing" class="mt-3 text-xs text-muted-foreground">{{ previewStatusText }}</div>
@@ -221,7 +231,8 @@ const {
   checkoutMode, guestEmail, guestPassword, guestEmailValid,
   guestCaptchaEnabled, captchaProvider, guestCaptchaPayload, guestTurnstileToken, guestTurnstileSiteKey,
   guestImageCaptchaRef, guestTurnstileRef, handleGuestCaptchaConfigStale,
-  previewCurrency, previewOriginal, previewCoupon, previewPromotion, previewWholesale, previewMemberDiscount, previewTotal,
+  invoiceRequested, checkoutFee, checkoutTax, checkoutPayableTotal,
+  previewCurrency, previewOriginal, previewCoupon, previewPromotion, previewWholesale, previewMemberDiscount,
   previewLoading, couponRefreshing, previewStatusText, hasPositiveAmount, formatDiscountPrice, checkoutAlert,
   showBalanceOption, walletLoading, walletBalance, useBalance, walletOnlyPayment,
   expectedWalletPaidDisplay, expectedOnlinePayDisplay, expectedOnlinePayCents,

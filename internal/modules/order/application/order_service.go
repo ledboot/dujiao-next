@@ -138,6 +138,7 @@ func NewOrderService(opts OrderServiceOptions) *OrderService {
 
 // CreateOrderInput 创建订单输入
 type CreateOrderInput struct {
+	InvoiceRequested    bool
 	UserID              uint
 	Tenant              resellercontract.TenantContext
 	Items               []CreateOrderItem
@@ -152,6 +153,7 @@ type CreateOrderInput struct {
 
 // CreateGuestOrderInput 游客创建订单输入
 type CreateGuestOrderInput struct {
+	InvoiceRequested    bool
 	Email               string
 	OrderPassword       string
 	Locale              string
@@ -229,6 +231,7 @@ func (s *OrderService) CreateOrder(input CreateOrderInput) (*orderdomain.Order, 
 		return nil, ErrInvalidOrderItem
 	}
 	return s.createOrder(orderCreateParams{
+		InvoiceRequested:    input.InvoiceRequested,
 		UserID:              input.UserID,
 		Tenant:              input.Tenant,
 		Items:               input.Items,
@@ -254,6 +257,7 @@ func (s *OrderService) CreateGuestOrder(input CreateGuestOrderInput) (*orderdoma
 	}
 	locale := strings.TrimSpace(input.Locale)
 	return s.createOrder(orderCreateParams{
+		InvoiceRequested:    input.InvoiceRequested,
 		UserID:              0,
 		GuestEmail:          email,
 		GuestPassword:       password,
@@ -270,6 +274,7 @@ func (s *OrderService) CreateGuestOrder(input CreateGuestOrderInput) (*orderdoma
 }
 
 type orderCreateParams struct {
+	InvoiceRequested         bool
 	UserID                   uint
 	GuestEmail               string
 	GuestPassword            string
@@ -292,6 +297,8 @@ type orderCreateParams struct {
 
 // OrderPreview 订单金额预览
 type OrderPreview struct {
+	InvoiceRequested        bool               `json:"invoice_requested"`
+	TaxAmount               money.Amount       `json:"tax_amount"`
 	Currency                string             `json:"currency"`
 	OriginalAmount          money.Amount       `json:"original_amount"`
 	MemberDiscountAmount    money.Amount       `json:"member_discount_amount"`
@@ -342,6 +349,7 @@ func (s *OrderService) PreviewOrder(input CreateOrderInput) (*OrderPreview, erro
 		return nil, ErrInvalidOrderItem
 	}
 	params := orderCreateParams{
+		InvoiceRequested:    input.InvoiceRequested,
 		UserID:              input.UserID,
 		Tenant:              input.Tenant,
 		Items:               input.Items,
@@ -361,6 +369,7 @@ func (s *OrderService) PreviewOrder(input CreateOrderInput) (*OrderPreview, erro
 // PreviewGuestOrder 游客订单金额预览
 func (s *OrderService) PreviewGuestOrder(input CreateGuestOrderInput) (*OrderPreview, error) {
 	params := orderCreateParams{
+		InvoiceRequested:    input.InvoiceRequested,
 		GuestEmail:          input.Email,
 		GuestPassword:       input.OrderPassword,
 		GuestLocale:         input.Locale,
@@ -413,14 +422,20 @@ func (s *OrderService) previewOrder(input orderCreateParams) (*OrderPreview, err
 			FulfillmentType:    item.FulfillmentType,
 		})
 	}
+	tax := decimal.Zero
+	if input.InvoiceRequested {
+		tax = result.TotalAmount.Mul(decimal.RequireFromString("0.03")).Round(2)
+	}
 	return &OrderPreview{
+		InvoiceRequested:        input.InvoiceRequested,
+		TaxAmount:               money.FromDecimal(tax),
 		Currency:                result.Currency,
 		OriginalAmount:          money.FromDecimal(result.OriginalAmount),
 		MemberDiscountAmount:    money.FromDecimal(result.MemberDiscountAmount),
 		DiscountAmount:          money.FromDecimal(result.DiscountAmount),
 		PromotionDiscountAmount: money.FromDecimal(result.PromotionDiscountAmount),
 		WholesaleDiscountAmount: money.FromDecimal(result.WholesaleDiscountAmount),
-		TotalAmount:             money.FromDecimal(result.TotalAmount),
+		TotalAmount:             money.FromDecimal(result.TotalAmount.Add(tax)),
 		Items:                   items,
 	}, nil
 }
@@ -530,6 +545,12 @@ func (s *OrderService) createOrder(input orderCreateParams) (*orderdomain.Order,
 		CreatedAt:               now,
 		UpdatedAt:               now,
 	}
+	order.InvoiceRequested = input.InvoiceRequested
+	if input.InvoiceRequested {
+		order.TaxAmount = money.FromDecimal(result.TotalAmount.Mul(decimal.RequireFromString("0.03")).Round(2))
+		order.TotalAmount = money.FromDecimal(order.TotalAmount.Decimal.Add(order.TaxAmount.Decimal))
+		order.OnlinePaidAmount = order.TotalAmount
+	}
 	if pricingCtx != nil {
 		resellerID := pricingCtx.ResellerID
 		order.ResellerID = &resellerID
@@ -553,6 +574,8 @@ func (s *OrderService) createOrder(input orderCreateParams) (*orderdomain.Order,
 			return err
 		}
 
+		invoiceBase := decimal.Zero
+		allocatedTax := decimal.Zero
 		for idx := range result.Plans {
 			plan := result.Plans[idx]
 			childProfit := decimal.Zero
@@ -586,6 +609,15 @@ func (s *OrderService) createOrder(input orderCreateParams) (*orderdomain.Order,
 				RiskIP:                  order.RiskIP,
 				CreatedAt:               now,
 				UpdatedAt:               now,
+			}
+			childOrder.InvoiceRequested = order.InvoiceRequested
+			if order.InvoiceRequested {
+				invoiceBase = invoiceBase.Add(childOrder.TotalAmount.Decimal)
+				cumulativeTax := invoiceBase.Mul(decimal.RequireFromString("0.03")).Round(2)
+				childOrder.TaxAmount = money.FromDecimal(cumulativeTax.Sub(allocatedTax))
+				allocatedTax = cumulativeTax
+				childOrder.TotalAmount = money.FromDecimal(childOrder.TotalAmount.Decimal.Add(childOrder.TaxAmount.Decimal))
+				childOrder.OnlinePaidAmount = childOrder.TotalAmount
 			}
 			if pricingCtx != nil {
 				resellerID := pricingCtx.ResellerID

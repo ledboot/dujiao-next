@@ -14,6 +14,8 @@ import (
 
 // OrderSummary 订单列表响应（精简字段）
 type OrderSummary struct {
+	InvoiceRequested        bool            `json:"invoice_requested"`
+	TaxAmount               money.Amount    `json:"tax_amount"`
 	OrderNo                 string          `json:"order_no"`
 	Status                  string          `json:"status"`
 	Currency                string          `json:"currency"`
@@ -31,6 +33,8 @@ type OrderSummary struct {
 func NewOrderSummary(o *orderdomain.Order) OrderSummary {
 	s := OrderSummary{
 		OrderNo:                 o.OrderNo,
+		InvoiceRequested:        o.InvoiceRequested,
+		TaxAmount:               o.TaxAmount,
 		Status:                  o.Status,
 		Currency:                o.Currency,
 		DiscountAmount:          o.DiscountAmount,
@@ -63,6 +67,8 @@ func NewOrderSummaryList(orders []orderdomain.Order) []OrderSummary {
 
 // OrderDetail 订单详情响应（完整字段）
 type OrderDetail struct {
+	InvoiceRequested         bool              `json:"invoice_requested"`
+	TaxAmount                money.Amount      `json:"tax_amount"`
 	OrderNo                  string            `json:"order_no"`
 	GuestEmail               string            `json:"guest_email,omitempty"`
 	GuestLocale              string            `json:"guest_locale,omitempty"`
@@ -102,6 +108,8 @@ type OrderRefundResp struct {
 func NewOrderDetail(o *orderdomain.Order) OrderDetail {
 	d := OrderDetail{
 		OrderNo:                 o.OrderNo,
+		InvoiceRequested:        o.InvoiceRequested,
+		TaxAmount:               o.TaxAmount,
 		GuestEmail:              o.GuestEmail,
 		GuestLocale:             o.GuestLocale,
 		Status:                  o.Status,

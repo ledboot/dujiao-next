@@ -58,6 +58,7 @@ type OrderPaymentCreator interface {
 
 // CreateOrderAndPayRequest 创建订单并发起支付请求
 type CreateOrderAndPayRequest struct {
+	InvoiceRequested    bool                    `json:"invoice_requested"`
 	Items               []OrderItemRequest      `json:"items" binding:"required"`
 	CouponCode          string                  `json:"coupon_code"`
 	AffiliateCode       string                  `json:"affiliate_code"`
@@ -69,6 +70,7 @@ type CreateOrderAndPayRequest struct {
 
 // CreateGuestOrderAndPayRequest 游客创建订单并发起支付请求
 type CreateGuestOrderAndPayRequest struct {
+	InvoiceRequested    bool                              `json:"invoice_requested"`
 	Email               string                            `json:"email" binding:"required"`
 	OrderPassword       string                            `json:"order_password" binding:"required"`
 	Items               []OrderItemRequest                `json:"items" binding:"required"`
@@ -109,6 +111,7 @@ func (h *CreateHandler) CreateOrder(c *gin.Context) {
 	}
 
 	order, err := h.orders.CreateOrder(CreateOrderInput{
+		InvoiceRequested:    req.InvoiceRequested,
 		UserID:              uid,
 		Tenant:              tenantFromRequest(c),
 		Items:               mapOrderItems(req.Items),
@@ -140,6 +143,7 @@ func (h *CreateHandler) CreateGuestOrder(c *gin.Context) {
 	}
 
 	order, err := h.orders.CreateGuestOrder(CreateGuestOrderInput{
+		InvoiceRequested:    req.InvoiceRequested,
 		Email:               req.Email,
 		OrderPassword:       req.OrderPassword,
 		Locale:              i18n.ResolveLocale(c),
@@ -174,6 +178,7 @@ func (h *CreateHandler) CreateOrderAndPay(c *gin.Context) {
 	}
 
 	order, err := h.orders.CreateOrder(CreateOrderInput{
+		InvoiceRequested:    req.InvoiceRequested,
 		UserID:              uid,
 		Tenant:              tenantFromRequest(c),
 		Items:               mapOrderItems(req.Items),
@@ -214,6 +219,7 @@ func (h *CreateHandler) CreateGuestOrderAndPay(c *gin.Context) {
 	}
 
 	order, err := h.orders.CreateGuestOrder(CreateGuestOrderInput{
+		InvoiceRequested:    req.InvoiceRequested,
 		Email:               req.Email,
 		OrderPassword:       req.OrderPassword,
 		Locale:              i18n.ResolveLocale(c),
@@ -298,6 +304,11 @@ func (h *CreateHandler) respondCreateAndPay(c *gin.Context, order *orderdomain.O
 	}
 	if result.Payment != nil {
 		resp["payment_id"] = result.Payment.ID
+		resp["tax_amount"] = result.Payment.TaxAmount
+		resp["fee_amount"] = result.Payment.FeeAmount
+		resp["fee_policy"] = result.Payment.FeePolicy
+		resp["payable_amount"] = result.Payment.Amount
+		resp["currency"] = result.Payment.Currency
 		resp["provider_type"] = result.Payment.ProviderType
 		resp["channel_type"] = result.Payment.ChannelType
 		resp["interaction_mode"] = result.Payment.InteractionMode

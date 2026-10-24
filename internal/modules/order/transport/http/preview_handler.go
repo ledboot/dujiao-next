@@ -86,6 +86,7 @@ type OrderItemRequest struct {
 
 // CreateOrderRequest 用户订单预览/创建请求体（preview 使用）。
 type CreateOrderRequest struct {
+	InvoiceRequested    bool                    `json:"invoice_requested"`
 	Items               []OrderItemRequest      `json:"items" binding:"required"`
 	CouponCode          string                  `json:"coupon_code"`
 	AffiliateCode       string                  `json:"affiliate_code"`
@@ -95,6 +96,7 @@ type CreateOrderRequest struct {
 
 // CreateGuestOrderRequest 游客订单预览请求体。
 type CreateGuestOrderRequest struct {
+	InvoiceRequested    bool                              `json:"invoice_requested"`
 	Email               string                            `json:"email" binding:"required"`
 	OrderPassword       string                            `json:"order_password" binding:"required"`
 	Items               []OrderItemRequest                `json:"items" binding:"required"`
@@ -115,6 +117,7 @@ type CreateOrderItem struct {
 
 // CreateOrderInput 用户订单预览输入。
 type CreateOrderInput struct {
+	InvoiceRequested    bool
 	UserID              uint
 	Tenant              resellermodule.TenantContext
 	Items               []CreateOrderItem
@@ -127,6 +130,7 @@ type CreateOrderInput struct {
 
 // CreateGuestOrderInput 游客订单预览输入。
 type CreateGuestOrderInput struct {
+	InvoiceRequested    bool
 	Email               string
 	OrderPassword       string
 	Locale              string
@@ -141,6 +145,8 @@ type CreateGuestOrderInput struct {
 
 // OrderPreview 订单金额预览。
 type OrderPreview struct {
+	InvoiceRequested        bool               `json:"invoice_requested"`
+	TaxAmount               money.Amount       `json:"tax_amount"`
 	Currency                string             `json:"currency"`
 	OriginalAmount          money.Amount       `json:"original_amount"`
 	MemberDiscountAmount    money.Amount       `json:"member_discount_amount"`
@@ -202,6 +208,7 @@ func (h *PreviewHandler) PreviewOrder(c *gin.Context) {
 	}
 
 	preview, err := h.orders.PreviewOrder(CreateOrderInput{
+		InvoiceRequested:    req.InvoiceRequested,
 		UserID:              uid,
 		Tenant:              tenantFromRequest(c),
 		Items:               mapOrderItems(req.Items),
@@ -227,6 +234,7 @@ func (h *PreviewHandler) PreviewGuestOrder(c *gin.Context) {
 	}
 
 	preview, err := h.orders.PreviewGuestOrder(CreateGuestOrderInput{
+		InvoiceRequested:    req.InvoiceRequested,
 		Email:               req.Email,
 		OrderPassword:       req.OrderPassword,
 		Locale:              i18n.ResolveLocale(c),

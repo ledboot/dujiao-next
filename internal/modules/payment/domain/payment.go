@@ -18,6 +18,7 @@ type Payment struct {
 	Amount                money.Amount `gorm:"type:decimal(20,2);not null" json:"amount"`                        // 用户实际支付金额（由 FeePolicy 快照确定）
 	FeeRate               money.Amount `gorm:"type:decimal(6,2);not null;default:0" json:"fee_rate"`             // 手续费比例（百分比）
 	FixedFee              money.Amount `gorm:"type:decimal(6,2);not null;default:0" json:"fixed_fee"`            // 固定手续费
+	TaxAmount             money.Amount `gorm:"type:decimal(20,2);not null;default:0" json:"tax_amount"`          // 开票时加收的手续费税额（订单币种）
 	FeeAmount             money.Amount `gorm:"type:decimal(20,2);not null;default:0" json:"fee_amount"`          // 手续费金额
 	FeePolicy             string       `gorm:"type:varchar(32);index;not null;default:'none'" json:"fee_policy"` // 创建时的手续费策略快照
 	Currency              string       `gorm:"not null" json:"currency"`                                         // 币种

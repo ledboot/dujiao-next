@@ -23,6 +23,10 @@
         <span class="text-muted-foreground">{{ t('orderDetail.amountMemberDiscount') }}</span>
         <span class="font-medium text-warning">{{ formatDiscountMoney(order.member_discount_amount, order.currency) }}</span>
       </div>
+      <div v-if="order.invoice_requested" class="flex items-center justify-between gap-4">
+        <span>{{ t('checkout.taxAmount') }}</span>
+        <span class="font-semibold">{{ formatMoney(centsToAmount((amountToCents(order.tax_amount) || 0) + (amountToCents(paymentResult.tax_amount) || 0)), order.currency) }}</span>
+      </div>
       <div v-if="customerFeeApplied" class="flex items-center justify-between gap-4 text-warning">
         <span>{{ t('payment.feeAmountLabel') }}</span>
         <span class="font-semibold">{{ customerFeeAmountDisplay }}</span>
@@ -48,6 +52,7 @@
 
 <script setup lang="ts">
 import { useI18n } from 'vue-i18n'
+import { amountToCents, centsToAmount } from '../../utils/money'
 
 defineProps<{
   order: any

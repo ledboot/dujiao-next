@@ -646,3 +646,79 @@ func TestOrderServiceTenantScopedGuestQueries(t *testing.T) {
 		t.Fatalf("expected only reseller guest order, total=%d orders=%+v", total, orders)
 	}
 }
+
+func TestInvoiceOrderPersistsTaxAndAllocatesChildren(t *testing.T) {
+	for _, guest := range []bool{false, true} {
+		t.Run(fmt.Sprintf("guest_%t", guest), func(t *testing.T) {
+			f := newOrderResellerSnapshotFixture(t)
+			input := f.createInput(f.buyer.ID)
+			preview, err := f.svc.PreviewOrder(input)
+			if err != nil {
+				t.Fatal(err)
+			}
+			input.InvoiceRequested = true
+			var order *orderdomain.Order
+			if guest {
+				order, err = f.svc.CreateGuestOrder(CreateGuestOrderInput{Email: "invoice@example.com", OrderPassword: "invoice-pass", Tenant: input.Tenant, Items: input.Items, InvoiceRequested: true})
+			} else {
+				order, err = f.svc.CreateOrder(input)
+			}
+			if err != nil {
+				t.Fatal(err)
+			}
+			wantTax := preview.TotalAmount.Decimal.Mul(decimal.RequireFromString("0.03")).Round(2)
+			var stored orderdomain.Order
+			if err := f.db.Preload("Children").First(&stored, order.ID).Error; err != nil {
+				t.Fatal(err)
+			}
+			if !stored.InvoiceRequested || !stored.TaxAmount.Decimal.Equal(wantTax) || !stored.TotalAmount.Decimal.Equal(preview.TotalAmount.Decimal.Add(wantTax)) {
+				t.Fatalf("invoice totals mismatch: %+v", stored)
+			}
+			total, tax := decimal.Zero, decimal.Zero
+			for _, child := range stored.Children {
+				if !child.InvoiceRequested {
+					t.Fatal("child lost invoice flag")
+				}
+				total = total.Add(child.TotalAmount.Decimal)
+				tax = tax.Add(child.TaxAmount.Decimal)
+			}
+			if !total.Equal(stored.TotalAmount.Decimal) || !tax.Equal(wantTax) {
+				t.Fatalf("children amounts mismatch: total=%s tax=%s", total, tax)
+			}
+		})
+	}
+}
+
+func TestInvoiceChildTaxUsesCombinedRounding(t *testing.T) {
+	f := newOrderResellerSnapshotFixture(t)
+	input := f.createInput(f.buyer.ID)
+	input.InvoiceRequested = true
+	input.Items = nil
+	for idx, price := range []string{"0.16", "0.16", "0.17"} {
+		product, sku := f.addResellerSnapshotProduct(t, fmt.Sprintf("invoice-round-%d", idx), decimal.RequireFromString(price), decimal.Zero, decimal.Zero)
+		input.Items = append(input.Items, CreateOrderItem{ProductID: product.ID, SKUID: sku.ID, Quantity: 1})
+	}
+	preview, err := f.svc.PreviewOrder(input)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !preview.InvoiceRequested || preview.TaxAmount.StringFixed(2) != "0.01" || preview.TotalAmount.StringFixed(2) != "0.50" {
+		t.Fatalf("invoice preview: %+v", preview)
+	}
+	order, err := f.svc.CreateOrder(input)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var stored orderdomain.Order
+	if err := f.db.Preload("Children").First(&stored, order.ID).Error; err != nil {
+		t.Fatal(err)
+	}
+	total, tax := decimal.Zero, decimal.Zero
+	for _, child := range stored.Children {
+		total = total.Add(child.TotalAmount.Decimal)
+		tax = tax.Add(child.TaxAmount.Decimal)
+	}
+	if total.StringFixed(2) != "0.50" || tax.StringFixed(2) != "0.01" {
+		t.Fatalf("child allocation total=%s tax=%s", total, tax)
+	}
+}

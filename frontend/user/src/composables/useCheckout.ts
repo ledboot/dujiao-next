@@ -11,10 +11,11 @@ import { useUserAuthStore } from '../stores/userAuth'
 import { guestOrderAPI, userOrderAPI, walletAPI, type CaptchaPayload } from '../api'
 import { debounceAsync } from '../utils/debounce'
 import { type PageAlert } from '../utils/alerts'
-import { amountToCents, basisPointsToPercent, centsToAmount, parseInteger, rateToBasisPoints } from '../utils/money'
+import { amountToCents, calculateFeeCents, basisPointsToPercent, centsToAmount, parseInteger, rateToBasisPoints } from '../utils/money'
 import { buildSkuDisplayText, normalizeSkuId } from '../utils/sku'
 import { refreshCartStockSnapshots, cartItemPurchaseLimit as itemPurchaseLimit, cartItemPurchaseMin as itemPurchaseMin } from '../utils/cartStock'
 import { getImageUrl } from '../utils/image'
+import { checkoutSurcharges } from '../utils/checkoutAmounts'
 import { getAffiliateCode, getAffiliateVisitorKey } from '../utils/affiliate'
 import { saveGuestOrderAuth } from '../utils/guestOrderAuth'
 import ImageCaptcha from '../components/captcha/ImageCaptcha.vue'
@@ -82,6 +83,7 @@ export function useCheckout() {
   // Payment state
   const selectedChannelId = ref<number | null>(null)
   const useBalance = ref(false)
+  const invoiceRequested = ref(false)
   const walletLoading = ref(false)
   const walletBalance = ref('0')
 
@@ -141,7 +143,7 @@ export function useCheckout() {
     return Math.max(total - expectedWalletPaidCents.value, 0)
   })
   const expectedWalletPaidDisplay = computed(() => formatPrice(centsToAmount(expectedWalletPaidCents.value), previewCurrency.value))
-  const expectedOnlinePayDisplay = computed(() => formatPrice(centsToAmount(expectedOnlinePayCents.value), previewCurrency.value))
+  const expectedOnlinePayDisplay = computed(() => formatPrice(centsToAmount((amountToCents(checkoutPayableTotal.value) || 0) - expectedWalletPaidCents.value), previewCurrency.value))
   const requiresOnlineChannel = computed(() => {
     if (!userAuthStore.isAuthenticated) return true
     if (!useBalance.value) return true
@@ -241,7 +243,20 @@ export function useCheckout() {
   const previewPromotion = computed(() => preview.value?.promotion_discount_amount ?? '0')
   const previewWholesale = computed(() => preview.value?.wholesale_discount_amount ?? '0')
   const previewMemberDiscount = computed(() => preview.value?.member_discount_amount ?? '0')
-  const previewTotal = computed(() => preview.value?.total_amount ?? totalAmount.value)
+  const previewBaseTotal = computed(() => centsToAmount((amountToCents(preview.value?.total_amount ?? totalAmount.value) || 0) - (amountToCents(preview.value?.tax_amount) || 0)))
+  const productTaxCents = computed(() => invoiceRequested.value ? calculateFeeCents(amountToCents(previewBaseTotal.value) || 0, 300) || 0 : 0)
+  const previewTotal = computed(() => centsToAmount((amountToCents(previewBaseTotal.value) || 0) + productTaxCents.value))
+  const checkoutAmounts = computed(() => checkoutSurcharges(
+    amountToCents(previewBaseTotal.value) || 0,
+    expectedOnlinePayCents.value,
+    invoiceRequested.value,
+    requiresOnlineChannel.value
+      ? paymentChannels.value.find((item: any) => Number(item.id) === selectedChannelId.value)
+      : undefined,
+  ))
+  const checkoutFee = computed(() => centsToAmount(checkoutAmounts.value.fee))
+  const checkoutTax = computed(() => centsToAmount(checkoutAmounts.value.tax))
+  const checkoutPayableTotal = computed(() => centsToAmount(checkoutAmounts.value.total))
   const checkoutItemCurrency = computed(() => previewCurrency.value)
 
   const previewItemsByKey = computed(() => {
@@ -660,6 +675,7 @@ export function useCheckout() {
   }))
 
   const buildOrderPayload = () => ({
+    invoice_requested: invoiceRequested.value,
     coupon_code: normalizedCouponCode.value || undefined,
     affiliate_code: getAffiliateCode() || undefined,
     affiliate_visitor_key: getAffiliateVisitorKey() || undefined,
@@ -1182,6 +1198,10 @@ export function useCheckout() {
     guestImageCaptchaRef,
     guestTurnstileRef,
     handleGuestCaptchaConfigStale,
+    invoiceRequested,
+    checkoutFee,
+    checkoutTax,
+    checkoutPayableTotal,
     // preview amounts
     previewCurrency,
     previewOriginal,

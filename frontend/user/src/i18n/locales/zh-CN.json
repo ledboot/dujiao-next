@@ -1122,6 +1122,8 @@
     "minPurchaseNotMet": "该商品单次下单至少需购买 {count} 件"
   },
   "checkout": {
+    "invoiceRequested": "需要开发票（税率 3%）",
+    "taxAmount": "税额",
     "title": "订单结算",
     "subtitle": "确认订单信息并提交",
     "empty": "购物车为空",
