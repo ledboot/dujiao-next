@@ -61,8 +61,8 @@
                 <div class="text-xs text-muted-foreground mt-2">{{ t('orderDetail.createdAtLabel') }}：{{ formatDate(order.created_at) }}</div>
             </div>
             <div class="flex flex-col items-start md:items-end gap-2">
-              <div class="text-xs uppercase tracking-wider text-muted-foreground">{{ t('orderDetail.amountTotal') }}</div>
-              <div class="text-lg font-bold text-foreground">{{ formatMoney(order.total_amount,
+              <div class="text-xs uppercase tracking-wider text-muted-foreground">{{ t(order.paid_at ? 'orderDetail.amountTotal' : 'orderDetail.amountPayable') }}</div>
+              <div class="text-lg font-bold text-foreground">{{ formatMoney(orderDisplayAmount(order),
                 order.currency) }}</div>
             </div>
             <div class="flex items-center gap-3">
@@ -89,12 +89,13 @@
                 <div>
                   <div class="text-sm text-muted-foreground">{{ t('orderDetail.childOrderNo') }}：{{ child.order_no }}</div>
                   <div class="text-xs text-muted-foreground mt-1">{{ t('orderDetail.childOrderAmount') }}：{{
-                    formatMoney(child.total_amount, child.currency || order.currency) }}</div>
+                    formatMoney(orderDisplayAmount(child), child.currency || order.currency) }}</div>
                 </div>
                 <Badge :variant="statusVariant(resolvedChildStatus(child))" size="sm">
                   {{ statusLabel(resolvedChildStatus(child)) }}
                 </Badge>
               </div>
+              <OrderAmountDetails :order="child" :fallback-currency="order.currency" class="mt-4" />
               <div class="mt-4">
                 <h3 class="text-sm font-semibold text-foreground mb-3">{{ t('orderDetail.childItemsTitle')
                   }}</h3>
@@ -334,52 +335,7 @@
 
         <div class="rounded-2xl border bg-card shadow-sm p-6">
           <h2 class="text-lg font-bold mb-4">{{ t('orderDetail.amountTitle') }}</h2>
-          <div class="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
-            <div class="border rounded-xl p-4">
-              <div class="text-xs text-muted-foreground">{{ t('orderDetail.amountOriginal') }}</div>
-              <div class="text-foreground font-mono mt-1">{{ formatMoney(order.original_amount,
-                order.currency) }}</div>
-            </div>
-            <div class="border rounded-xl p-4">
-              <div class="text-xs text-muted-foreground">{{ t('orderDetail.amountDiscount') }}</div>
-              <div
-                class="font-mono mt-1"
-                :class="hasDiscountAmount(order.discount_amount) ? 'text-rose-600 dark:text-rose-300' : 'text-foreground'"
-              >
-                {{ formatDiscountMoney(order.discount_amount, order.currency) }}
-              </div>
-            </div>
-            <div class="border rounded-xl p-4">
-              <div class="text-xs text-muted-foreground">{{ t('orderDetail.amountTotal') }}</div>
-              <div class="text-foreground font-mono mt-1">{{ formatMoney(order.total_amount,
-                order.currency) }}</div>
-            </div>
-            <div v-if="hasAmount(order.wallet_paid_amount)" class="border rounded-xl p-4">
-              <div class="text-xs text-muted-foreground">{{ t('orderDetail.amountWalletPaid') }}</div>
-              <div class="text-foreground font-mono mt-1">{{ formatMoney(order.wallet_paid_amount,
-                order.currency) }}</div>
-            </div>
-            <div v-if="hasAmount(order.online_paid_amount)" class="border rounded-xl p-4">
-              <div class="text-xs text-muted-foreground">{{ t('orderDetail.amountOnlinePaid') }}</div>
-              <div class="text-foreground font-mono mt-1">{{ formatMoney(order.online_paid_amount,
-                order.currency) }}</div>
-            </div>
-            <div v-if="hasAmount(order.refunded_amount)" class="border rounded-xl p-4">
-              <div class="text-xs text-muted-foreground">{{ t('orderDetail.amountRefunded') }}</div>
-              <div class="text-foreground font-mono mt-1">{{ formatMoney(order.refunded_amount,
-                order.currency) }}</div>
-            </div>
-            <div v-if="hasDiscountAmount(order.member_discount_amount)" class="border border-amber-200 bg-amber-50/50 dark:border-amber-800 dark:bg-amber-950/30 rounded-xl p-4">
-              <div class="text-xs text-amber-700 dark:text-amber-400">{{ t('orderDetail.amountMemberDiscount') }}</div>
-              <div class="text-amber-700 dark:text-amber-400 font-mono mt-1">{{ formatDiscountMoney(order.member_discount_amount,
-                order.currency) }}</div>
-            </div>
-            <div v-if="hasDiscountAmount(order.wholesale_discount_amount)" class="border border-emerald-200 bg-emerald-50/50 dark:border-emerald-800 dark:bg-emerald-950/30 rounded-xl p-4">
-              <div class="text-xs text-emerald-700 dark:text-emerald-400">{{ t('orderDetail.amountWholesaleDiscount') }}</div>
-              <div class="text-emerald-700 dark:text-emerald-400 font-mono mt-1">{{ formatDiscountMoney(order.wholesale_discount_amount,
-                order.currency) }}</div>
-            </div>
-          </div>
+          <OrderAmountDetails :order="order" />
         </div>
 
         <div v-if="showRefundRecordsCard" class="rounded-2xl border bg-card shadow-sm p-6">
@@ -435,6 +391,8 @@
 </template>
 
 <script setup lang="ts">
+import OrderAmountDetails from '../components/order/OrderAmountDetails.vue'
+import { orderDisplayAmount } from '../utils/orderAmounts'
 import { Copy, Check, Download, Info } from 'lucide-vue-next'
 import { useI18n } from 'vue-i18n'
 import { Badge } from '@/components/ui/badge'
@@ -451,7 +409,7 @@ const {
   goToPayment, checkingPayment,
   loading, order, debouncedLoadOrder, cancelOrder,
   statusLabel, statusVariant, fulfillmentTypeLabelText, fulfillmentStatusLabelText,
-  formatDate, getLocalizedText, formatMoney, formatDiscountMoney, hasDiscountAmount, hasAmount,
+  formatDate, getLocalizedText, formatMoney, formatDiscountMoney, hasDiscountAmount,
   refundReasonText, showRefundRecordsCard, refundRecords, showTimeCard,
   orderItemImage, orderItemSkuText, manualSubmissionRows,
   hasItemDiscount, formatItemDiscountTotal, formatItemPaidAmount, resolvedChildStatus,

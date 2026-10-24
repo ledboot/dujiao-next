@@ -67,6 +67,11 @@ func NewOrderSummaryList(orders []orderdomain.Order) []OrderSummary {
 
 // OrderDetail 订单详情响应（完整字段）
 type OrderDetail struct {
+	FeeAmount                money.Amount      `json:"fee_amount"`
+	InvoiceTaxAmount         money.Amount      `json:"invoice_tax_amount"`
+	PayableAmount            money.Amount      `json:"payable_amount"`
+	PaidAmount               money.Amount      `json:"paid_amount"`
+	OnlinePayableAmount      money.Amount      `json:"online_payable_amount"`
 	InvoiceRequested         bool              `json:"invoice_requested"`
 	TaxAmount                money.Amount      `json:"tax_amount"`
 	OrderNo                  string            `json:"order_no"`
@@ -127,6 +132,13 @@ func NewOrderDetail(o *orderdomain.Order) OrderDetail {
 		PaidAt:                  o.PaidAt,
 		CanceledAt:              o.CanceledAt,
 		CreatedAt:               o.CreatedAt,
+	}
+	d.FeeAmount = o.CustomerFeeAmount
+	d.InvoiceTaxAmount = money.FromDecimal(o.TaxAmount.Decimal.Add(o.PaymentTaxAmount.Decimal))
+	d.PayableAmount = money.FromDecimal(o.TotalAmount.Decimal.Add(o.CustomerFeeAmount.Decimal).Add(o.PaymentTaxAmount.Decimal))
+	d.OnlinePayableAmount = money.FromDecimal(o.OnlinePaidAmount.Decimal.Add(o.CustomerFeeAmount.Decimal).Add(o.PaymentTaxAmount.Decimal))
+	if o.PaidAt != nil {
+		d.PaidAmount = d.PayableAmount
 	}
 	paid := o.PaidAt != nil
 	for _, item := range o.Items {

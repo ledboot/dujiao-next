@@ -156,6 +156,9 @@ export interface AdminFulfillment {
 }
 
 export interface AdminOrder {
+  fee_amount?: string | number
+  tax_amount?: string | number
+  payment_tax_amount?: string | number
   id: number
   order_no: string
   parent_id?: number

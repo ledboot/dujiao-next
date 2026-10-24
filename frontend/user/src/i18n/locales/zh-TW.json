@@ -1707,6 +1707,8 @@
     "paymentTitle": "支付資訊"
   },
   "orderDetail": {
+    "amountSubtotal": "商品應付金額",
+    "amountPayable": "應付金額",
     "title": "訂單詳情",
     "subtitle": "查看訂單狀態與交付資訊",
     "notFound": "訂單不存在或已被刪除",

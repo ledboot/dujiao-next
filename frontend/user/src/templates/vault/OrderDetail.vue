@@ -34,8 +34,8 @@
           <div class="mt-1.5 text-[13px] text-muted-foreground">{{ t('orderDetail.createdAtLabel') }}：{{ formatDate(order.created_at) }}</div>
         </div>
         <div>
-          <div class="text-[11px] uppercase tracking-[0.06em] text-muted-foreground">{{ t('orderDetail.amountTotal') }}</div>
-          <div class="mt-1 text-2xl font-extrabold tabular-nums">{{ formatMoney(order.total_amount, order.currency) }}</div>
+          <div class="text-[11px] uppercase tracking-[0.06em] text-muted-foreground">{{ t(order.paid_at ? 'orderDetail.amountTotal' : 'orderDetail.amountPayable') }}</div>
+          <div class="mt-1 text-2xl font-extrabold tabular-nums">{{ formatMoney(orderDisplayAmount(order), order.currency) }}</div>
         </div>
         <div class="flex flex-wrap items-center gap-2.5">
           <Badge :variant="statusVariant(order.status)" class="rounded-full">{{ statusLabel(order.status) }}</Badge>
@@ -57,6 +57,7 @@
 </template>
 
 <script setup lang="ts">
+import { orderDisplayAmount } from '../../utils/orderAmounts'
 import { useI18n } from 'vue-i18n'
 import { AlertCircle } from 'lucide-vue-next'
 import { Badge } from '@/components/ui/badge'

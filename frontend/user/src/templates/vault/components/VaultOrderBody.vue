@@ -8,11 +8,12 @@
           <div class="flex flex-wrap items-start justify-between gap-3">
             <div>
               <div class="text-[13px] text-muted-foreground">{{ t('orderDetail.childOrderNo') }}：{{ child.order_no }}</div>
-              <div class="text-[13px] text-muted-foreground">{{ t('orderDetail.childOrderAmount') }}：{{ formatMoney(child.total_amount, child.currency || order.currency) }}</div>
+              <div class="text-[13px] text-muted-foreground">{{ t('orderDetail.childOrderAmount') }}：{{ formatMoney(orderDisplayAmount(child), child.currency || order.currency) }}</div>
             </div>
             <Badge :variant="statusVariant(resolvedChildStatus(child))" size="sm" class="rounded-full">{{ statusLabel(resolvedChildStatus(child)) }}</Badge>
           </div>
 
+              <OrderAmountDetails :order="child" :fallback-currency="order.currency" class="mt-4" />
           <h3 class="my-2.5 mt-4 text-sm font-bold">{{ t('orderDetail.childItemsTitle') }}</h3>
           <div v-if="child.items && child.items.length" class="grid">
             <VaultOrderItem v-for="(item, cidx) in child.items" :key="cidx" :item="item" :currency="child.currency || order.currency" />
@@ -59,42 +60,7 @@
     <!-- 金额明细 -->
     <section class="rounded-xl border bg-card p-[22px]">
       <h2 class="mb-4 text-lg font-bold">{{ t('orderDetail.amountTitle') }}</h2>
-      <div class="grid gap-3 grid-cols-[repeat(auto-fill,minmax(180px,1fr))]">
-        <div class="rounded-md border bg-secondary px-3.5 py-3">
-          <div class="text-xs text-muted-foreground">{{ t('orderDetail.amountOriginal') }}</div>
-          <div class="mt-1.5 font-bold tabular-nums">{{ formatMoney(order.original_amount, order.currency) }}</div>
-        </div>
-        <div class="rounded-md border bg-secondary px-3.5 py-3">
-          <div class="text-xs text-muted-foreground">{{ t('orderDetail.amountDiscount') }}</div>
-          <div class="mt-1.5 font-bold tabular-nums" :class="{ 'text-destructive': hasDiscountAmount(order.discount_amount) }">{{ formatDiscountMoney(order.discount_amount, order.currency) }}</div>
-        </div>
-        <div class="rounded-md border bg-secondary px-3.5 py-3">
-          <div class="text-xs text-muted-foreground">{{ t('orderDetail.amountTotal') }}</div>
-          <div class="mt-1.5 font-bold tabular-nums">{{ formatMoney(order.total_amount, order.currency) }}</div>
-        </div>
-        <template v-if="variant === 'user'">
-          <div v-if="hasAmount(order.wallet_paid_amount)" class="rounded-md border bg-secondary px-3.5 py-3">
-            <div class="text-xs text-muted-foreground">{{ t('orderDetail.amountWalletPaid') }}</div>
-            <div class="mt-1.5 font-bold tabular-nums">{{ formatMoney(order.wallet_paid_amount, order.currency) }}</div>
-          </div>
-          <div v-if="hasAmount(order.online_paid_amount)" class="rounded-md border bg-secondary px-3.5 py-3">
-            <div class="text-xs text-muted-foreground">{{ t('orderDetail.amountOnlinePaid') }}</div>
-            <div class="mt-1.5 font-bold tabular-nums">{{ formatMoney(order.online_paid_amount, order.currency) }}</div>
-          </div>
-          <div v-if="hasAmount(order.refunded_amount)" class="rounded-md border bg-secondary px-3.5 py-3">
-            <div class="text-xs text-muted-foreground">{{ t('orderDetail.amountRefunded') }}</div>
-            <div class="mt-1.5 font-bold tabular-nums">{{ formatMoney(order.refunded_amount, order.currency) }}</div>
-          </div>
-        </template>
-        <div v-if="hasDiscountAmount(order.member_discount_amount)" class="rounded-md border border-[color:var(--gold-strong)] bg-secondary px-3.5 py-3 text-[color:var(--gold-strong)]">
-          <div class="text-xs">{{ t('orderDetail.amountMemberDiscount') }}</div>
-          <div class="mt-1.5 font-bold tabular-nums">{{ formatDiscountMoney(order.member_discount_amount, order.currency) }}</div>
-        </div>
-        <div v-if="hasDiscountAmount(order.wholesale_discount_amount)" class="rounded-md border border-[color:var(--teal-strong)] bg-secondary px-3.5 py-3 text-[color:var(--teal-strong)]">
-          <div class="text-xs">{{ t('orderDetail.amountWholesaleDiscount') }}</div>
-          <div class="mt-1.5 font-bold tabular-nums">{{ formatDiscountMoney(order.wholesale_discount_amount, order.currency) }}</div>
-        </div>
-      </div>
+      <OrderAmountDetails :order="order" />
     </section>
 
     <!-- 退款记录 -->
@@ -141,6 +107,8 @@
 </template>
 
 <script setup lang="ts">
+import OrderAmountDetails from '../../../components/order/OrderAmountDetails.vue'
+import { orderDisplayAmount } from '../../../utils/orderAmounts'
 import { toRef } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { Badge } from '@/components/ui/badge'
@@ -163,6 +131,6 @@ const { t } = useI18n()
 const {
   showTimeCard, showRefundRecordsCard, refundRecords, resolvedChildStatus,
   statusLabel, statusVariant, formatDate, refundReasonText,
-  formatMoney, formatDiscountMoney, hasDiscountAmount, hasAmount,
+  formatMoney,
 } = useOrderDisplayHelpers(toRef(props, 'order'))
 </script>

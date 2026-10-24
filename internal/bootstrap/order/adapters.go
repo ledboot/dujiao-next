@@ -38,7 +38,8 @@ import (
 )
 
 type orderAdminQueryAdapter struct {
-	orders *orderapp.OrderService
+	billing orderBillingReader
+	orders  *orderapp.OrderService
 }
 
 func (a orderAdminQueryAdapter) ListOrdersForAdmin(filter ordertransport.OrderListFilter) ([]orderdomain.Order, int64, error) {
@@ -60,7 +61,7 @@ func (a orderAdminQueryAdapter) ListOrdersForAdmin(filter ordertransport.OrderLi
 
 func (a orderAdminQueryAdapter) GetOrderForAdmin(orderID uint) (*orderdomain.Order, error) {
 	order, err := a.orders.GetOrderForAdmin(orderID)
-	return order, mapOrderTransportError(err)
+	return a.billing.enrich(order, err)
 }
 
 func (a orderAdminQueryAdapter) UpdateOrderStatus(orderID uint, status string) (*orderdomain.Order, error) {
@@ -113,7 +114,8 @@ func (a orderAdminPaymentChannelAdapter) ListByIDs(ids []uint) ([]paymentdomain.
 }
 
 type orderUserQueryAdapter struct {
-	orders *orderapp.OrderService
+	billing orderBillingReader
+	orders  *orderapp.OrderService
 }
 
 func (a orderUserQueryAdapter) ListOrdersByUserForTenant(tenant reseller.TenantContext, filter ordertransport.UserOrderListFilter) ([]orderdomain.Order, int64, error) {
@@ -135,12 +137,12 @@ func (a orderUserQueryAdapter) StatsOrdersByUserForTenant(tenant reseller.Tenant
 
 func (a orderUserQueryAdapter) GetOrderByUserOrderNoForTenant(tenant reseller.TenantContext, orderNo string, userID uint) (*orderdomain.Order, error) {
 	order, err := a.orders.GetOrderByUserOrderNoForTenant(tenant, orderNo, userID)
-	return order, mapOrderTransportError(err)
+	return a.billing.enrich(order, err)
 }
 
 func (a orderUserQueryAdapter) GetAnyOrderByUserOrderNoForTenant(tenant reseller.TenantContext, orderNo string, userID uint) (*orderdomain.Order, error) {
 	order, err := a.orders.GetAnyOrderByUserOrderNoForTenant(tenant, orderNo, userID)
-	return order, mapOrderTransportError(err)
+	return a.billing.enrich(order, err)
 }
 
 func (a orderUserQueryAdapter) CancelOrder(orderID uint, userID uint) (*orderdomain.Order, error) {
@@ -187,7 +189,8 @@ func (a orderUserRefundRecordAdapter) ListByOrderIDs(orderIDs []uint) ([]orderdo
 }
 
 type orderGuestQueryAdapter struct {
-	orders *orderapp.OrderService
+	billing orderBillingReader
+	orders  *orderapp.OrderService
 }
 
 func (a orderGuestQueryAdapter) ListOrdersByGuestForTenant(tenant reseller.TenantContext, email, password string, page, pageSize int) ([]orderdomain.Order, int64, error) {
@@ -196,12 +199,12 @@ func (a orderGuestQueryAdapter) ListOrdersByGuestForTenant(tenant reseller.Tenan
 
 func (a orderGuestQueryAdapter) GetOrderByGuestOrderNoForTenant(tenant reseller.TenantContext, orderNo, email, password string) (*orderdomain.Order, error) {
 	order, err := a.orders.GetOrderByGuestOrderNoForTenant(tenant, orderNo, email, password)
-	return order, mapOrderTransportError(err)
+	return a.billing.enrich(order, err)
 }
 
 func (a orderGuestQueryAdapter) GetAnyOrderByGuestOrderNoForTenant(tenant reseller.TenantContext, orderNo, email, password string) (*orderdomain.Order, error) {
 	order, err := a.orders.GetAnyOrderByGuestOrderNoForTenant(tenant, orderNo, email, password)
-	return order, mapOrderTransportError(err)
+	return a.billing.enrich(order, err)
 }
 
 type orderAdminRefundAdapter struct {

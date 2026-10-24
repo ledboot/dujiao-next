@@ -459,6 +459,10 @@ const messages = {
     orderDetail: {
       amountTitle: '金额明细',
       amountOriginal: '原始金额',
+      amountSubtotal: '商品应付金额',
+      amountFee: '手续费',
+      amountTax: '税额',
+      amountPayable: '应付金额',
       amountDiscount: '礼券金额',
       amountTotal: '实付金额',
       itemsTitle: '订单明细',
@@ -5032,6 +5036,10 @@ const messages = {
     orderDetail: {
       amountTitle: '金額明細',
       amountOriginal: '原始金額',
+      amountSubtotal: '商品應付金額',
+      amountFee: '手續費',
+      amountTax: '稅額',
+      amountPayable: '應付金額',
       amountDiscount: '禮券金額',
       amountTotal: '實付金額',
       itemsTitle: '訂單明細',
@@ -9605,6 +9613,10 @@ const messages = {
     orderDetail: {
       amountTitle: 'Amounts',
       amountOriginal: 'Original',
+      amountSubtotal: 'Product subtotal',
+      amountFee: 'Payment fee',
+      amountTax: 'Tax',
+      amountPayable: 'Amount due',
       amountDiscount: 'Conpon Amount',
       amountTotal: 'Total',
       itemsTitle: 'Items',

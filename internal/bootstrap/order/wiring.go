@@ -19,7 +19,7 @@ type Handlers struct {
 func New(c *container.Container) Handlers {
 	return Handlers{
 		Admin: ordertransport.NewAdminHandler(
-			orderAdminQueryAdapter{orders: c.OrderService},
+			orderAdminQueryAdapter{orders: c.OrderService, billing: orderBillingReader{orders: c.OrderStore, payments: c.PaymentStore}},
 			orderAdminUserAdapter{users: c.UserStore},
 			orderAdminCouponAdapter{coupons: c.CouponRepo},
 			orderAdminPromotionAdapter{promotions: c.PromotionRepo},
@@ -28,13 +28,13 @@ func New(c *container.Container) Handlers {
 		),
 		AdminRefund: NewAdminRefundHandler(c),
 		User: ordertransport.NewUserHandler(
-			orderUserQueryAdapter{orders: c.OrderService},
+			orderUserQueryAdapter{orders: c.OrderService, billing: orderBillingReader{orders: c.OrderStore, payments: c.PaymentStore}},
 			orderUserPaymentChannelAdapter{payments: c.PaymentService},
 			orderUserRefundRecordAdapter{records: c.OrderStore},
 			orderUserLookupAdapter{users: c.UserStore},
 		),
 		Guest: ordertransport.NewGuestHandler(
-			orderGuestQueryAdapter{orders: c.OrderService},
+			orderGuestQueryAdapter{orders: c.OrderService, billing: orderBillingReader{orders: c.OrderStore, payments: c.PaymentStore}},
 			orderUserPaymentChannelAdapter{payments: c.PaymentService},
 			orderUserRefundRecordAdapter{records: c.OrderStore},
 		),

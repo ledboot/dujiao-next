@@ -9,6 +9,8 @@ import (
 
 // Order 订单表
 type Order struct {
+	CustomerFeeAmount       money.Amount `gorm:"-" json:"fee_amount"`                                                              // 用户承担手续费的查询视图，不参与订单结算
+	PaymentTaxAmount        money.Amount `gorm:"-" json:"payment_tax_amount"`                                                      // 手续费税额的查询视图
 	ID                      uint         `gorm:"primarykey" json:"id"`                                                             // 主键
 	OrderNo                 string       `gorm:"uniqueIndex;not null" json:"order_no"`                                             // 订单编号
 	ParentID                *uint        `gorm:"index;index:idx_orders_risk_pending,priority:4" json:"parent_id,omitempty"`        // 父订单ID

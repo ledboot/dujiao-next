@@ -1660,6 +1660,8 @@
     "paymentTitle": "支付信息"
   },
   "orderDetail": {
+    "amountSubtotal": "商品应付金额",
+    "amountPayable": "应付金额",
     "title": "订单详情",
     "subtitle": "查看订单状态与交付信息",
     "notFound": "订单不存在或已被删除",

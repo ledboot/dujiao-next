@@ -456,6 +456,31 @@ const isOrderRefundWindowExpired = (order: AdminOrder | null) => {
   return diffDays > normalizedMaxRefundDays()
 }
 
+// These display totals include customer surcharges; refund limits keep using total_amount.
+const customerPayable = (order: AdminOrder) => fromCents(
+  toCents(parseMoneyValue(order.total_amount)) + toCents(parseMoneyValue(order.fee_amount)) + toCents(parseMoneyValue(order.payment_tax_amount)),
+)
+const invoiceTax = (order: AdminOrder) => fromCents(toCents(parseMoneyValue(order.tax_amount)) + toCents(parseMoneyValue(order.payment_tax_amount)))
+const orderBillingRows = (order: AdminOrder): Array<{ key: string; label: string; amount: number; discount?: boolean }> => [
+  { key: 'original', label: t('orderDetail.amountOriginal'), amount: parseMoneyValue(order.original_amount) },
+  ...([
+    ['discount_amount', 'orderDetail.amountDiscount'],
+    ['promotion_discount_amount', 'orderDetail.promotionDiscountLabel'],
+    ['wholesale_discount_amount', 'orderDetail.wholesaleDiscountLabel'],
+    ['member_discount_amount', 'orderDetail.memberDiscountLabel'],
+  ] as const).filter(([key]) => hasPositiveAmount(order[key])).map(([key, label]) => ({ key, label: t(label), amount: parseMoneyValue(order[key]), discount: true })),
+  { key: 'subtotal', label: t('orderDetail.amountSubtotal'), amount: fromCents(toCents(parseMoneyValue(order.total_amount)) - toCents(parseMoneyValue(order.tax_amount))) },
+  { key: 'fee', label: t('orderDetail.amountFee'), amount: parseMoneyValue(order.fee_amount) },
+  { key: 'tax', label: t('orderDetail.amountTax'), amount: invoiceTax(order) },
+  { key: 'payable', label: t('orderDetail.amountPayable'), amount: customerPayable(order) },
+  { key: 'paid', label: t('orderDetail.amountTotal'), amount: order.paid_at ? customerPayable(order) : 0 },
+  ...[
+    { key: 'wallet', label: t('admin.orders.detailWalletPaid'), amount: parseMoneyValue(order.wallet_paid_amount) },
+    { key: 'online', label: t('admin.orders.detailOnlinePaid'), amount: fromCents(toCents(parseMoneyValue(order.online_paid_amount)) + toCents(parseMoneyValue(order.fee_amount)) + toCents(parseMoneyValue(order.payment_tax_amount))) },
+    { key: 'refunded', label: t('admin.orders.detailRefunded'), amount: parseMoneyValue(order.refunded_amount) },
+  ].filter(row => row.amount > 0),
+]
+
 const refundableAmountValue = (order: AdminOrder | null) => {
   if (!order) return 0
   if (!isPaidOrder(order)) return 0
@@ -754,6 +779,12 @@ watch(
                   <div class="text-foreground font-mono mt-1">{{ formatMoney(selectedOrder.original_amount, selectedOrder.currency) }}</div>
                 </CardContent>
               </Card>
+              <Card v-for="row in orderBillingRows(selectedOrder).filter(row => ['subtotal', 'fee', 'tax'].includes(row.key))" :key="row.key" class="min-w-0 rounded-lg border-border bg-background shadow-none">
+                <CardContent class="p-3">
+                  <div class="text-xs text-muted-foreground">{{ row.label }}</div>
+                  <div class="mt-1 font-mono text-foreground">{{ formatMoney(row.amount, selectedOrder.currency) }}</div>
+                </CardContent>
+              </Card>
               <Card class="min-w-0 rounded-lg border-border bg-background shadow-none">
                 <CardContent class="p-3">
                   <div class="text-xs text-muted-foreground">{{ t('orderDetail.amountDiscount') }}</div>
@@ -767,8 +798,8 @@ watch(
               </Card>
               <Card class="min-w-0 rounded-lg border-border bg-background shadow-none">
                 <CardContent class="p-3">
-                  <div class="text-xs text-muted-foreground">{{ t('orderDetail.amountTotal') }}</div>
-                  <div class="text-foreground font-mono mt-1">{{ formatMoney(selectedOrder.total_amount, selectedOrder.currency) }}</div>
+                  <div class="text-xs text-muted-foreground">{{ t(selectedOrder.paid_at ? 'orderDetail.amountTotal' : 'orderDetail.amountPayable') }}</div>
+                  <div class="text-foreground font-mono mt-1">{{ formatMoney(customerPayable(selectedOrder), selectedOrder.currency) }}</div>
                 </CardContent>
               </Card>
               <Card v-if="hasPositiveAmount(selectedOrder.wallet_paid_amount)" class="min-w-0 rounded-lg border-border bg-background shadow-none">
@@ -780,7 +811,7 @@ watch(
               <Card v-if="hasPositiveAmount(selectedOrder.online_paid_amount)" class="min-w-0 rounded-lg border-border bg-background shadow-none">
                 <CardContent class="p-3">
                   <div class="text-xs text-muted-foreground">{{ t('admin.orders.detailOnlinePaid') }}</div>
-                  <div class="text-foreground font-mono mt-1">{{ formatMoney(selectedOrder.online_paid_amount, selectedOrder.currency) }}</div>
+                  <div class="text-foreground font-mono mt-1">{{ formatMoney(fromCents(toCents(parseMoneyValue(selectedOrder.online_paid_amount)) + toCents(parseMoneyValue(selectedOrder.fee_amount)) + toCents(parseMoneyValue(selectedOrder.payment_tax_amount))), selectedOrder.currency) }}</div>
                 </CardContent>
               </Card>
               <Card v-if="hasPositiveAmount(selectedOrder.refunded_amount)" class="min-w-0 rounded-lg border-border bg-background shadow-none">
@@ -944,7 +975,7 @@ watch(
                 <div class="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
                   <div class="min-w-0">
                     <div class="break-all text-xs text-muted-foreground">{{ t('orderDetail.childOrderNo') }}：{{ child.order_no }}</div>
-                    <div class="text-xs text-muted-foreground mt-1">{{ t('orderDetail.childOrderAmount') }}：{{ formatMoney(child.total_amount, child.currency || selectedOrder.currency) }}</div>
+                    <div class="text-xs text-muted-foreground mt-1">{{ t('orderDetail.childOrderAmount') }}：{{ formatMoney(customerPayable(child), child.currency || selectedOrder.currency) }}</div>
                   </div>
                   <div class="flex w-full flex-wrap items-center gap-2 md:w-auto md:justify-end">
                     <span class="inline-flex rounded-full border px-2.5 py-1 text-xs" :class="statusClass(child.status)">
@@ -953,6 +984,12 @@ watch(
                     <Button v-if="canCreateChildFulfillment(child)" size="sm" variant="secondary" class="w-full sm:w-auto" @click="handleOpenFulfillment(child, selectedOrder.id)">
                       {{ t('admin.orders.fulfillmentCreate') }}
                     </Button>
+                  </div>
+                </div>
+                <div class="mt-3 grid grid-cols-2 gap-3 text-xs md:grid-cols-3">
+                  <div v-for="row in orderBillingRows(child)" :key="row.key" class="rounded-lg border border-border bg-muted/20 p-3">
+                    <div class="text-muted-foreground">{{ row.label }}</div>
+                    <div class="mt-1 font-mono">{{ row.discount ? formatDiscountMoney(row.amount, child.currency || selectedOrder.currency) : formatMoney(row.amount, child.currency || selectedOrder.currency) }}</div>
                   </div>
                 </div>
                 <div class="mt-4">

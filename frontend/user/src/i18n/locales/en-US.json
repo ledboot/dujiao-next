@@ -1707,6 +1707,8 @@
     "paymentTitle": "Payment Info"
   },
   "orderDetail": {
+    "amountSubtotal": "Product subtotal",
+    "amountPayable": "Amount due",
     "title": "Order Detail",
     "subtitle": "Check order status and fulfillment",
     "notFound": "Order not found or deleted",
