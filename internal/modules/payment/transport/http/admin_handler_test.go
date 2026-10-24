@@ -616,3 +616,41 @@ func TestGetAdminPaymentsBadQueryReturnsBadRequestCode(t *testing.T) {
 		t.Fatalf("status_code want 400 got %d", resp.StatusCode)
 	}
 }
+
+func TestPaymentChannelInvoiceCapabilityCreateAndUpdate(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	catalog := &fakeAdminChannelCatalog{}
+	handler := NewAdminChannelHandler(catalog)
+	request := func(method, body string) {
+		t.Helper()
+		recorder := httptest.NewRecorder()
+		ctx, _ := gin.CreateTestContext(recorder)
+		ctx.Request = httptest.NewRequest(method, "/admin/payment-channels/1", strings.NewReader(body))
+		ctx.Request.Header.Set("Content-Type", "application/json")
+		ctx.Params = gin.Params{{Key: "id", Value: "1"}}
+		if method == http.MethodPost {
+			handler.CreatePaymentChannel(ctx)
+		} else {
+			handler.UpdatePaymentChannel(ctx)
+		}
+		if recorder.Code != http.StatusOK {
+			t.Fatalf("channel request: %s", recorder.Body.String())
+		}
+	}
+	request(http.MethodPost, `{"name":"invoice test","provider_type":"official","channel_type":"alipay","interaction_mode":"qr"}`)
+	if catalog.channel.SupportsInvoice {
+		t.Fatal("new channel must default to unsupported")
+	}
+	request(http.MethodPut, `{"supports_invoice":true}`)
+	if !catalog.channel.SupportsInvoice {
+		t.Fatal("invoice support not enabled")
+	}
+	request(http.MethodPut, `{"name":"renamed"}`)
+	if !catalog.channel.SupportsInvoice {
+		t.Fatal("unrelated update cleared support")
+	}
+	request(http.MethodPut, `{"supports_invoice":false}`)
+	if catalog.channel.SupportsInvoice {
+		t.Fatal("invoice support not disabled")
+	}
+}

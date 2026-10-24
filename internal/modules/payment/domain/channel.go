@@ -10,6 +10,7 @@ import (
 
 // PaymentChannel 支付渠道配置
 type PaymentChannel struct {
+	SupportsInvoice    bool              `gorm:"not null;default:false" json:"supports_invoice"`          // 是否支持开发票
 	ID                 uint              `gorm:"primarykey" json:"id"`                                    // 主键
 	Name               string            `gorm:"not null" json:"name"`                                    // 渠道名称
 	Icon               string            `gorm:"type:varchar(512);default:''" json:"icon"`                // 渠道图标（可选）

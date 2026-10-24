@@ -271,3 +271,17 @@ func indexAvailableChannelsByID(t *testing.T, channels []map[string]interface{})
 	}
 	return indexed
 }
+
+func TestAvailableChannelsExposeInvoiceCapabilityAndDefaultFalse(t *testing.T) {
+	svc, _, db := setupAvailableChannelService(t)
+	legacy := createAvailableChannelFixture(t, db, paymentdomain.PaymentChannel{Name: "default unsupported", IsActive: true})
+	invoice := createAvailableChannelFixture(t, db, paymentdomain.PaymentChannel{Name: "supports invoice", IsActive: true, SupportsInvoice: true})
+	channels, err := svc.GetAvailableChannels(paymentapp.AvailablePaymentChannelFilter{PaymentType: constants.PaymentTypeOrder})
+	if err != nil {
+		t.Fatal(err)
+	}
+	byID := indexAvailableChannelsByID(t, channels)
+	if byID[legacy.ID]["supports_invoice"] != false || byID[invoice.ID]["supports_invoice"] != true {
+		t.Fatalf("invoice capabilities: %+v", channels)
+	}
+}

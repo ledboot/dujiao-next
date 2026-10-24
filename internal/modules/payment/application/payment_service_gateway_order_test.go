@@ -1418,7 +1418,7 @@ func TestCreateInvoicePaymentIncludesTaxOnGoodsAndCustomerFee(t *testing.T) {
 				t.Fatal(err)
 			}
 			channel, order := createFeePolicyOrderFixture(t, db, "Invoice Gateway", "DJ-INVOICE")
-			if err := db.Model(channel).Updates(map[string]interface{}{"fee_rate": "5.00", "fixed_fee": "0.00"}).Error; err != nil {
+			if err := db.Model(channel).Updates(map[string]interface{}{"fee_rate": "5.00", "fixed_fee": "0.00", "supports_invoice": true}).Error; err != nil {
 				t.Fatal(err)
 			}
 			if err := db.Model(order).Updates(map[string]interface{}{"invoice_requested": true, "original_amount": "120.00", "total_amount": "123.60", "tax_amount": "3.60", "online_paid_amount": "123.60"}).Error; err != nil {
@@ -1455,5 +1455,47 @@ func TestCreateInvoicePaymentIncludesTaxOnGoodsAndCustomerFee(t *testing.T) {
 				t.Fatalf("retry changed invoice payment: %+v", again.Payment)
 			}
 		})
+	}
+}
+
+func TestInvoiceChannelCapabilityIsEnforcedBeforePaymentReuse(t *testing.T) {
+	svc, db := setupPaymentServiceWalletTest(t)
+	channel, order := createFeePolicyOrderFixture(t, db, "Invoice capability", "DJ-INVOICE-CAPABILITY")
+	if err := db.Model(order).Update("invoice_requested", true).Error; err != nil {
+		t.Fatal(err)
+	}
+	calls := 0
+	registerTestGateway(t, svc, channel.ProviderType, channel.ChannelType, emptyProviderRefProvider{onCreate: func(paymentcontract.GatewayCreateInput) { calls++ }})
+	input := CreatePaymentInput{OrderID: order.ID, ChannelID: channel.ID, Context: context.Background()}
+	if _, err := svc.CreatePayment(input); !errors.Is(err, ErrPaymentInvoiceNotSupported) {
+		t.Fatalf("unsupported channel error = %v", err)
+	}
+	if calls != 0 {
+		t.Fatal("unsupported invoice reached gateway")
+	}
+	if err := db.Model(channel).Update("supports_invoice", true).Error; err != nil {
+		t.Fatal(err)
+	}
+	if _, err := svc.CreatePayment(input); err != nil {
+		t.Fatal(err)
+	}
+	if calls != 1 {
+		t.Fatalf("gateway calls = %d", calls)
+	}
+	if err := db.Model(channel).Update("supports_invoice", false).Error; err != nil {
+		t.Fatal(err)
+	}
+	if _, err := svc.CreatePayment(input); !errors.Is(err, ErrPaymentInvoiceNotSupported) {
+		t.Fatalf("disabled capability reused payment: %v", err)
+	}
+	if calls != 1 {
+		t.Fatal("disabled invoice reached gateway")
+	}
+	// Ordinary orders can still use this otherwise available channel.
+	if err := db.Model(order).Update("invoice_requested", false).Error; err != nil {
+		t.Fatal(err)
+	}
+	if _, err := svc.CreatePayment(input); err != nil {
+		t.Fatalf("non-invoice payment rejected: %v", err)
 	}
 }

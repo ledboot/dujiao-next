@@ -43,6 +43,7 @@ const form = reactive({
   interaction_mode: 'qr',
   fee_rate: '0',
   fixed_fee: '0',
+  supports_invoice: false,
   min_amount: '0',
   max_amount: '0',
   hide_amount_out_range: false,
@@ -999,6 +1000,7 @@ function resetFormForCreate() {
   form.channel_type = 'alipay'
   form.interaction_mode = 'qr'
   form.fee_rate = '0'
+  form.supports_invoice = false
   form.fixed_fee = '0'
   form.min_amount = '0'
   form.max_amount = '0'
@@ -1054,6 +1056,7 @@ watch(
         form.payment_roles = Array.isArray(channel.payment_roles) ? channel.payment_roles : []
         form.member_levels = Array.isArray(channel.member_levels) ? channel.member_levels : []
         form.config_json = channel.config_json ? JSON.stringify(channel.config_json, null, 2) : ''
+        form.supports_invoice = Boolean(channel.supports_invoice)
         form.is_active = !!channel.is_active
         form.sort_order = channel.sort_order || 0
         if (channel.config_json && typeof channel.config_json === 'object') {
@@ -1235,6 +1238,7 @@ const handleSubmit = async () => {
     payment_roles: form.payment_roles,
     member_levels: form.member_levels,
     config_json: configJson,
+    supports_invoice: form.supports_invoice,
     is_active: form.is_active,
     sort_order: form.sort_order,
   }
@@ -1343,6 +1347,10 @@ const closeModal = () => {
           <div class="mt-2 flex flex-col gap-2 sm:mt-6 sm:flex-row sm:items-center">
             <Switch v-model="form.hide_amount_out_range" />
             <Label class="text-xs text-muted-foreground">{{ t('admin.paymentChannels.modal.hideAmountOutRange') }}</Label>
+          </div>
+          <div class="mt-2 flex items-center gap-2">
+            <Switch id="supports-invoice" v-model="form.supports_invoice" />
+            <Label for="supports-invoice" class="text-xs text-muted-foreground">{{ t('admin.paymentChannels.modal.supportsInvoice') }}</Label>
           </div>
           <div class="min-w-0 md:col-span-2">
             <label class="block text-xs font-medium text-muted-foreground mb-1.5">{{ t('admin.paymentChannels.modal.paymentTypes') }}</label>

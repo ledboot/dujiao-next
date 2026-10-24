@@ -1,3 +1,4 @@
+import { filterInvoiceChannels } from '../utils/invoiceChannels'
 import { openPaymentTab, showPaymentTabError, takeCheckoutPayment, takePaymentTab } from '../utils/paymentTab'
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { NavigationFailureType, isNavigationFailure, useRoute, useRouter } from 'vue-router'
@@ -154,7 +155,7 @@ export function usePayment() {
       const allowedSet = new Set(allowedIds.map(Number))
       filtered = filtered.filter((ch: any) => allowedSet.has(Number(ch?.id)))
     }
-    return filtered
+    return filterInvoiceChannels(filtered, Boolean(order.value?.invoice_requested))
   }
 
   const configReady = computed(() => !appStore.loading && (!!appStore.config || (!isGuest.value && orderPaymentChannelsLoaded.value)))

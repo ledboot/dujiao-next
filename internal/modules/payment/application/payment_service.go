@@ -32,6 +32,7 @@ var (
 	ErrPaymentAmountMismatch               = errors.New("payment amount mismatch")
 	ErrPaymentCurrencyMismatch             = errors.New("payment currency mismatch")
 	ErrPaymentChannelNotFound              = errors.New("payment channel not found")
+	ErrPaymentInvoiceNotSupported          = errors.New("payment channel does not support invoices")
 	ErrPaymentChannelInactive              = errors.New("payment channel inactive")
 	ErrPaymentProviderNotSupported         = errors.New("payment provider not supported")
 	ErrPaymentChannelConfigInvalid         = errors.New("payment channel config invalid")

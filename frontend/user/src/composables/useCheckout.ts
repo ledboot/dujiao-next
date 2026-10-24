@@ -1,3 +1,4 @@
+import { filterInvoiceChannels } from '../utils/invoiceChannels'
 import { handoffPaymentTab, openPaymentTab, showPaymentTabError, takePaymentTab } from '../utils/paymentTab'
 import { isRedirectPaymentInteractionMode, shouldAutoOpenPaymentLink } from '../utils/paymentResumePolicy'
 import { isTelegramMiniAppEnvironment } from '../utils/telegramMiniApp'
@@ -122,7 +123,7 @@ export function useCheckout() {
         filtered = []
       }
     }
-    return filtered
+    return filterInvoiceChannels(filtered, invoiceRequested.value)
   })
 
   const walletOnlyPayment = computed(() => !!appStore.config?.wallet_only_payment)

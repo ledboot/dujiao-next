@@ -116,6 +116,7 @@ func mapTransportError(err error) error {
 		{paymentapp.ErrPaymentGatewayResponseInvalid, paymenttransport.ErrPaymentGatewayResponseInvalid},
 		{paymentapp.ErrPaymentCurrencyMismatch, paymenttransport.ErrPaymentCurrencyMismatch},
 		{walletcontract.ErrNotSupportedForGuest, paymenttransport.ErrWalletNotSupportedForGuest},
+		{paymentapp.ErrPaymentInvoiceNotSupported, paymenttransport.ErrPaymentInvoiceNotSupported},
 		{paymentapp.ErrPaymentChannelNotAllowedForProduct, paymenttransport.ErrPaymentChannelNotAllowedForProduct},
 		{paymentapp.ErrPaymentChannelNotAllowedForRecharge, paymenttransport.ErrPaymentChannelNotAllowedForRecharge},
 		{walletcontract.ErrOnlyPaymentRequired, paymenttransport.ErrWalletOnlyPaymentRequired},

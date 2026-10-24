@@ -33,6 +33,7 @@ func TestRespondPaymentCreateError(t *testing.T) {
 			code: response.CodeBadRequest,
 			msg:  "钱包充值不支持此支付渠道",
 		},
+		{name: "invoice unsupported", err: ErrPaymentInvoiceNotSupported, code: response.CodeBadRequest, msg: "该支付渠道不支持开发票，请选择其他渠道"},
 		{
 			name: "unknown error",
 			err:  errors.New("boom"),

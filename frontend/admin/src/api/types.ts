@@ -438,6 +438,7 @@ export interface AdminPost {
 
 // --- PaymentChannel ---
 export interface AdminPaymentChannel {
+  supports_invoice: boolean
   id: number
   name: string
   provider_type: string

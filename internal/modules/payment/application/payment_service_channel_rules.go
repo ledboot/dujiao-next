@@ -224,7 +224,8 @@ func (s *PaymentService) GetAvailableChannels(filter AvailablePaymentChannelFilt
 		}
 		item := map[string]interface{}{
 			"id": channel.ID, "name": channel.Name,
-			"provider_type": channel.ProviderType, "channel_type": channel.ChannelType,
+			"supports_invoice": channel.SupportsInvoice,
+			"provider_type":    channel.ProviderType, "channel_type": channel.ChannelType,
 			"interaction_mode": channel.InteractionMode, "min_amount": channel.MinAmount,
 			"max_amount": channel.MaxAmount, "hide_amount_out_range": channel.HideAmountOutRange,
 		}
@@ -298,6 +299,9 @@ func matchesChannelPaymentType(channel paymentdomain.PaymentChannel, paymentType
 func validateOrderChannelEligibility(channel paymentdomain.PaymentChannel, order *orderdomain.Order) error {
 	if order == nil {
 		return ErrPaymentInvalid
+	}
+	if order.InvoiceRequested && !channel.SupportsInvoice {
+		return ErrPaymentInvoiceNotSupported
 	}
 	var user *userdomain.User
 	if order.UserID > 0 {

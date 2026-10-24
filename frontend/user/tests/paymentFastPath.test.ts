@@ -5,6 +5,7 @@ import { runInNewContext } from 'node:vm'
 import ts from 'typescript'
 import { computed, ref } from 'vue'
 import * as policy from '../src/utils/paymentResumePolicy.ts'
+import * as invoiceChannels from '../src/utils/invoiceChannels.ts'
 import * as money from '../src/utils/money.ts'
 
 function setup({ guest = false, status = 'pending_payment', expired = false, offline = false } = {}) {
@@ -38,6 +39,7 @@ function setup({ guest = false, status = 'pending_payment', expired = false, off
     '../stores/telegramMiniApp': { useTelegramMiniAppStore: () => ({}) },
     './useConfirmDialog': { useConfirmDialog: () => ({ confirm: () => { calls.push('dialog'); return new Promise(() => {}) } }) },
     '../utils/paymentResumePolicy': policy,
+    '../utils/invoiceChannels': invoiceChannels,
     '../utils/money': money,
     '../utils/paymentTab': {
       takeCheckoutPayment: () => handedOff ? { order: snapshot, payment } : null,

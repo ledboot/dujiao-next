@@ -24,6 +24,7 @@ var (
 	ErrPaymentNotFound                     = errors.New("payment not found")
 	ErrOrderStatusInvalid                  = errors.New("order status invalid")
 	ErrPaymentChannelNotFound              = errors.New("payment channel not found")
+	ErrPaymentInvoiceNotSupported          = errors.New("payment channel does not support invoices")
 	ErrPaymentChannelInactive              = errors.New("payment channel inactive")
 	ErrPaymentProviderNotSupported         = errors.New("payment provider not supported")
 	ErrPaymentChannelConfigInvalid         = errors.New("payment channel config invalid")
@@ -340,6 +341,7 @@ var paymentCreateErrorRules = concatMappedErrors(
 		{target: ErrOrderNotFound, code: response.CodeNotFound, key: "error.order_not_found"},
 		{target: ErrOrderStatusInvalid, code: response.CodeBadRequest, key: "error.order_status_invalid"},
 		{target: ErrPaymentChannelNotFound, code: response.CodeNotFound, key: "error.payment_channel_not_found"},
+		{target: ErrPaymentInvoiceNotSupported, code: response.CodeBadRequest, key: "error.payment_invoice_not_supported"},
 		{target: ErrPaymentChannelInactive, code: response.CodeBadRequest, key: "error.payment_channel_inactive"},
 	},
 	paymentProviderGatewayErrorRules,

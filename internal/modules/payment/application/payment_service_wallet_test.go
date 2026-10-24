@@ -1714,7 +1714,7 @@ func TestInvoiceWalletAndChannelSwitchAmounts(t *testing.T) {
 				t.Fatal(err)
 			}
 			channel := createUnderpaidChannel(t, db, svc, "Invoice wallet A", constants.PaymentChannelTypeWechat)
-			if err := db.Model(channel).Update("fee_rate", "5.00").Error; err != nil {
+			if err := db.Model(channel).Updates(map[string]interface{}{"fee_rate": "5.00", "supports_invoice": true}).Error; err != nil {
 				t.Fatal(err)
 			}
 			order := createUnderpaidOrder(t, db, "DJ-INVOICE-WALLET", user.ID, 120)
@@ -1738,7 +1738,7 @@ func TestInvoiceWalletAndChannelSwitchAmounts(t *testing.T) {
 				t.Fatalf("covered %s", got)
 			}
 			channelB := createUnderpaidChannel(t, db, svc, "Invoice wallet B", constants.PaymentChannelTypeAlipay)
-			if err := db.Model(channelB).Update("fixed_fee", "6.00").Error; err != nil {
+			if err := db.Model(channelB).Updates(map[string]interface{}{"fixed_fee": "6.00", "supports_invoice": true}).Error; err != nil {
 				t.Fatal(err)
 			}
 			switched, err := svc.CreatePayment(CreatePaymentInput{OrderID: order.ID, ChannelID: channelB.ID, UseBalance: false, Context: context.Background()})

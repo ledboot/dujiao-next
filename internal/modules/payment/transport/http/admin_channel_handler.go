@@ -56,6 +56,7 @@ type AdminChannelCatalog interface {
 
 // CreatePaymentChannelRequest 创建支付渠道请求
 type CreatePaymentChannelRequest struct {
+	SupportsInvoice    *bool                  `json:"supports_invoice"`
 	Name               string                 `json:"name" binding:"required"`
 	Icon               *string                `json:"icon"`
 	ProviderType       string                 `json:"provider_type" binding:"required"`
@@ -76,6 +77,7 @@ type CreatePaymentChannelRequest struct {
 
 // UpdatePaymentChannelRequest 更新支付渠道请求
 type UpdatePaymentChannelRequest struct {
+	SupportsInvoice    *bool                  `json:"supports_invoice"`
 	Name               string                 `json:"name"`
 	Icon               *string                `json:"icon"`
 	ProviderType       string                 `json:"provider_type"`
@@ -134,6 +136,9 @@ func (h *AdminChannelHandler) CreatePaymentChannel(c *gin.Context) {
 	}
 	if req.HideAmountOutRange != nil {
 		channel.HideAmountOutRange = *req.HideAmountOutRange
+	}
+	if req.SupportsInvoice != nil {
+		channel.SupportsInvoice = *req.SupportsInvoice
 	}
 	if req.FeeRate != nil {
 		channel.FeeRate = *req.FeeRate
@@ -208,6 +213,9 @@ func (h *AdminChannelHandler) UpdatePaymentChannel(c *gin.Context) {
 	}
 	if req.InteractionMode != "" {
 		channel.InteractionMode = req.InteractionMode
+	}
+	if req.SupportsInvoice != nil {
+		channel.SupportsInvoice = *req.SupportsInvoice
 	}
 	if req.FeeRate != nil {
 		channel.FeeRate = *req.FeeRate

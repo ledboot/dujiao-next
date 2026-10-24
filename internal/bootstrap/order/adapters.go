@@ -386,6 +386,9 @@ func (a orderPaymentCreatorAdapter) CreatePayment(input ordertransport.CreatePay
 		RequestScheme: input.RequestScheme,
 	})
 	if err != nil {
+		if errors.Is(err, paymentapp.ErrPaymentInvoiceNotSupported) {
+			return nil, ordertransport.ErrPaymentInvoiceNotSupported
+		}
 		// create-and-pay returns payment_error as plain string; keep original error text.
 		return nil, err
 	}

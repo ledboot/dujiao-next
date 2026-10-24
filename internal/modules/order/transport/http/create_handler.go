@@ -22,6 +22,8 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
+var ErrPaymentInvoiceNotSupported = errors.New("payment channel does not support invoices")
+
 // OrderCreateService 订单创建端口。
 type OrderCreateService interface {
 	CreateOrder(input CreateOrderInput) (*orderdomain.Order, error)
@@ -290,7 +292,7 @@ func (h *CreateHandler) respondCreateAndPay(c *gin.Context, order *orderdomain.O
 		response.Success(c, gin.H{
 			"order":         orderResp,
 			"order_no":      order.OrderNo,
-			"payment_error": err.Error(),
+			"payment_error": createPaymentErrorMessage(c, err),
 		})
 		return
 	}
@@ -331,4 +333,11 @@ func (h *CreateHandler) respondCreateAndPay(c *gin.Context, order *orderdomain.O
 		resp["expires_at"] = result.Payment.ExpiredAt
 	}
 	response.Success(c, resp)
+}
+
+func createPaymentErrorMessage(c *gin.Context, err error) string {
+	if errors.Is(err, ErrPaymentInvoiceNotSupported) {
+		return i18n.T(i18n.ResolveLocale(c), "error.payment_invoice_not_supported")
+	}
+	return err.Error()
 }
