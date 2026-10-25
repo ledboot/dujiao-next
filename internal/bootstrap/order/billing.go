@@ -57,13 +57,15 @@ func (r orderBillingReader) enrich(order *orderdomain.Order, queryErr error) (*o
 
 func applyOrderBilling(order *orderdomain.Order, payments []paymentdomain.Payment, now time.Time) {
 	fee, tax := decimal.Zero, decimal.Zero
-	var pending *paymentdomain.Payment
+	var pending, canceled *paymentdomain.Payment
+	hasSuccessfulPayment := false
 	for i := range payments {
 		payment := &payments[i]
 		if payment.OrderID != order.ID || payment.ExceptionCode != "" {
 			continue
 		}
 		if payment.Status == constants.PaymentStatusSuccess {
+			hasSuccessfulPayment = true
 			if payment.FeePolicy == constants.PaymentFeePolicyCustomerSurcharge || payment.FeePolicy == constants.PaymentFeePolicyLegacyCustomerSurcharge || payment.FeePolicy == "" {
 				fee = fee.Add(payment.FeeAmount.Decimal)
 				tax = tax.Add(payment.TaxAmount.Decimal)
@@ -74,6 +76,18 @@ func applyOrderBilling(order *orderdomain.Order, payments []paymentdomain.Paymen
 			(pending == nil || payment.ID > pending.ID) {
 			pending = payment
 		}
+		// Canceled orders retain the last usable payment quote. Cancellation expires
+		// pending links, but must not erase their customer fee and invoice tax.
+		if order.PaidAt == nil && order.Status == constants.OrderStatusCanceled &&
+			payment.SupersededAt == nil &&
+			(payment.Status == constants.PaymentStatusPending || payment.Status == constants.PaymentStatusInitiated || payment.Status == constants.PaymentStatusExpired) &&
+			(payment.PayURL != "" || payment.QRCode != "") &&
+			(canceled == nil || payment.ID > canceled.ID) {
+			canceled = payment
+		}
+	}
+	if pending == nil && !hasSuccessfulPayment {
+		pending = canceled
 	}
 	if order.PaidAt == nil && pending != nil {
 		fee, tax = decimal.Zero, decimal.Zero

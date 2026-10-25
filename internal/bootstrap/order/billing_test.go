@@ -127,3 +127,99 @@ func TestOrderBillingChildAllocationAbsorbsRounding(t *testing.T) {
 		t.Fatalf("rounding allocation fee=%s tax=%s", fee, tax)
 	}
 }
+
+func TestCanceledOrderBillingPreservesLastQuoteAndInvoiceTax(t *testing.T) {
+	now := time.Now()
+	expired := now.Add(-time.Minute)
+	for _, policy := range []string{constants.PaymentFeePolicyCustomerSurcharge, constants.PaymentFeePolicyLegacyCustomerSurcharge, "", constants.PaymentFeePolicyMerchantAbsorbed} {
+		t.Run(policy, func(t *testing.T) {
+			root := &orderdomain.Order{ID: 1, Status: constants.OrderStatusCanceled, Currency: "CNY", InvoiceRequested: true,
+				TotalAmount: billingMoney("123.60"), TaxAmount: billingMoney("3.60"), OnlinePaidAmount: billingMoney("123.60"), CanceledAt: &now,
+				Children: []orderdomain.Order{
+					{ID: 3, Status: constants.OrderStatusCanceled, TotalAmount: billingMoney("82.40"), TaxAmount: billingMoney("2.40")},
+					{ID: 2, Status: constants.OrderStatusCanceled, TotalAmount: billingMoney("41.20"), TaxAmount: billingMoney("1.20")},
+				},
+			}
+			payments := []paymentdomain.Payment{
+				{ID: 10, OrderID: 1, Status: constants.PaymentStatusExpired, FeePolicy: constants.PaymentFeePolicyCustomerSurcharge, FeeAmount: billingMoney("9"), TaxAmount: billingMoney("0.27"), QRCode: "old", SupersededAt: &expired},
+				{ID: 11, OrderID: 1, Status: constants.PaymentStatusExpired, FeePolicy: policy, FeeAmount: billingMoney("6"), TaxAmount: billingMoney("0.18"), QRCode: "last-quote", ExpiredAt: &expired},
+				{ID: 12, OrderID: 1, Status: constants.PaymentStatusFailed, FeeAmount: billingMoney("99"), QRCode: "failed"},
+				{ID: 13, OrderID: 1, Status: constants.PaymentStatusExpired, FeeAmount: billingMoney("99")},
+				{ID: 14, OrderID: 1, Status: constants.PaymentStatusSuccess, FeeAmount: billingMoney("99"), ExceptionCode: constants.PaymentExceptionClosedOrderSucceeded},
+				{ID: 15, OrderID: 2, Status: constants.PaymentStatusExpired, FeeAmount: billingMoney("99"), QRCode: "another-order"},
+			}
+			// Apply to pending then canceled, proving the fee and tax do not disappear.
+			root.Status = constants.OrderStatusPendingPayment
+			payments[1].Status = constants.PaymentStatusPending
+			payments[1].ExpiredAt = nil
+			applyOrderBilling(root, payments, now)
+			before := orderpresenter.NewOrderDetail(root)
+			root.Status = constants.OrderStatusCanceled
+			payments[1].Status = constants.PaymentStatusExpired
+			payments[1].ExpiredAt = &expired
+			applyOrderBilling(root, payments, now)
+			detail := orderpresenter.NewOrderDetail(root)
+			wantFee, wantTax, wantPayable := "6.00", "3.78", "129.78"
+			if policy == constants.PaymentFeePolicyMerchantAbsorbed {
+				wantFee, wantTax, wantPayable = "0.00", "3.60", "123.60"
+			}
+			if detail.FeeAmount.StringFixed(2) != wantFee || detail.InvoiceTaxAmount.StringFixed(2) != wantTax || detail.PayableAmount.StringFixed(2) != wantPayable {
+				t.Fatalf("canceled amounts %+v", detail)
+			}
+			if !detail.PayableAmount.Decimal.Equal(before.PayableAmount.Decimal) || !detail.InvoiceTaxAmount.Decimal.Equal(before.InvoiceTaxAmount.Decimal) {
+				t.Fatal("cancel changed the recorded quote")
+			}
+			if !detail.PaidAmount.Decimal.IsZero() || detail.PaidAt != nil || !detail.RefundedAmount.Decimal.IsZero() {
+				t.Fatal("unpaid quote was reported as payment or refund")
+			}
+			fees, taxes, totals := decimal.Zero, decimal.Zero, decimal.Zero
+			for _, child := range detail.Children {
+				fees = fees.Add(child.FeeAmount.Decimal)
+				taxes = taxes.Add(child.InvoiceTaxAmount.Decimal)
+				totals = totals.Add(child.PayableAmount.Decimal)
+				if !child.PaidAmount.Decimal.IsZero() {
+					t.Fatal("unpaid child reported paid")
+				}
+			}
+			if fees.StringFixed(2) != wantFee || taxes.StringFixed(2) != wantTax || totals.StringFixed(2) != wantPayable {
+				t.Fatalf("child sums fee=%s tax=%s total=%s", fees, taxes, totals)
+			}
+			if root.TotalAmount.StringFixed(2) != "123.60" || root.TaxAmount.StringFixed(2) != "3.60" {
+				t.Fatal("settlement changed")
+			}
+		})
+	}
+}
+
+func TestCanceledOrderBillingChoosesLatestUsableQuote(t *testing.T) {
+	now := time.Now()
+	root := &orderdomain.Order{ID: 1, Status: constants.OrderStatusCanceled, TotalAmount: billingMoney("100")}
+	payments := []paymentdomain.Payment{
+		{ID: 2, OrderID: 1, Status: constants.PaymentStatusExpired, FeePolicy: constants.PaymentFeePolicyMerchantAbsorbed, FeeAmount: billingMoney("3"), PayURL: "last"},
+		{ID: 1, OrderID: 1, Status: constants.PaymentStatusExpired, FeePolicy: constants.PaymentFeePolicyCustomerSurcharge, FeeAmount: billingMoney("6"), PayURL: "older"},
+	}
+	applyOrderBilling(root, payments, now)
+	if !root.CustomerFeeAmount.Decimal.IsZero() {
+		t.Fatal("older customer fee replaced newer merchant-paid quote")
+	}
+	applyOrderBilling(root, nil, now)
+	if !root.CustomerFeeAmount.Decimal.IsZero() || !root.PaymentTaxAmount.Decimal.IsZero() {
+		t.Fatal("fee invented without a payment quote")
+	}
+}
+
+func TestCanceledOrderBillingWithoutInvoiceAndDirectChild(t *testing.T) {
+	now := time.Now()
+	parentID := uint(1)
+	child := orderdomain.Order{ID: 2, ParentID: &parentID, Status: constants.OrderStatusCanceled, TotalAmount: billingMoney("120")}
+	root := &orderdomain.Order{ID: parentID, Status: constants.OrderStatusCanceled, TotalAmount: billingMoney("120"), Children: []orderdomain.Order{child}}
+	store := billingStoreStub{root: root, payments: []paymentdomain.Payment{{ID: 1, OrderID: 1, Status: constants.PaymentStatusExpired, FeePolicy: constants.PaymentFeePolicyCustomerSurcharge, FeeAmount: billingMoney("6"), QRCode: "expired-quote", ExpiredAt: &now}}}
+	got, err := (orderBillingReader{orders: store, payments: store}).enrich(&child, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	detail := orderpresenter.NewOrderDetail(got)
+	if detail.FeeAmount.StringFixed(2) != "6.00" || !detail.InvoiceTaxAmount.Decimal.IsZero() || detail.PayableAmount.StringFixed(2) != "126.00" || !detail.PaidAmount.Decimal.IsZero() {
+		t.Fatalf("non-invoice child billing %+v", detail)
+	}
+}

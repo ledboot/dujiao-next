@@ -66,7 +66,7 @@ func (a orderAdminQueryAdapter) GetOrderForAdmin(orderID uint) (*orderdomain.Ord
 
 func (a orderAdminQueryAdapter) UpdateOrderStatus(orderID uint, status string) (*orderdomain.Order, error) {
 	order, err := a.orders.UpdateOrderStatus(orderID, status)
-	return order, mapOrderTransportError(err)
+	return a.billing.enrich(order, err)
 }
 
 type orderAdminUserAdapter struct {
@@ -147,7 +147,7 @@ func (a orderUserQueryAdapter) GetAnyOrderByUserOrderNoForTenant(tenant reseller
 
 func (a orderUserQueryAdapter) CancelOrder(orderID uint, userID uint) (*orderdomain.Order, error) {
 	order, err := a.orders.CancelOrder(orderID, userID)
-	return order, mapOrderTransportError(err)
+	return a.billing.enrich(order, err)
 }
 
 type orderUserPaymentChannelAdapter struct {
