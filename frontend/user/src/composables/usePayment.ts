@@ -112,7 +112,7 @@ export function usePayment() {
     return value === '1' || value === 'true' || value === 'yes'
   }
 
-  const paymentReturnMarkers = ['mola_return', 'epay_return', 'alipay_return', 'wechat_return', 'epusdt_return', 'bepusdt_return', 'tokenpay_return', 'okpay_return', 'pp_return', 'stripe_return']
+  const paymentReturnMarkers = ['502_return', 'mola_return', 'epay_return', 'alipay_return', 'wechat_return', 'epusdt_return', 'bepusdt_return', 'tokenpay_return', 'okpay_return', 'pp_return', 'stripe_return']
   const returnedFromPayment = ref(paymentReturnMarkers.some(marker => readRouteQueryFlag(marker)))
   const openingPayLink = ref(false)
   const rechargeBizType = computed(() => readRouteQueryValue('biz_type').toLowerCase())

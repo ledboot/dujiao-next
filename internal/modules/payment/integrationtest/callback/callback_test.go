@@ -144,7 +144,7 @@ func newCallbackFixture(t *testing.T, provider string) *okpayCallbackFixture {
 		CreatedAt: now,
 		UpdatedAt: now,
 	}
-	if provider == constants.PaymentProviderMola {
+	if provider == constants.PaymentProviderMola || provider == constants.PaymentProvider502 {
 		channel.ProviderType = provider
 		channel.ChannelType = constants.PaymentChannelTypeAlipay
 		channel.InteractionMode = constants.PaymentInteractionRedirect
@@ -170,7 +170,7 @@ func newCallbackFixture(t *testing.T, provider string) *okpayCallbackFixture {
 		CreatedAt:       now,
 		UpdatedAt:       now,
 	}
-	if provider == constants.PaymentProviderMola {
+	if provider == constants.PaymentProviderMola || provider == constants.PaymentProvider502 {
 		payment.Currency = "CNY"
 		payment.Amount = money.FromDecimal(decimal.NewFromInt(88))
 	}
@@ -186,6 +186,7 @@ func newCallbackFixture(t *testing.T, provider string) *okpayCallbackFixture {
 
 	registry := paymentprovider.NewRegistry()
 	registry.Register(constants.PaymentProviderMola, "", epayadapter.NewMolaAdapter())
+	registry.Register(constants.PaymentProvider502, "", epayadapter.NewPay502Adapter())
 	registry.Register(constants.PaymentProviderOkpay, "", okpayadapter.NewOkpayAdapter())
 
 	paymentService := paymentapp.NewPaymentService(paymentapp.PaymentServiceOptions{
@@ -338,6 +339,14 @@ func hmacSHA256HexUpper(base string, token string) string {
 }
 
 func TestMolaCallback(t *testing.T) {
+	testEpayV1Callback(t, constants.PaymentProviderMola)
+}
+
+func Test502Callback(t *testing.T) {
+	testEpayV1Callback(t, constants.PaymentProvider502)
+}
+
+func testEpayV1Callback(t *testing.T, provider string) {
 	for _, tc := range []struct {
 		name, amount, merchant, order, signature string
 		success                                  bool
@@ -349,7 +358,7 @@ func TestMolaCallback(t *testing.T) {
 		{"invalid_signature", "88.00", "1001", "DJP9001", "invalid", false},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			f := newCallbackFixture(t, constants.PaymentProviderMola)
+			f := newCallbackFixture(t, provider)
 			form := url.Values{"pid": {tc.merchant}, "out_trade_no": {tc.order}, "trade_no": {"MOLA001"}, "type": {"alipay"}, "name": {"Test"}, "money": {tc.amount}, "trade_status": {"TRADE_SUCCESS"}}
 			keys := make([]string, 0, len(form))
 			for k := range form {
@@ -369,7 +378,12 @@ func TestMolaCallback(t *testing.T) {
 			for attempt := 0; attempt < 2; attempt++ {
 				recorder := httptest.NewRecorder()
 				c, _ := gin.CreateTestContext(recorder)
-				c.Request = httptest.NewRequest(http.MethodGet, "/api/v1/payments/callback?"+form.Encode(), nil)
+				if attempt == 0 {
+					c.Request = httptest.NewRequest(http.MethodGet, "/api/v1/payments/callback?"+form.Encode(), nil)
+				} else {
+					c.Request = httptest.NewRequest(http.MethodPost, "/api/v1/payments/callback", strings.NewReader(form.Encode()))
+					c.Request.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+				}
 				f.handler.PaymentCallback(c)
 				want := "fail"
 				if tc.success {

@@ -255,6 +255,7 @@ const providerTypeLabel = (value?: string) => {
     official: t('admin.paymentChannels.providerTypes.official'),
     epay: t('admin.paymentChannels.providerTypes.epay'),
     mola: t('admin.paymentChannels.providerTypes.mola'),
+    '502': t('admin.paymentChannels.providerTypes.pay502'),
     bepusdt: t('admin.paymentChannels.providerTypes.bepusdt'),
     epusdt: t('admin.paymentChannels.providerTypes.epusdt'),
     tokenpay: t('admin.paymentChannels.providerTypes.tokenpay'),

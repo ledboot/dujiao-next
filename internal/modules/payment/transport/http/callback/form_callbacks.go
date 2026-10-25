@@ -100,7 +100,7 @@ func (h *Handler) handleEpayCallback(c *gin.Context) bool {
 		return true
 	}
 	providerType := strings.ToLower(strings.TrimSpace(channel.ProviderType))
-	if providerType != constants.PaymentProviderEpay && providerType != constants.PaymentProviderMola {
+	if providerType != constants.PaymentProviderEpay && providerType != constants.PaymentProviderMola && providerType != constants.PaymentProvider502 {
 		log.Warnw("epay_callback_provider_invalid", "payment_id", payment.ID, "channel_id", channel.ID, "provider_type", channel.ProviderType)
 		c.String(http.StatusOK, constants.EpayCallbackFail)
 		return true

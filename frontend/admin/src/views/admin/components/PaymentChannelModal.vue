@@ -242,6 +242,9 @@ const memberLevelOptions = computed(() =>
 )
 
 const formChannelOptions = computed(() => {
+  if (form.provider_type === '502') {
+    return epayChannelOptions.filter((option) => option.value !== 'qqpay')
+  }
   if (form.provider_type === 'mola') {
     return [...epayChannelOptions, { value: 'tenpay', label: 'admin.paymentChannels.channelTypes.tenpay' }]
   }
@@ -264,7 +267,7 @@ const interactionModeOptions = computed(() => {
   if (form.provider_type === 'mola') {
     return [{ value: 'redirect', label: 'admin.paymentChannels.interactionModes.redirect' }]
   }
-  if (form.provider_type === 'epay') {
+  if (form.provider_type === 'epay' || form.provider_type === '502') {
     return [
       { value: 'qr', label: 'admin.paymentChannels.interactionModes.qr' },
       { value: 'redirect', label: 'admin.paymentChannels.interactionModes.redirect' },
@@ -485,8 +488,8 @@ const resetAllConfigs = () => {
 
 const applyEpayConfig = (raw: Record<string, unknown>) => {
   const version = String(raw.epay_version || '').toLowerCase()
-  epayConfig.epay_version = form.provider_type === 'mola' || version === 'v1' ? 'v1' : 'v2'
-  epayConfig.gateway_url = String(raw.gateway_url || (form.provider_type === 'mola' ? 'https://pay.mygptlife.com' : ''))
+  epayConfig.epay_version = form.provider_type === 'mola' || form.provider_type === '502' || version === 'v1' ? 'v1' : 'v2'
+  epayConfig.gateway_url = String(raw.gateway_url || (form.provider_type === 'mola' ? 'https://pay.mygptlife.com' : form.provider_type === '502' ? 'https://pay.502k.cn/xpay/epay' : ''))
   epayConfig.merchant_id = String(raw.merchant_id || '')
   epayConfig.merchant_key = String(raw.merchant_key || '')
   epayConfig.private_key = String(raw.private_key || '')
@@ -871,11 +874,15 @@ watch(
     if (applyingChannelData.value) {
       return
     }
+    if (value === '502') {
+      epayConfig.epay_version = 'v1'
+      epayConfig.gateway_url = 'https://pay.502k.cn/xpay/epay'
+    }
     if (value === 'mola') {
       epayConfig.epay_version = 'v1'
       epayConfig.gateway_url = 'https://pay.mygptlife.com'
     }
-    if (value === 'epay' || value === 'mola') {
+    if (value === 'epay' || value === 'mola' || value === '502') {
       const allowed = formChannelOptions.value.map((option) => option.value)
       if (!allowed.includes(form.channel_type)) {
         form.channel_type = allowed[0] || 'wechat'
@@ -1127,7 +1134,7 @@ const handleSubmit = async () => {
     }
   }
 
-  if (form.provider_type === 'epay' || form.provider_type === 'mola') {
+  if (form.provider_type === 'epay' || form.provider_type === 'mola' || form.provider_type === '502') {
     if (epayConfig.epay_version === 'v1') {
       delete configJson.private_key
       delete configJson.platform_public_key
@@ -1289,6 +1296,7 @@ const closeModal = () => {
                     </span>
                   </span>
                 </SelectItem>
+                <SelectItem value="502">{{ t('admin.paymentChannels.providerTypes.pay502') }}</SelectItem>
                 <SelectItem value="mola">{{ t('admin.paymentChannels.providerTypes.mola') }}</SelectItem>
                 <SelectItem value="epay">{{ t('admin.paymentChannels.providerTypes.epay') }}</SelectItem>
                 <SelectItem value="bepusdt">{{ t('admin.paymentChannels.providerTypes.bepusdt') }}</SelectItem>
@@ -1383,8 +1391,8 @@ const closeModal = () => {
           </div>
         </div>
 
-        <div v-if="form.provider_type === 'epay' || form.provider_type === 'mola'" class="min-w-0 rounded-xl border border-border bg-muted/20 p-4 overflow-hidden">
-          <div class="text-sm font-semibold text-foreground mb-3">{{ t(form.provider_type === 'mola' ? 'admin.paymentChannels.modal.molaSection' : 'admin.paymentChannels.modal.epaySection') }}</div>
+        <div v-if="form.provider_type === 'epay' || form.provider_type === 'mola' || form.provider_type === '502'" class="min-w-0 rounded-xl border border-border bg-muted/20 p-4 overflow-hidden">
+          <div class="text-sm font-semibold text-foreground mb-3">{{ t(form.provider_type === '502' ? 'admin.paymentChannels.modal.pay502Section' : form.provider_type === 'mola' ? 'admin.paymentChannels.modal.molaSection' : 'admin.paymentChannels.modal.epaySection') }}</div>
           <div class="grid grid-cols-1 gap-4 md:grid-cols-2 [&>*]:min-w-0">
             <div v-if="form.provider_type === 'epay'" class="min-w-0">
               <label class="block text-xs font-medium text-muted-foreground mb-1.5">{{ t('admin.paymentChannels.modal.epayVersion') }}</label>
@@ -1435,7 +1443,7 @@ const closeModal = () => {
               <Input v-model="epayConfig.exchange_rate" :placeholder="t('admin.paymentChannels.modal.exchangeRatePlaceholder')" />
             </div>
           </div>
-          <div class="mt-3 text-xs text-muted-foreground">{{ t(form.provider_type === 'mola' ? 'admin.paymentChannels.modal.molaHint' : 'admin.paymentChannels.modal.epayHint') }}</div>
+          <div class="mt-3 text-xs text-muted-foreground">{{ t(form.provider_type === '502' ? 'admin.paymentChannels.modal.pay502Hint' : form.provider_type === 'mola' ? 'admin.paymentChannels.modal.molaHint' : 'admin.paymentChannels.modal.epayHint') }}</div>
         </div>
 
         <div v-if="form.provider_type === 'official' && form.channel_type === 'paypal'" class="min-w-0 rounded-xl border border-border bg-muted/20 p-4 overflow-hidden">
