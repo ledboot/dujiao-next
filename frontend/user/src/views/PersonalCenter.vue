@@ -241,7 +241,7 @@
                     <div>
                       <div class="text-xs text-muted-foreground">{{ t('orders.orderNo') }}：{{ order.order_no }}</div>
                       <div class="mt-1 text-sm font-semibold text-foreground">
-                        {{ formatMoney(order.total_amount, order.currency) }}
+                        <span class="mr-2 text-xs font-normal text-muted-foreground">{{ t(order.paid_at ? 'orderDetail.amountTotal' : 'orderDetail.amountPayable') }}</span>{{ formatMoney(orderDisplayAmount(order), order.currency) }}
                       </div>
                       <div class="mt-1 text-xs text-muted-foreground">{{ formatDate(order.created_at) }}</div>
                     </div>
@@ -284,6 +284,7 @@
 </template>
 
 <script setup lang="ts">
+import { orderDisplayAmount } from '../utils/orderAmounts'
 import { useI18n } from 'vue-i18n'
 import { Crown, ShoppingBag, ShieldCheck, Percent } from 'lucide-vue-next'
 import { getImageUrl } from '../utils/image'

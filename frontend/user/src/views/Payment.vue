@@ -191,7 +191,7 @@
               </Button>
             </div>
           </div>
-          <div class="mt-6 grid grid-cols-1 sm:grid-cols-3 gap-3 text-sm">
+          <div class="mt-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 text-sm">
             <div class="bg-secondary border rounded-xl p-3">
               <div class="text-xs text-muted-foreground">{{ t('payment.orderNo') }}</div>
               <div class="text-foreground font-mono mt-1">{{ order.order_no }}</div>
@@ -201,8 +201,12 @@
               <div class="text-foreground font-mono mt-1">{{ statusLabel(order.status) }}</div>
             </div>
             <div class="bg-secondary border rounded-xl p-3">
+              <div class="text-xs text-muted-foreground">{{ t('orderDetail.amountPayable') }}</div>
+              <div class="text-foreground font-mono mt-1">{{ formatMoney(orderPayableAmount(order), order.currency) }}</div>
+            </div>
+            <div class="bg-secondary border rounded-xl p-3">
               <div class="text-xs text-muted-foreground">{{ t('orderDetail.amountTotal') }}</div>
-              <div class="text-foreground font-mono mt-1">{{ formatMoney(order.total_amount, order.currency) }}</div>
+              <div class="text-foreground font-mono mt-1">{{ formatMoney(orderPaidAmount(order), order.currency) }}</div>
             </div>
           </div>
         </div>
@@ -224,8 +228,8 @@
               <div class="mt-1 text-2xl font-bold text-foreground md:text-right">{{ payableAmountDisplay }}</div>
               <div class="mt-4 space-y-2 text-xs">
                 <div class="flex items-center justify-between gap-4">
-                  <span class="text-muted-foreground">{{ t('orderDetail.amountTotal') }}</span>
-                  <span class="font-semibold text-foreground">{{ formatMoney(order.total_amount, order.currency) }}</span>
+                  <span class="text-muted-foreground">{{ t('orderDetail.amountSubtotal') }}</span>
+                  <span class="font-semibold text-foreground">{{ formatMoney(orderSubtotalAmount(order), order.currency) }}</span>
                 </div>
                 <div v-if="showBalanceOption && useBalance" class="flex items-center justify-between gap-4">
                   <span class="text-muted-foreground">{{ t('payment.walletDeductLabel') }}</span>
@@ -493,6 +497,7 @@
 </template>
 
 <script setup lang="ts">
+import { orderPaidAmount, orderPayableAmount, orderSubtotalAmount } from '../utils/orderAmounts'
 import Pay502AmountNotice from '@/components/payment/Pay502AmountNotice.vue'
 import CryptoPaymentNotice from '@/components/payment/CryptoPaymentNotice.vue'
 import { useI18n } from 'vue-i18n'

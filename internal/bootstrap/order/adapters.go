@@ -119,13 +119,14 @@ type orderUserQueryAdapter struct {
 }
 
 func (a orderUserQueryAdapter) ListOrdersByUserForTenant(tenant reseller.TenantContext, filter ordertransport.UserOrderListFilter) ([]orderdomain.Order, int64, error) {
-	return a.orders.ListOrdersByUserForTenant(tenant, ordercontract.ListFilter{
+	orders, total, err := a.orders.ListOrdersByUserForTenant(tenant, ordercontract.ListFilter{
 		Page:     filter.Page,
 		PageSize: filter.PageSize,
 		UserID:   filter.UserID,
 		Status:   filter.Status,
 		OrderNo:  filter.OrderNo,
 	})
+	return a.billing.enrichList(orders, total, err)
 }
 
 func (a orderUserQueryAdapter) StatsOrdersByUserForTenant(tenant reseller.TenantContext, filter ordertransport.UserOrderListFilter) (map[string]int64, error) {
@@ -194,7 +195,8 @@ type orderGuestQueryAdapter struct {
 }
 
 func (a orderGuestQueryAdapter) ListOrdersByGuestForTenant(tenant reseller.TenantContext, email, password string, page, pageSize int) ([]orderdomain.Order, int64, error) {
-	return a.orders.ListOrdersByGuestForTenant(tenant, email, password, page, pageSize)
+	orders, total, err := a.orders.ListOrdersByGuestForTenant(tenant, email, password, page, pageSize)
+	return a.billing.enrichList(orders, total, err)
 }
 
 func (a orderGuestQueryAdapter) GetOrderByGuestOrderNoForTenant(tenant reseller.TenantContext, orderNo, email, password string) (*orderdomain.Order, error) {

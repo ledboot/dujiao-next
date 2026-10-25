@@ -106,6 +106,17 @@ func (r *Store) ListByOrderID(orderID uint) ([]paymentdomain.Payment, error) {
 	return payments, nil
 }
 
+// ListBillingByOrderIDs batches the minimal snapshots needed for order list totals.
+func (r *Store) ListBillingByOrderIDs(orderIDs []uint) ([]paymentdomain.Payment, error) {
+	if len(orderIDs) == 0 {
+		return nil, nil
+	}
+	var payments []paymentdomain.Payment
+	err := r.db.Select("id", "order_id", "status", "fee_policy", "fee_amount", "tax_amount", "exception_code", "superseded_at", "expired_at", "pay_url", "qr_code").
+		Where("order_id IN ? AND deleted_at IS NULL", orderIDs).Order("id desc").Find(&payments).Error
+	return payments, err
+}
+
 // GetLatestPendingByOrder 获取订单最新待支付记录
 func (r *Store) GetLatestPendingByOrder(orderID uint, now time.Time) (*paymentdomain.Payment, error) {
 	var payment paymentdomain.Payment

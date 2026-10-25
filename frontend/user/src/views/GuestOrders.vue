@@ -43,7 +43,7 @@
           class="rounded-2xl border bg-card p-6 shadow-sm transition-all hover:-translate-y-0.5 hover:border-primary/30 hover:shadow-md flex flex-col md:flex-row md:items-center md:justify-between gap-4">
           <div>
             <div class="text-xs uppercase tracking-wider text-muted-foreground">{{ t('orders.orderNo') }}：{{ order.order_no }}</div>
-            <div class="text-lg font-bold text-foreground mt-1">{{ formatMoney(order.total_amount,
+            <div class="text-lg font-bold text-foreground mt-1"><span class="mr-2 text-xs font-normal text-muted-foreground">{{ t(order.paid_at ? 'orderDetail.amountTotal' : 'orderDetail.amountPayable') }}</span>{{ formatMoney(orderDisplayAmount(order),
               order.currency) }}</div>
             <div v-if="hasDiscount(order)" class="text-xs text-muted-foreground mt-1">
               <span v-if="hasDiscountAmount(order.discount_amount)" class="text-rose-600 dark:text-rose-300">
@@ -88,6 +88,7 @@
 </template>
 
 <script setup lang="ts">
+import { orderDisplayAmount } from '../utils/orderAmounts'
 import { ClipboardList, Search, Eye, CreditCard } from 'lucide-vue-next'
 import { useI18n } from 'vue-i18n'
 import { Alert, AlertDescription } from '@/components/ui/alert'

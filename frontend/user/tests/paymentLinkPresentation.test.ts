@@ -86,3 +86,36 @@ test('default payment view presents copy-link actions as outlined secondary butt
     )
   }
 })
+
+test('classic and vault closed payment summaries distinguish payable from actually paid', () => {
+  for (const path of [defaultPaymentView, join(userSourceRoot, 'templates', 'vault', 'Payment.vue')]) {
+    const source = readFileSync(path, 'utf8')
+    const template = source.slice(0, source.indexOf('<script'))
+    assert.match(template, /formatMoney\(orderPaidAmount\(order\),\s*order\.currency\)/)
+    assert.match(template, /formatMoney\(orderPayableAmount\(order\),\s*order\.currency\)/)
+    assert.doesNotMatch(template, /t\('orderDetail\.amountTotal'\)[\s\S]{0,250}formatMoney\(order\.total_amount,/)
+  }
+})
+
+test('unpaid QR breakdown labels the goods subtotal rather than claiming it was paid', () => {
+  const source = readFileSync(join(userSourceRoot, 'components', 'payment', 'PaymentAmountBreakdown.vue'), 'utf8')
+  const template = source.slice(0, source.indexOf('<script'))
+  assert.match(template, /t\('orderDetail\.amountSubtotal'\)/)
+  assert.match(template, /formatMoney\(orderSubtotalAmount\(order\),\s*order\.currency\)/)
+  assert.doesNotMatch(template, /t\('orderDetail\.amountTotal'\)/)
+})
+
+test('all order list surfaces display billing totals with the matching payment label', () => {
+  for (const file of [
+    'src/views/personal/OrdersPanel.vue',
+    'src/views/PersonalCenter.vue',
+    'src/templates/vault/PersonalCenter.vue',
+    'src/views/GuestOrders.vue',
+    'src/templates/vault/GuestOrders.vue',
+  ]) {
+    const source = readFileSync(new URL(`../${file}`, import.meta.url), 'utf8')
+    assert.match(source, /formatMoney\(orderDisplayAmount\(order\),/, file)
+    assert.match(source, /order\.paid_at \? 'orderDetail.amountTotal' : 'orderDetail.amountPayable'/, file)
+    assert.doesNotMatch(source, /formatMoney\(order\.total_amount/, file)
+  }
+})

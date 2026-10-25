@@ -35,7 +35,7 @@
       <div v-for="order in orders" :key="order.order_no" class="flex flex-wrap items-center justify-between gap-4 rounded-lg border bg-card px-5 py-[18px] transition hover:-translate-y-0.5 hover:border-hairline-strong hover:shadow-[var(--shadow)]">
         <div class="grid min-w-0 gap-1.5">
           <div class="text-[11px] uppercase tracking-[0.06em] text-muted-foreground">{{ t('orders.orderNo') }}：{{ order.order_no }}</div>
-          <div class="text-xl font-extrabold tabular-nums">{{ formatMoney(order.total_amount, order.currency) }}</div>
+          <div class="text-xl font-extrabold tabular-nums"><span class="mr-2 text-xs font-normal text-muted-foreground">{{ t(order.paid_at ? 'orderDetail.amountTotal' : 'orderDetail.amountPayable') }}</span>{{ formatMoney(orderDisplayAmount(order), order.currency) }}</div>
           <div v-if="hasDiscount(order)" class="flex flex-wrap gap-2.5 text-xs">
             <span v-if="hasDiscountAmount(order.discount_amount)" class="text-destructive">{{ t('orderDetail.couponDiscountLabel') }}：{{ formatDiscountMoney(order.discount_amount, order.currency) }}</span>
             <span v-if="hasDiscountAmount(order.promotion_discount_amount)" class="text-destructive">{{ t('orderDetail.promotionDiscountLabel') }}：{{ formatDiscountMoney(order.promotion_discount_amount, order.currency) }}</span>
@@ -67,6 +67,7 @@
 </template>
 
 <script setup lang="ts">
+import { orderDisplayAmount } from '../../utils/orderAmounts'
 import { useI18n } from 'vue-i18n'
 import { ChevronLeft, ChevronRight, ClipboardList, Search, Eye, CreditCard } from 'lucide-vue-next'
 import { Badge } from '@/components/ui/badge'

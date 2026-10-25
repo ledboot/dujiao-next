@@ -153,7 +153,7 @@
               <div v-for="order in userProfileStore.recentOrders" :key="order.order_no" class="flex flex-wrap items-center justify-between gap-3.5 rounded-lg border p-4 transition hover:-translate-y-0.5 hover:border-hairline-strong hover:shadow-[var(--shadow)]">
                 <div>
                   <div class="text-[12.5px] text-muted-foreground">{{ t('orders.orderNo') }}：{{ order.order_no }}</div>
-                  <div class="my-[3px] text-base font-bold tabular-nums">{{ formatMoney(order.total_amount, order.currency) }}</div>
+                  <div class="my-[3px] text-base font-bold tabular-nums"><span class="mr-2 text-xs font-normal text-muted-foreground">{{ t(order.paid_at ? 'orderDetail.amountTotal' : 'orderDetail.amountPayable') }}</span>{{ formatMoney(orderDisplayAmount(order), order.currency) }}</div>
                   <div class="text-[12.5px] text-muted-foreground">{{ formatDate(order.created_at) }}</div>
                 </div>
                 <div class="flex flex-wrap items-center gap-2.5">
@@ -188,6 +188,7 @@
 </template>
 
 <script setup lang="ts">
+import { orderDisplayAmount } from '../../utils/orderAmounts'
 import { useI18n } from 'vue-i18n'
 import { Crown, ShoppingBag, ShieldCheck, Percent } from 'lucide-vue-next'
 import { Badge } from '@/components/ui/badge'

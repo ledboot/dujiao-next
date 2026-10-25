@@ -439,3 +439,29 @@ func TestLatestPaymentRestoreExcludesLegacyFeeLinksAndSupersededRows(t *testing.
 		t.Fatalf("unexpected superseded payment: %+v", stored)
 	}
 }
+
+func TestListBillingByOrderIDsFiltersAndKeepsBillingSnapshots(t *testing.T) {
+	repo, db := setupStoreTest(t)
+	now := time.Now()
+	fee := money.FromDecimal(decimal.RequireFromString("6"))
+	tax := money.FromDecimal(decimal.RequireFromString("0.18"))
+	rows := []paymentdomain.Payment{
+		{ID: 1, OrderID: 1, Status: constants.PaymentStatusSuccess, FeeAmount: fee, TaxAmount: tax, ProviderPayload: jsonmap.JSON{"private": "payload"}},
+		{ID: 2, OrderID: 2, Status: constants.PaymentStatusExpired, FeeAmount: fee, TaxAmount: tax, QRCode: "quote", ExpiredAt: &now},
+		{ID: 3, OrderID: 1, DeletedAt: &now},
+		{ID: 4, OrderID: 99},
+	}
+	if err := db.Create(&rows).Error; err != nil {
+		t.Fatal(err)
+	}
+	got, err := repo.ListBillingByOrderIDs([]uint{1, 2})
+	if err != nil || len(got) != 2 {
+		t.Fatalf("rows=%+v err=%v", got, err)
+	}
+	if got[0].ID != 2 || got[0].QRCode != "quote" || got[0].ExpiredAt == nil || got[0].TaxAmount.StringFixed(2) != "0.18" || got[1].FeeAmount.StringFixed(2) != "6.00" || len(got[1].ProviderPayload) != 0 {
+		t.Fatalf("incorrect billing projection: %+v", got)
+	}
+	if empty, err := repo.ListBillingByOrderIDs(nil); err != nil || len(empty) != 0 {
+		t.Fatalf("empty batch rows=%+v err=%v", empty, err)
+	}
+}

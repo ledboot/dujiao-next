@@ -19,6 +19,11 @@ interface PersonalOrderSummary {
     id: number
     order_no: string
     total_amount?: string
+    fee_amount?: string
+    invoice_tax_amount?: string
+    payable_amount?: string
+    paid_amount?: string
+    paid_at?: string | null
     currency?: string
     status?: string
     created_at?: string

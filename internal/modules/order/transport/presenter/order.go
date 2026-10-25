@@ -14,6 +14,11 @@ import (
 
 // OrderSummary 订单列表响应（精简字段）
 type OrderSummary struct {
+	FeeAmount               money.Amount    `json:"fee_amount"`
+	InvoiceTaxAmount        money.Amount    `json:"invoice_tax_amount"`
+	PayableAmount           money.Amount    `json:"payable_amount"`
+	PaidAmount              money.Amount    `json:"paid_amount"`
+	PaidAt                  *time.Time      `json:"paid_at"`
 	InvoiceRequested        bool            `json:"invoice_requested"`
 	TaxAmount               money.Amount    `json:"tax_amount"`
 	OrderNo                 string          `json:"order_no"`
@@ -44,6 +49,8 @@ func NewOrderSummary(o *orderdomain.Order) OrderSummary {
 		TotalAmount:             o.TotalAmount,
 		CreatedAt:               o.CreatedAt,
 	}
+	s.FeeAmount, s.InvoiceTaxAmount, s.PayableAmount, s.PaidAmount = orderBillingAmounts(o)
+	s.PaidAt = o.PaidAt
 	for _, item := range o.Items {
 		resp := newOrderItemResp(&item)
 		resp.Instructions = nil
@@ -133,13 +140,8 @@ func NewOrderDetail(o *orderdomain.Order) OrderDetail {
 		CanceledAt:              o.CanceledAt,
 		CreatedAt:               o.CreatedAt,
 	}
-	d.FeeAmount = o.CustomerFeeAmount
-	d.InvoiceTaxAmount = money.FromDecimal(o.TaxAmount.Decimal.Add(o.PaymentTaxAmount.Decimal))
-	d.PayableAmount = money.FromDecimal(o.TotalAmount.Decimal.Add(o.CustomerFeeAmount.Decimal).Add(o.PaymentTaxAmount.Decimal))
+	d.FeeAmount, d.InvoiceTaxAmount, d.PayableAmount, d.PaidAmount = orderBillingAmounts(o)
 	d.OnlinePayableAmount = money.FromDecimal(o.OnlinePaidAmount.Decimal.Add(o.CustomerFeeAmount.Decimal).Add(o.PaymentTaxAmount.Decimal))
-	if o.PaidAt != nil {
-		d.PaidAmount = d.PayableAmount
-	}
 	paid := o.PaidAt != nil
 	for _, item := range o.Items {
 		resp := newOrderItemResp(&item)
@@ -156,6 +158,17 @@ func NewOrderDetail(o *orderdomain.Order) OrderDetail {
 		d.Children = append(d.Children, NewOrderDetail(&o.Children[i]))
 	}
 	return d
+}
+
+// orderBillingAmounts keeps list and detail views on the same immutable snapshots.
+func orderBillingAmounts(o *orderdomain.Order) (fee, tax, payable, paid money.Amount) {
+	fee = o.CustomerFeeAmount
+	tax = money.FromDecimal(o.TaxAmount.Decimal.Add(o.PaymentTaxAmount.Decimal))
+	payable = money.FromDecimal(o.TotalAmount.Decimal.Add(fee.Decimal).Add(o.PaymentTaxAmount.Decimal))
+	if o.PaidAt != nil {
+		paid = payable
+	}
+	return
 }
 
 // NewOrderDetailTruncated 同 NewOrderDetail，但额外截断交付内容。

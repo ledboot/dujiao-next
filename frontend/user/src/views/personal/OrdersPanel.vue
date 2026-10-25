@@ -105,7 +105,7 @@
           <div class="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
             <div>
               <div class="text-xs uppercase tracking-[0.16em] text-muted-foreground">{{ t('orders.orderNo') }}：{{ order.order_no }}</div>
-              <div class="mt-2 text-lg font-bold text-foreground">{{ formatMoney(order.total_amount, order.currency) }}</div>
+              <div class="mt-2 text-lg font-bold text-foreground"><span class="mr-2 text-xs font-normal text-muted-foreground">{{ t(order.paid_at ? 'orderDetail.amountTotal' : 'orderDetail.amountPayable') }}</span>{{ formatMoney(orderDisplayAmount(order), order.currency) }}</div>
               <div v-if="hasDiscount(order)" class="mt-2 flex flex-wrap gap-2 text-xs text-muted-foreground">
                 <Badge v-if="hasDiscountAmount(order.discount_amount)" variant="success" size="sm">
                   {{ t('orderDetail.couponDiscountLabel') }}：{{ formatDiscountMoney(order.discount_amount, order.currency) }}
@@ -241,6 +241,7 @@
 </template>
 
 <script setup lang="ts">
+import { orderDisplayAmount } from '../../utils/orderAmounts'
 import { computed, onMounted, onUnmounted, reactive, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { ShoppingBag, Layers, Clock, CheckCircle2, Wallet } from 'lucide-vue-next'

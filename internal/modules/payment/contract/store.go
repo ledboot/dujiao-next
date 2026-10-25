@@ -16,6 +16,7 @@ type Store interface {
 	GetByGatewayOrderNo(gatewayOrderNo string) (*paymentdomain.Payment, error)
 	GetLatestByProviderRef(providerRef string) (*paymentdomain.Payment, error)
 	ListByOrderID(orderID uint) ([]paymentdomain.Payment, error)
+	ListBillingByOrderIDs(orderIDs []uint) ([]paymentdomain.Payment, error)
 	GetLatestPendingByOrder(orderID uint, now time.Time) (*paymentdomain.Payment, error)
 	GetLatestPendingByOrderChannel(orderID, channelID uint, now time.Time) (*paymentdomain.Payment, error)
 	SupersedePendingByOrderID(orderID, replacementPaymentID uint, supersededAt time.Time) (int64, error)

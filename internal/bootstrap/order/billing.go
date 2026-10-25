@@ -12,13 +12,14 @@ import (
 	"github.com/shopspring/decimal"
 )
 
-// Detail billing is a read model. It must never change order settlement or refund bases.
+// Order billing is a read model. It must never change order settlement or refund bases.
 type orderBillingReader struct {
 	orders interface {
 		GetByID(uint) (*orderdomain.Order, error)
 	}
 	payments interface {
 		ListByOrderID(uint) ([]paymentdomain.Payment, error)
+		ListBillingByOrderIDs([]uint) ([]paymentdomain.Payment, error)
 	}
 }
 
@@ -53,6 +54,32 @@ func (r orderBillingReader) enrich(order *orderdomain.Order, queryErr error) (*o
 		}
 	}
 	return nil, orderapp.ErrOrderFetchFailed
+}
+
+func (r orderBillingReader) enrichList(orders []orderdomain.Order, total int64, queryErr error) ([]orderdomain.Order, int64, error) {
+	if queryErr != nil {
+		return nil, 0, mapOrderTransportError(queryErr)
+	}
+	if len(orders) == 0 || r.payments == nil {
+		return orders, total, nil
+	}
+	ids := make([]uint, 0, len(orders))
+	for _, order := range orders {
+		ids = append(ids, order.ID)
+	}
+	payments, err := r.payments.ListBillingByOrderIDs(ids)
+	if err != nil {
+		return nil, 0, err
+	}
+	grouped := make(map[uint][]paymentdomain.Payment)
+	for _, payment := range payments {
+		grouped[payment.OrderID] = append(grouped[payment.OrderID], payment)
+	}
+	now := time.Now()
+	for i := range orders {
+		applyOrderBilling(&orders[i], grouped[orders[i].ID], now)
+	}
+	return orders, total, nil
 }
 
 func applyOrderBilling(order *orderdomain.Order, payments []paymentdomain.Payment, now time.Time) {

@@ -98,6 +98,18 @@ func (s billingStoreStub) GetByID(uint) (*orderdomain.Order, error) { return s.r
 func (s billingStoreStub) ListByOrderID(uint) ([]paymentdomain.Payment, error) {
 	return s.payments, s.err
 }
+func (s billingStoreStub) ListBillingByOrderIDs(ids []uint) ([]paymentdomain.Payment, error) {
+	var payments []paymentdomain.Payment
+	for _, payment := range s.payments {
+		for _, id := range ids {
+			if payment.OrderID == id {
+				payments = append(payments, payment)
+				break
+			}
+		}
+	}
+	return payments, s.err
+}
 func TestOrderBillingDirectChildUsesParentAllocationAndPropagatesErrors(t *testing.T) {
 	now := time.Now()
 	parentID := uint(1)
@@ -221,5 +233,61 @@ func TestCanceledOrderBillingWithoutInvoiceAndDirectChild(t *testing.T) {
 	detail := orderpresenter.NewOrderDetail(got)
 	if detail.FeeAmount.StringFixed(2) != "6.00" || !detail.InvoiceTaxAmount.Decimal.IsZero() || detail.PayableAmount.StringFixed(2) != "126.00" || !detail.PaidAmount.Decimal.IsZero() {
 		t.Fatalf("non-invoice child billing %+v", detail)
+	}
+}
+
+type billingBatchSpy struct {
+	billingStoreStub
+	batchCalls  int
+	singleCalls int
+}
+
+func (s *billingBatchSpy) ListByOrderID(id uint) ([]paymentdomain.Payment, error) {
+	s.singleCalls++
+	return s.billingStoreStub.ListByOrderID(id)
+}
+
+func (s *billingBatchSpy) ListBillingByOrderIDs(ids []uint) ([]paymentdomain.Payment, error) {
+	s.batchCalls++
+	return s.billingStoreStub.ListBillingByOrderIDs(ids)
+}
+
+func TestOrderListBillingMatchesDetailsInOneBatch(t *testing.T) {
+	now := time.Now()
+	orders := []orderdomain.Order{
+		{ID: 1, PaidAt: &now, TotalAmount: billingMoney("123.60"), TaxAmount: billingMoney("3.60"), Children: []orderdomain.Order{{ID: 11, PaidAt: &now, TotalAmount: billingMoney("61.80")}, {ID: 12, PaidAt: &now, TotalAmount: billingMoney("61.80")}}},
+		{ID: 2, Status: constants.OrderStatusCanceled, TotalAmount: billingMoney("123.60"), TaxAmount: billingMoney("3.60")},
+	}
+	store := &billingBatchSpy{billingStoreStub: billingStoreStub{payments: []paymentdomain.Payment{
+		{ID: 1, OrderID: 1, Status: constants.PaymentStatusSuccess, FeeAmount: billingMoney("6"), TaxAmount: billingMoney("0.18")},
+		{ID: 2, OrderID: 2, Status: constants.PaymentStatusExpired, FeeAmount: billingMoney("6"), TaxAmount: billingMoney("0.18"), QRCode: "quote"},
+		{ID: 3, OrderID: 99, Status: constants.PaymentStatusSuccess, FeeAmount: billingMoney("999")},
+	}}}
+	reader := orderBillingReader{payments: store}
+	got, total, err := reader.enrichList(orders, 42, nil)
+	if err != nil || total != 42 || len(got) != 2 || store.batchCalls != 1 || store.singleCalls != 0 {
+		t.Fatalf("batch result total=%d err=%v batch=%d single=%d", total, err, store.batchCalls, store.singleCalls)
+	}
+	for i := range got {
+		summary := orderpresenter.NewOrderSummary(&got[i])
+		detail := orderpresenter.NewOrderDetail(&got[i])
+		if summary.PayableAmount.StringFixed(2) != "129.78" || !summary.PayableAmount.Equal(detail.PayableAmount.Decimal) || !summary.PaidAmount.Equal(detail.PaidAmount.Decimal) || summary.InvoiceTaxAmount.StringFixed(2) != "3.78" {
+			t.Fatalf("list/detail amount mismatch: %+v", summary)
+		}
+		if i == 1 && !summary.PaidAmount.IsZero() {
+			t.Fatal("canceled order must have zero paid amount")
+		}
+	}
+	children := orderpresenter.NewOrderSummary(&got[0]).Children
+	if len(children) != 2 || children[0].PaidAmount.StringFixed(2) != "64.89" || children[1].PaidAmount.StringFixed(2) != "64.89" {
+		t.Fatalf("child totals: %+v", children)
+	}
+	store.err = errors.New("payment read failed")
+	if _, _, err := reader.enrichList(orders, 42, nil); err == nil {
+		t.Fatal("failed payment lookup must not return incomplete totals")
+	}
+	calls := store.batchCalls
+	if _, _, err := reader.enrichList(nil, 0, nil); err != nil || calls != store.batchCalls {
+		t.Fatal("empty page queried payments")
 	}
 }

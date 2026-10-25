@@ -4,8 +4,8 @@
     <div class="mt-1 text-2xl font-bold text-foreground">{{ payableAmountDisplay }}</div>
     <div class="mt-4 space-y-2 text-xs">
       <div class="flex items-center justify-between gap-4">
-        <span class="text-muted-foreground">{{ t('orderDetail.amountTotal') }}</span>
-        <span class="font-semibold text-foreground">{{ formatMoney(order.total_amount, order.currency) }}</span>
+        <span class="text-muted-foreground">{{ t('orderDetail.amountSubtotal') }}</span>
+        <span class="font-semibold text-foreground">{{ formatMoney(orderSubtotalAmount(order), order.currency) }}</span>
       </div>
       <div v-if="hasDiscountAmount(order.discount_amount)" class="flex items-center justify-between gap-4">
         <span class="text-muted-foreground">{{ t('orderDetail.amountDiscount') }}</span>
@@ -53,6 +53,7 @@
 <script setup lang="ts">
 import { useI18n } from 'vue-i18n'
 import { amountToCents, centsToAmount } from '../../utils/money'
+import { orderSubtotalAmount } from '../../utils/orderAmounts'
 
 defineProps<{
   order: any

@@ -121,10 +121,11 @@
         </div>
         <Button as-child variant="outline" size="sm" class="rounded-full"><RouterLink :to="backLink">{{ t('payment.backToOrders') }}</RouterLink></Button>
       </div>
-      <div class="mt-[18px] grid gap-3 sm:grid-cols-3">
+      <div class="mt-[18px] grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <div class="rounded-md border bg-secondary p-3.5"><div class="text-xs text-muted-foreground">{{ t('payment.orderNo') }}</div><div class="mt-1 font-semibold text-foreground">{{ order.order_no }}</div></div>
         <div class="rounded-md border bg-secondary p-3.5"><div class="text-xs text-muted-foreground">{{ t('payment.orderStatus') }}</div><div class="mt-1 font-semibold text-foreground">{{ statusLabel(order.status) }}</div></div>
-        <div class="rounded-md border bg-secondary p-3.5"><div class="text-xs text-muted-foreground">{{ t('orderDetail.amountTotal') }}</div><div class="mt-1 font-semibold text-foreground tabular-nums">{{ formatMoney(order.total_amount, order.currency) }}</div></div>
+        <div class="rounded-md border bg-secondary p-3.5"><div class="text-xs text-muted-foreground">{{ t('orderDetail.amountPayable') }}</div><div class="mt-1 font-semibold text-foreground tabular-nums">{{ formatMoney(orderPayableAmount(order), order.currency) }}</div></div>
+        <div class="rounded-md border bg-secondary p-3.5"><div class="text-xs text-muted-foreground">{{ t('orderDetail.amountTotal') }}</div><div class="mt-1 font-semibold text-foreground tabular-nums">{{ formatMoney(orderPaidAmount(order), order.currency) }}</div></div>
       </div>
     </div>
 
@@ -144,7 +145,7 @@
               <div class="text-[11px] uppercase tracking-[0.05em] text-muted-foreground">{{ t('payment.payableAmountLabel') }}</div>
               <div class="my-1 mb-3 text-[26px] font-extrabold text-foreground tabular-nums">{{ payableAmountDisplay }}</div>
               <div class="grid gap-[7px] text-[12.5px]">
-                <div class="flex justify-between gap-3"><span class="text-muted-foreground">{{ t('orderDetail.amountTotal') }}</span><span class="font-semibold text-foreground">{{ formatMoney(order.total_amount, order.currency) }}</span></div>
+                <div class="flex justify-between gap-3"><span class="text-muted-foreground">{{ t('orderDetail.amountSubtotal') }}</span><span class="font-semibold text-foreground">{{ formatMoney(orderSubtotalAmount(order), order.currency) }}</span></div>
                 <div v-if="showBalanceOption && useBalance" class="flex justify-between gap-3"><span class="text-muted-foreground">{{ t('payment.walletDeductLabel') }}</span><span class="font-semibold text-foreground">{{ expectedWalletPaidDisplay }}</span></div>
                 <div v-if="showBalanceOption && useBalance" class="flex justify-between gap-3"><span class="text-muted-foreground">{{ t('payment.onlinePayLabel') }}</span><span class="font-semibold text-foreground">{{ expectedOnlinePayDisplay }}</span></div>
                 <div class="flex justify-between gap-3 border-t pt-2"><span class="text-muted-foreground">{{ t('payment.orderStatus') }}</span><span class="font-semibold text-foreground">{{ statusLabel(order.status) }}</span></div>
@@ -252,6 +253,7 @@
 </template>
 
 <script setup lang="ts">
+import { orderPaidAmount, orderPayableAmount, orderSubtotalAmount } from '../../utils/orderAmounts'
 import Pay502AmountNotice from '@/components/payment/Pay502AmountNotice.vue'
 import CryptoPaymentNotice from '@/components/payment/CryptoPaymentNotice.vue'
 import { useI18n } from 'vue-i18n'
