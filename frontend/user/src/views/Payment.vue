@@ -96,6 +96,7 @@
                 <div v-if="qrUsingPayLinkFallback" class="mt-3 text-xs text-muted-foreground">
                   {{ t('payment.qrFallbackHint') }}
                 </div>
+                <Pay502AmountNotice v-if="showPay502AmountNotice" :amount="payableAmountDisplay" />
                 <CryptoPaymentNotice v-if="showQRCode && hasCryptoPaymentDetails" />
                 <div v-if="hasCryptoPaymentDetails" class="mt-4 w-full max-w-xl space-y-2 rounded-xl border bg-white/5 p-3 text-left">
                   <div
@@ -394,6 +395,7 @@
                 <div v-if="qrUsingPayLinkFallback" class="text-xs text-muted-foreground">
                   {{ t('payment.qrFallbackHint') }}
                 </div>
+                <Pay502AmountNotice v-if="showPay502AmountNotice" :amount="payableAmountDisplay" />
                 <CryptoPaymentNotice v-if="showQRCode && hasCryptoPaymentDetails" />
                 <div v-if="hasCryptoPaymentDetails" class="space-y-2 rounded-xl border bg-white/5 p-3">
                   <div
@@ -491,6 +493,7 @@
 </template>
 
 <script setup lang="ts">
+import Pay502AmountNotice from '@/components/payment/Pay502AmountNotice.vue'
 import CryptoPaymentNotice from '@/components/payment/CryptoPaymentNotice.vue'
 import { useI18n } from 'vue-i18n'
 import { Copy, ExternalLink } from 'lucide-vue-next'
@@ -513,7 +516,7 @@ const {
   backLink, showGuestAuthForm, walletOnlyPayment, showBalanceOption, configReady, channels,
   selectedChannel, selectedChannelName, cachedChannelName, resultChannelName, interactionLabel,
   paymentResultTitle, paymentGuideTitle, paymentGuideTip, showPayLink, showTelegramPayHint, payLinkOpenedTip,
-  cryptoWalletAddress, cryptoPaymentDetails, hasCryptoPaymentDetails, qrUsingPayLinkFallback, showQRCode, qrImageUrl,
+  cryptoWalletAddress, cryptoPaymentDetails, hasCryptoPaymentDetails, qrUsingPayLinkFallback, showQRCode, showPay502AmountNotice, qrImageUrl,
   orderExpired, orderCanceled, paymentAlert, countdownExpired, countdownText, showCountdown, showResultView, pollingActive, orderItems,
   customerFeeApplied, customerFeeAmountDisplay, payableAmountDisplay, walletBalanceDisplay,
   expectedWalletPaidDisplay, expectedOnlinePayDisplay, expectedOnlinePayCents, requiresOnlineChannel,

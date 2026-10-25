@@ -291,6 +291,7 @@ export function usePayment() {
   const qrDisplayContent = computed(() => qrCodeContent.value || qrFallbackContent.value)
   const qrUsingPayLinkFallback = computed(() => Boolean(!qrCodeContent.value && qrFallbackContent.value))
   const showQRCode = computed(() => paymentPresentationMode.value === 'qr' && Boolean(qrDisplayContent.value))
+  const showPay502AmountNotice = computed(() => paymentProviderType.value === '502' && showQRCode.value)
 
   const qrImageUrl = ref('')
   const qrRenderVersion = ref(0)
@@ -339,20 +340,19 @@ export function usePayment() {
   }, { immediate: true })
 
   const expiresAtMs = computed(() => {
-    const raw = paymentResult.value?.expires_at || order.value?.expires_at
-    if (!raw) return null
-    const ts = new Date(raw).getTime()
-    if (Number.isNaN(ts)) return null
-    return ts
+    const deadlines = [paymentResult.value?.expires_at, order.value?.expires_at]
+      .filter(Boolean).map(raw => new Date(raw).getTime()).filter(Number.isFinite)
+    return deadlines.length ? Math.min(...deadlines) : null
   })
 
   const orderExpired = computed(() => {
-    if (!order.value?.expires_at) return false
-    const ts = new Date(order.value.expires_at).getTime()
-    if (Number.isNaN(ts)) return false
-    return ts <= appStore.getServerTime()
+    const raw = paymentProviderType.value === '502' ? expiresAtMs.value : order.value?.expires_at
+    if (!raw) return false
+    const ts = typeof raw === 'number' ? raw : new Date(raw).getTime()
+    return Number.isFinite(ts) && ts <= now.value
   })
-  const payLinkDisabled = computed(() => openingPayLink.value || paymentLinkBlockReason(order.value, now.value) !== null)
+  const payLinkDisabled = computed(() => openingPayLink.value || orderExpired.value || paymentLinkBlockReason(order.value, now.value) !== null)
+
   const orderCanceled = computed(() => order.value?.status === 'canceled')
   const paymentAlert = computed<PageAlert | null>(() => {
     if (redirecting.value) {
@@ -1488,6 +1488,7 @@ export function usePayment() {
     hasCryptoPaymentDetails,
     qrUsingPayLinkFallback,
     showQRCode,
+    showPay502AmountNotice,
     qrImageUrl,
     // status
     orderExpired,

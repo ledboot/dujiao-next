@@ -350,15 +350,24 @@ func testEpayV1Callback(t *testing.T, provider string) {
 	for _, tc := range []struct {
 		name, amount, merchant, order, signature string
 		success                                  bool
+		expired                                  bool
 	}{
-		{"success_and_duplicate", "88.00", "1001", "DJP9001", "", true},
-		{"wrong_amount", "0.01", "1001", "DJP9001", "", false},
-		{"wrong_merchant", "88.00", "1002", "DJP9001", "", false},
-		{"wrong_order", "88.00", "1001", "OTHER", "", false},
-		{"invalid_signature", "88.00", "1001", "DJP9001", "invalid", false},
+		{"success_and_duplicate", "88.00", "1001", "DJP9001", "", true, false},
+		{"delayed_success_after_payment_expiry", "88.00", "1001", "DJP9001", "", true, true},
+		{"wrong_amount", "0.01", "1001", "DJP9001", "", false, false},
+		{"wrong_merchant", "88.00", "1002", "DJP9001", "", false, false},
+		{"wrong_order", "88.00", "1001", "OTHER", "", false, false},
+		{"invalid_signature", "88.00", "1001", "DJP9001", "invalid", false, false},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			f := newCallbackFixture(t, provider)
+			if tc.expired {
+				expiredAt := time.Now().Add(-time.Minute)
+				f.payment.ExpiredAt = &expiredAt
+				if err := f.paymentRepo.Update(f.payment); err != nil {
+					t.Fatal(err)
+				}
+			}
 			form := url.Values{"pid": {tc.merchant}, "out_trade_no": {tc.order}, "trade_no": {"MOLA001"}, "type": {"alipay"}, "name": {"Test"}, "money": {tc.amount}, "trade_status": {"TRADE_SUCCESS"}}
 			keys := make([]string, 0, len(form))
 			for k := range form {

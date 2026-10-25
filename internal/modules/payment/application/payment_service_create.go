@@ -141,6 +141,49 @@ func (s *PaymentService) CreatePayment(input CreatePaymentInput) (*CreatePayment
 			if err != nil {
 				return ErrPaymentCreateFailed
 			}
+			if channel.ProviderType == constants.PaymentProvider502 {
+				deadline := now.Add(time.Duration(constants.Payment502ExpireMinutes) * time.Minute)
+				if existing != nil {
+					deadline = existing.CreatedAt.Add(time.Duration(constants.Payment502ExpireMinutes) * time.Minute)
+					if existing.ExpiredAt != nil && existing.ExpiredAt.Before(deadline) {
+						deadline = *existing.ExpiredAt
+					}
+				}
+				if lockedOrder.ExpiresAt != nil && lockedOrder.ExpiresAt.Before(deadline) {
+					deadline = *lockedOrder.ExpiresAt
+				}
+				for _, child := range lockedOrder.Children {
+					if child.ExpiresAt != nil && child.ExpiresAt.Before(deadline) {
+						deadline = *child.ExpiresAt
+					}
+				}
+				if !deadline.After(time.Now()) {
+					return orderapp.ErrOrderStatusInvalid
+				}
+				// Persist one shared order/payment deadline. Never extend it on
+				// refresh, repeat requests, or a later payment-method switch.
+				if lockedOrder.ExpiresAt == nil || !lockedOrder.ExpiresAt.Equal(deadline) {
+					if err := tx.Orders().UpdateFields(lockedOrder.ID, map[string]interface{}{"expires_at": deadline, "updated_at": now}); err != nil {
+						return orderapp.ErrOrderUpdateFailed
+					}
+				}
+				lockedOrder.ExpiresAt = &deadline
+				for i := range lockedOrder.Children {
+					child := &lockedOrder.Children[i]
+					if child.ExpiresAt == nil || !child.ExpiresAt.Equal(deadline) {
+						if err := tx.Orders().UpdateFields(child.ID, map[string]interface{}{"expires_at": deadline, "updated_at": now}); err != nil {
+							return orderapp.ErrOrderUpdateFailed
+						}
+					}
+					child.ExpiresAt = &deadline
+				}
+				if existing != nil {
+					// The order owns expiry; keep legacy reuse responses in sync
+					// without rewriting a payment that may receive a callback.
+					existing.ExpiredAt = &deadline
+				}
+			}
+
 			if existing != nil && hasProviderResult(existing) {
 				legacyFeePayment := existing.FeeAmount.Decimal.IsPositive() &&
 					(existing.FeePolicy == "" || existing.FeePolicy == constants.PaymentFeePolicyLegacyCustomerSurcharge)
@@ -260,6 +303,9 @@ func (s *PaymentService) CreatePayment(input CreatePaymentInput) (*CreatePayment
 			CreatedAt:       now,
 			UpdatedAt:       now,
 		}
+		if channel.ProviderType == constants.PaymentProvider502 {
+			payment.ExpiredAt = lockedOrder.ExpiresAt
+		}
 		if shouldUseCNYPaymentCurrency(channel) {
 			payment.Currency = "CNY"
 		}
@@ -286,7 +332,20 @@ func (s *PaymentService) CreatePayment(input CreatePaymentInput) (*CreatePayment
 		return nil, orderapp.ErrOrderFetchFailed
 	}
 
+	var paymentStartErr error
+	if !orderPaidByWallet && channel != nil && channel.ProviderType == constants.PaymentProvider502 && order.ExpiresAt != nil && s.queue != nil && s.queue.Enabled() {
+		// The original order task may still be scheduled for a longer timeout.
+		// Enqueue at the shortened deadline; the existing consumer is idempotent.
+		if err := s.queue.EnqueueTimeoutCancel(order.ID, time.Until(*order.ExpiresAt)); err != nil {
+			log.Errorw("payment_order_timeout_reschedule_failed", "order_id", order.ID, "error", err)
+			paymentStartErr = ErrQueueUnavailable
+		}
+	}
+
 	if reusedPending {
+		if paymentStartErr != nil {
+			return nil, paymentStartErr
+		}
 		if _, err := s.paymentRepo.SupersedePendingByOrderID(order.ID, payment.ID, time.Now()); err != nil {
 			return nil, ErrPaymentCreateFailed
 		}
@@ -328,7 +387,10 @@ func (s *PaymentService) CreatePayment(input CreatePaymentInput) (*CreatePayment
 		return nil, ErrPaymentCreateFailed
 	}
 
-	if err := s.applyProviderPayment(input, order, channel, payment); err != nil {
+	if paymentStartErr == nil {
+		paymentStartErr = s.applyProviderPayment(input, order, channel, payment)
+	}
+	if err := paymentStartErr; err != nil {
 		rollbackErr := s.paymentRepo.WithinTransaction(func(tx paymentcontract.Transaction) error {
 			paymentRepo := tx.Payments()
 			payment.Status = constants.PaymentStatusFailed

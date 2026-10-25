@@ -16,6 +16,7 @@ import (
 	paymentdomain "github.com/dujiao-next/internal/modules/payment/domain"
 
 	userdomain "github.com/dujiao-next/internal/modules/identity/user/domain"
+	orderapp "github.com/dujiao-next/internal/modules/order/application"
 	orderdomain "github.com/dujiao-next/internal/modules/order/domain"
 
 	"github.com/dujiao-next/internal/constants"
@@ -1497,5 +1498,141 @@ func TestInvoiceChannelCapabilityIsEnforcedBeforePaymentReuse(t *testing.T) {
 	}
 	if _, err := svc.CreatePayment(input); err != nil {
 		t.Fatalf("non-invoice payment rejected: %v", err)
+	}
+}
+
+type paymentDeadlineQueue struct {
+	paymentcontract.Queue
+	delays   []time.Duration
+	orderIDs []uint
+	err      error
+}
+
+func (q *paymentDeadlineQueue) Enabled() bool { return true }
+func (q *paymentDeadlineQueue) EnqueueTimeoutCancel(id uint, delay time.Duration) error {
+	q.orderIDs = append(q.orderIDs, id)
+	q.delays = append(q.delays, delay)
+	return q.err
+}
+
+func Test502ShortensOrderAndChildDeadlinesWithoutExtendingOnReuse(t *testing.T) {
+	for _, tc := range []struct {
+		name, provider string
+		remaining      time.Duration
+	}{
+		{"502_five_minutes", constants.PaymentProvider502, 15 * time.Minute},
+		{"502_shorter_order", constants.PaymentProvider502, 2 * time.Minute},
+		{"other_channel_unchanged", constants.PaymentProviderEpay, 15 * time.Minute},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			svc, db := setupPaymentServiceWalletTest(t)
+			sqlDB, _ := db.DB()
+			sqlDB.SetMaxOpenConns(1)
+			channel, order := createFeePolicyOrderFixture(t, db, "Deadline", "DJ-DEADLINE")
+			channel.ProviderType = tc.provider
+			if err := db.Save(channel).Error; err != nil {
+				t.Fatal(err)
+			}
+			original := time.Now().Add(tc.remaining)
+			order.ExpiresAt = &original
+			if err := db.Save(order).Error; err != nil {
+				t.Fatal(err)
+			}
+			child := orderdomain.Order{OrderNo: "DJ-DEADLINE-01", ParentID: &order.ID, Status: constants.OrderStatusPendingPayment, Currency: "CNY", TotalAmount: order.TotalAmount, ExpiresAt: &original}
+			if err := db.Create(&child).Error; err != nil {
+				t.Fatal(err)
+			}
+			q := &paymentDeadlineQueue{}
+			svc.queue = q
+			creates := 0
+			registerTestGateway(t, svc, channel.ProviderType, channel.ChannelType, emptyProviderRefProvider{onCreate: func(paymentcontract.GatewayCreateInput) { creates++ }})
+			input := CreatePaymentInput{OrderID: order.ID, ChannelID: channel.ID, Context: context.Background()}
+			first, err := svc.CreatePayment(input)
+			if err != nil {
+				t.Fatal(err)
+			}
+			want := original
+			if tc.provider == constants.PaymentProvider502 {
+				limit := first.Payment.CreatedAt.Add(5 * time.Minute)
+				if limit.Before(want) {
+					want = limit
+				}
+				if first.Payment.ExpiredAt == nil || !first.Payment.ExpiredAt.Equal(want) {
+					t.Fatalf("payment expiry=%v want %v", first.Payment.ExpiredAt, want)
+				}
+				if len(q.delays) != 1 || q.orderIDs[0] != order.ID || q.delays[0] <= 0 || q.delays[0] > tc.remaining || q.delays[0] > 5*time.Minute {
+					t.Fatalf("timeout job not rescheduled: %+v", q)
+				}
+			} else if len(q.delays) != 0 || first.Payment.ExpiredAt != nil {
+				t.Fatal("changed a different provider's timeout")
+			}
+			for _, id := range []uint{order.ID, child.ID} {
+				var current orderdomain.Order
+				if err := db.First(&current, id).Error; err != nil {
+					t.Fatal(err)
+				}
+				if current.ExpiresAt == nil || !current.ExpiresAt.Equal(want) {
+					t.Fatalf("order %d deadline=%v want %v", id, current.ExpiresAt, want)
+				}
+			}
+			again, err := svc.CreatePayment(input)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if again.Payment.ID != first.Payment.ID || creates != 1 {
+				t.Fatal("refresh created a new payment")
+			}
+			var stored orderdomain.Order
+			if err := db.First(&stored, order.ID).Error; err != nil {
+				t.Fatal(err)
+			}
+			if !stored.ExpiresAt.Equal(want) {
+				t.Fatal("repeat request extended the deadline")
+			}
+			if tc.provider == constants.PaymentProvider502 {
+				// Switching methods must not restore the longer default order timeout.
+				other := *channel
+				other.ID = 0
+				other.ProviderType = constants.PaymentProviderEpay
+				if err := db.Create(&other).Error; err != nil {
+					t.Fatal(err)
+				}
+				registerTestGateway(t, svc, other.ProviderType, other.ChannelType, emptyProviderRefProvider{})
+				if _, err := svc.CreatePayment(CreatePaymentInput{OrderID: order.ID, ChannelID: other.ID}); err != nil {
+					t.Fatal(err)
+				}
+				if err := db.First(&stored, order.ID).Error; err != nil {
+					t.Fatal(err)
+				}
+				if !stored.ExpiresAt.Equal(want) {
+					t.Fatal("switching channels extended the deadline")
+				}
+			}
+			expired := time.Now().Add(-time.Second)
+			if err := db.Model(&orderdomain.Order{}).Where("id = ?", order.ID).Update("expires_at", expired).Error; err != nil {
+				t.Fatal(err)
+			}
+			if _, err := svc.CreatePayment(input); !errors.Is(err, orderapp.ErrOrderStatusInvalid) {
+				t.Fatalf("expired order accepted payment: %v", err)
+			}
+		})
+	}
+}
+
+func Test502DoesNotCreateGatewayPaymentWhenExpiryTaskCannotBeScheduled(t *testing.T) {
+	svc, db := setupPaymentServiceWalletTest(t)
+	channel, order := createFeePolicyOrderFixture(t, db, "Queue failure", "DJ-DEADLINE-QUEUE")
+	channel.ProviderType = constants.PaymentProvider502
+	if err := db.Save(channel).Error; err != nil {
+		t.Fatal(err)
+	}
+	svc.queue = &paymentDeadlineQueue{err: errors.New("queue unavailable")}
+	created := false
+	registerTestGateway(t, svc, channel.ProviderType, channel.ChannelType, emptyProviderRefProvider{onCreate: func(paymentcontract.GatewayCreateInput) { created = true }})
+	if _, err := svc.CreatePayment(CreatePaymentInput{OrderID: order.ID, ChannelID: channel.ID}); !errors.Is(err, ErrQueueUnavailable) {
+		t.Fatal(err)
+	}
+	if created {
+		t.Fatal("gateway request sent without timeout job")
 	}
 }

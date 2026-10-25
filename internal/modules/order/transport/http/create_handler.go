@@ -3,6 +3,7 @@ package orderhttp
 import (
 	"context"
 	"errors"
+	"github.com/dujiao-next/internal/constants"
 
 	paymentpresenter "github.com/dujiao-next/internal/modules/payment/transport/presenter"
 
@@ -305,6 +306,13 @@ func (h *CreateHandler) respondCreateAndPay(c *gin.Context, order *orderdomain.O
 		"online_pay_amount":  result.OnlinePayAmount,
 	}
 	if result.Payment != nil {
+		if result.Payment.ProviderType == constants.PaymentProvider502 && result.Payment.ExpiredAt != nil {
+			orderResp.ExpiresAt = result.Payment.ExpiredAt
+			for i := range orderResp.Children {
+				orderResp.Children[i].ExpiresAt = result.Payment.ExpiredAt
+			}
+			resp["order"] = orderResp
+		}
 		resp["payment_id"] = result.Payment.ID
 		resp["tax_amount"] = result.Payment.TaxAmount
 		resp["fee_amount"] = result.Payment.FeeAmount

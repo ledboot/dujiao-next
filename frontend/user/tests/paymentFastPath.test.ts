@@ -10,6 +10,8 @@ import * as money from '../src/utils/money.ts'
 
 function setup({ guest = false, status = 'pending_payment', expired = false, offline = false } = {}) {
   let mount = () => {}
+  let serverTime = Date.parse('2026-10-19T00:00:00Z')
+  const clockTicks: Array<() => void> = []
   const calls: string[] = []
   const snapshot = { order_no: 'TEST', status: 'pending_payment', total_amount: '1', expires_at: '2099-01-01T00:00:00Z' }
   const payment = { payment_id: 12, channel_id: 4, interaction_mode: 'redirect', pay_url: 'https://cashier.example.test/', provider_type: 'mola' }
@@ -35,7 +37,7 @@ function setup({ guest = false, status = 'pending_payment', expired = false, off
     vue: { ref, computed, watch() {}, onMounted(fn: () => void) { mount = fn }, onUnmounted() {} },
     'vue-router': { useRoute: () => ({ query: { order_no: 'TEST', ...(guest ? { guest: '1' } : {}) } }), useRouter: () => ({}) },
     'vue-i18n': { useI18n: () => ({ t: (key: string) => key }) },
-    '../stores/app': { useAppStore: () => ({ getServerTime: () => Date.parse('2026-10-19T00:00:00Z'), config: { payment_channels: [{ id: 4, interaction_mode: 'redirect' }] } }) },
+    '../stores/app': { useAppStore: () => ({ getServerTime: () => serverTime, config: { payment_channels: [{ id: 4, interaction_mode: 'redirect' }] } }) },
     '../stores/telegramMiniApp': { useTelegramMiniAppStore: () => ({}) },
     './useConfirmDialog': { useConfirmDialog: () => ({ confirm: () => { calls.push('dialog'); return new Promise(() => {}) } }) },
     '../utils/paymentResumePolicy': policy,
@@ -56,10 +58,10 @@ function setup({ guest = false, status = 'pending_payment', expired = false, off
   const exports: Record<string, any> = {}
   runInNewContext(compiled, {
     exports, require: (name: string) => mocks[name] || {},
-    window: { sessionStorage: { length: 0 }, scrollTo() {}, setInterval: () => 1, clearInterval() {} },
+    window: { sessionStorage: { length: 0 }, scrollTo() {}, setInterval: (fn: () => void, delay: number) => { if (delay === 1000) clockTicks.push(fn); return 1 }, clearInterval() {} },
   })
   const form = exports.usePayment()
-  return { form, calls, tab, mount: () => mount(), withoutHandoff: () => { handedOff = false } }
+  return { form, calls, tab, advanceClock: (ms: number) => { serverTime += ms; clockTicks.forEach(fn => fn()) }, mount: () => mount(), withoutHandoff: () => { handedOff = false } }
 }
 
 const settle = async () => { for (let i = 0; i < 12; i++) await Promise.resolve() }
@@ -100,4 +102,45 @@ test('creating payment on payment page opens cashier while wallet refresh is pen
   assert.equal(s.calls.includes('cashier'), true)
   assert.equal(s.calls.includes('dialog'), true)
   assert.equal(s.form.walletLoading.value, true)
+})
+
+test('502 amount notice uses the actual payable amount including fees', () => {
+  const { form } = setup()
+  form.order.value = { total_amount: '1.00', currency: 'CNY' }
+  form.paymentResult.value = { provider_type: '502', interaction_mode: 'qr', qr_code: 'code', payable_amount: '1.02', currency: 'CNY', fee_amount: '0.02' }
+  assert.equal(form.showPay502AmountNotice.value, true)
+  assert.equal(form.payableAmountDisplay.value, '1.02 CNY')
+  form.paymentResult.value.provider_type = 'epay'
+  assert.equal(form.showPay502AmountNotice.value, false)
+})
+
+for (const provider of ['502', 'epay']) {
+  test(`${provider} payment follows its order expiry without offering a payment restart`, () => {
+    const s = setup()
+    s.form.order.value = { order_no: 'TEST', status: 'pending_payment', total_amount: '1.00', expires_at: '2026-10-19T00:15:00Z' }
+    s.form.cachedPayment.value = {
+      provider_type: provider, channel_id: 4, interaction_mode: 'qr', qr_code: 'code',
+      expires_at: provider === '502' ? '2026-10-19T00:05:00Z' : undefined,
+    }
+    s.form.restoreCachedPayment()
+    assert.equal(s.form.showResultView.value, true)
+    assert.equal(s.form.countdownText.value, provider === '502' ? '05:00' : '15:00')
+    s.advanceClock(5 * 60 * 1000)
+    assert.equal(s.form.orderExpired.value, provider === '502')
+    assert.equal(s.form.showResultView.value, provider !== '502')
+    assert.equal(s.form.canSubmitPayment.value, provider !== '502')
+    assert.equal(s.form.payLinkDisabled.value, provider === '502')
+    assert.ok(!s.calls.includes('create'), 'expiry must not generate a new payment')
+  })
+}
+
+test('shorter order validity still takes precedence over the 502 five-minute limit', () => {
+  const s = setup()
+  s.form.order.value = { order_no: 'TEST', status: 'pending_payment', total_amount: '1.00', expires_at: '2026-10-19T00:02:00Z' }
+  s.form.cachedPayment.value = { provider_type: '502', channel_id: 4, interaction_mode: 'qr', qr_code: 'code', expires_at: '2026-10-19T00:05:00Z' }
+  s.form.restoreCachedPayment()
+  assert.equal(s.form.countdownText.value, '02:00')
+  s.advanceClock(2 * 60 * 1000)
+  assert.equal(s.form.orderExpired.value, true)
+  assert.equal(s.form.showResultView.value, false)
 })
