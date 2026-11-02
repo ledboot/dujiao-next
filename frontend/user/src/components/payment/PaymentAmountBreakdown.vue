@@ -40,12 +40,8 @@
         <span class="font-medium text-foreground">{{ onlinePayDisplay }}</span>
       </div>
     </div>
-    <div v-if="showCountdown || pollingActive" class="mt-4 border-t pt-3 text-xs">
-      <div v-if="showCountdown" class="flex items-center justify-between gap-4">
-        <span class="text-muted-foreground">{{ t('payment.countdownLabel') }}</span>
-        <span class="font-mono font-medium text-foreground">{{ countdownText }}</span>
-      </div>
-      <div v-if="pollingActive" class="mt-2 text-muted-foreground">{{ t('payment.pollingHint') }}</div>
+    <div v-if="pollingActive" class="mt-4 border-t pt-3 text-xs">
+      <div class="text-muted-foreground">{{ t('payment.pollingHint') }}</div>
     </div>
   </div>
 </template>
@@ -63,8 +59,6 @@ defineProps<{
   payableAmountDisplay: string
   walletPaidDisplay: string
   onlinePayDisplay: string
-  showCountdown: boolean
-  countdownText: string
   pollingActive: boolean
   formatMoney: (amount?: string, currency?: string) => string
   formatDiscountMoney: (amount?: string, currency?: string) => string

@@ -13,6 +13,13 @@
 
       <CheckoutSteps class="mb-8" current-step="payment" />
 
+      <PaymentCountdown
+        v-if="showCountdown && !orderExpired && !orderCanceled"
+        class="mb-6"
+        :text="countdownText"
+        :expired="countdownExpired"
+      />
+
       <!-- Loading Skeleton -->
       <div v-if="loading" class="space-y-6">
         <div class="border bg-card text-card-foreground shadow-sm rounded-2xl p-6 space-y-4">
@@ -158,8 +165,6 @@
                 :payable-amount-display="payableAmountDisplay"
                 :wallet-paid-display="paymentWalletPaidDisplay"
                 :online-pay-display="paymentOnlinePayDisplay"
-                :show-countdown="showCountdown"
-                :countdown-text="countdownText"
                 :polling-active="pollingActive"
                 :format-money="formatMoney"
                 :format-discount-money="formatDiscountMoney"
@@ -282,14 +287,6 @@
             <div class="mt-3 text-sm text-muted-foreground">
               <span v-if="order.expires_at">{{ t('payment.expiresAt') }}：{{ formatDate(order.expires_at) }}</span>
             </div>
-            <Badge
-              v-if="showCountdown"
-              :variant="countdownExpired ? 'danger' : 'success'"
-              class="mt-3 gap-2"
-            >
-              <span>{{ t('payment.countdownLabel') }}</span>
-              <span class="font-mono">{{ countdownText }}</span>
-            </Badge>
             <div v-if="pollingActive" class="mt-3 text-xs text-muted-foreground">{{ t('payment.pollingHint') }}</div>
           </div>
 
@@ -448,9 +445,6 @@
 
         <div class="h-fit rounded-2xl border bg-card text-card-foreground shadow-sm p-6 lg:sticky lg:top-24">
           <h2 class="text-lg font-bold mb-4 text-foreground">{{ t('payment.actionTitle') }}</h2>
-          <div v-if="showCountdown" class="text-xs text-muted-foreground mb-3">
-            {{ t('payment.countdownLabel') }}：<span class="font-mono">{{ countdownText }}</span>
-          </div>
           <Alert
             v-if="paymentAlert"
             :variant="pageAlertVariant(paymentAlert.level)"
@@ -504,12 +498,12 @@ import { useI18n } from 'vue-i18n'
 import { Copy, ExternalLink } from 'lucide-vue-next'
 import { pageAlertVariant, pageAlertToneClass } from '../utils/alerts'
 import PaymentAmountBreakdown from '../components/payment/PaymentAmountBreakdown.vue'
+import PaymentCountdown from '../components/payment/PaymentCountdown.vue'
 import PaymentChannelSelector from '../components/payment/PaymentChannelSelector.vue'
 import EmptyState from '../components/EmptyState.vue'
 import CheckoutSteps from '../components/checkout/CheckoutSteps.vue'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
-import { Badge } from '@/components/ui/badge'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { usePayment } from '../composables/usePayment'
 

@@ -10,6 +10,13 @@
 
     <VaultCheckoutSteps current="payment" />
 
+    <PaymentCountdown
+      v-if="showCountdown && !orderExpired && !orderCanceled"
+      class="mb-[18px]"
+      :text="countdownText"
+      :expired="countdownExpired"
+    />
+
     <!-- Loading -->
     <div v-if="loading" class="mb-[18px] rounded-xl border bg-card p-[22px]">
       <div class="mb-4 h-5 w-[40%] rounded bg-secondary"></div>
@@ -98,8 +105,6 @@
             :payable-amount-display="payableAmountDisplay"
             :wallet-paid-display="paymentWalletPaidDisplay"
             :online-pay-display="paymentOnlinePayDisplay"
-            :show-countdown="showCountdown"
-            :countdown-text="countdownText"
             :polling-active="pollingActive"
             :format-money="formatMoney"
             :format-discount-money="formatDiscountMoney"
@@ -159,9 +164,6 @@
             <div v-if="hasDiscountAmount(order.wholesale_discount_amount)" class="rounded-md border border-[color:var(--teal-strong)] bg-secondary p-3.5 text-[color:var(--teal-strong)]"><div class="text-xs">{{ t('orderDetail.amountWholesaleDiscount') }}</div><div class="mt-1 font-semibold tabular-nums">{{ formatDiscountMoney(order.wholesale_discount_amount, order.currency) }}</div></div>
           </div>
           <div v-if="order.expires_at" class="mt-3 text-[13px] text-muted-foreground">{{ t('payment.expiresAt') }}：{{ formatDate(order.expires_at) }}</div>
-          <div v-if="showCountdown" class="mt-3 inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-[13px] font-semibold" :class="countdownExpired ? 'bg-destructive/10 text-destructive' : 'bg-[color:var(--teal-soft)] text-[color:var(--teal-strong)]'">
-            <span>{{ t('payment.countdownLabel') }}</span><span class="tabular-nums">{{ countdownText }}</span>
-          </div>
           <div v-if="pollingActive" class="mt-2.5 text-xs text-muted-foreground">{{ t('payment.pollingHint') }}</div>
         </section>
 
@@ -235,7 +237,6 @@
       <!-- 右栏：操作 -->
       <aside class="sticky top-[90px] rounded-xl border bg-card p-[22px]">
         <h2 class="mb-3.5 text-lg font-bold">{{ t('payment.actionTitle') }}</h2>
-        <div v-if="showCountdown" class="mb-3 text-xs text-muted-foreground">{{ t('payment.countdownLabel') }}：<span class="tabular-nums">{{ countdownText }}</span></div>
         <div v-if="paymentAlert" class="mb-3 rounded-sm px-3 py-2.5 text-[13px] font-semibold" :class="paymentAlert.level === 'error' ? 'bg-destructive/10 text-destructive' : (paymentAlert.level === 'success' ? 'bg-[color:var(--teal-soft)] text-[color:var(--teal-strong)]' : 'bg-warning/10 text-warning')">{{ paymentAlert.message }}</div>
 
         <div v-if="selectedChannel" class="mb-3 rounded-sm bg-[color:var(--teal-soft)] px-3 py-2.5 text-xs font-semibold text-[color:var(--teal-strong)]">{{ t('payment.methodLabel') }}：{{ selectedChannelName }}</div>
@@ -261,6 +262,7 @@ import { AlertCircle } from 'lucide-vue-next'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import PaymentAmountBreakdown from '../../components/payment/PaymentAmountBreakdown.vue'
+import PaymentCountdown from '../../components/payment/PaymentCountdown.vue'
 import PaymentChannelSelector from '../../components/payment/PaymentChannelSelector.vue'
 import VaultCheckoutSteps from './components/VaultCheckoutSteps.vue'
 import { usePayment } from '../../composables/usePayment'
