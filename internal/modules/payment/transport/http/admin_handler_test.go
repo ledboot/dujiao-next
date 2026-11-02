@@ -368,6 +368,7 @@ func setupAdminPaymentHandlerTest(t *testing.T) (*AdminHandler, adminPaymentFixt
 			{PaymentID: fixture.RechargePaymentUser1, RechargeNo: fixture.RechargeNoUser1, UserID: fixture.User1ID, Status: constants.WalletRechargeStatusPending},
 			{PaymentID: fixture.RechargePaymentUser2, RechargeNo: fixture.RechargeNoUser2, UserID: fixture.User2ID, Status: constants.WalletRechargeStatusPending},
 		}},
+		noopAdminPaymentConfirmer{},
 	)
 	return h, fixture
 }
@@ -653,4 +654,10 @@ func TestPaymentChannelInvoiceCapabilityCreateAndUpdate(t *testing.T) {
 	if catalog.channel.SupportsInvoice {
 		t.Fatal("invoice support not disabled")
 	}
+}
+
+type noopAdminPaymentConfirmer struct{}
+
+func (noopAdminPaymentConfirmer) ManualConfirmPayment(ManualConfirmPaymentInput) (*paymentdomain.Payment, error) {
+	return nil, nil
 }

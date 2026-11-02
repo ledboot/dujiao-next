@@ -35,6 +35,11 @@ type PaymentCallbackInput struct {
 	// 它允许升级前创建且没有法币快照标记的在途支付采纳网关签名币种；
 	// 普通调用方无法开启该兼容分支。
 	verifiedLegacyDujiaoPayCurrency string
+
+	// manualConfirm 只能由后台"人工确认支付"入口设置，表示管理员已在支付渠道侧核实到账。
+	// 它允许把仍未支付（待支付或已被超时取消）的订单恢复为已支付并继续履约，
+	// 同时保留金额/币种校验，且欠付时直接拒绝而不是悄悄转入余额。
+	manualConfirm bool
 }
 
 func (s *PaymentService) HandleCallback(input PaymentCallbackInput) (*paymentdomain.Payment, error) {
@@ -101,6 +106,7 @@ func (s *PaymentService) HandleCallback(input PaymentCallbackInput) (*paymentdom
 	}
 
 	// 状态判断和元数据更新均在事务锁内完成，避免旧快照覆盖并发成功回调。
+
 	previousStatus := payment.Status
 	now := time.Now()
 	updated, processedOrder, orderPaid, err := s.applyPaymentUpdate(payment, order, status, input, now)
@@ -236,19 +242,20 @@ func (s *PaymentService) applyPaymentUpdate(payment *paymentdomain.Payment, orde
 
 	err := s.paymentRepo.WithinTransaction(func(tx paymentcontract.Transaction) error {
 		paymentRepo := tx.Payments()
-		lockedPayment, err := paymentRepo.GetByIDForUpdate(payment.ID)
-		if err != nil {
-			return ErrPaymentUpdateFailed
-		}
-		if lockedPayment == nil {
-			return ErrPaymentNotFound
-		}
+		// 先订单后支付，与创建支付、钱包支付的加锁顺序一致，避免 PostgreSQL 死锁。
 		lockedOrder, err := tx.Orders().GetByIDForUpdateWithChildren(order.ID)
 		if err != nil {
 			return orderapp.ErrOrderFetchFailed
 		}
 		if lockedOrder == nil {
 			return orderapp.ErrOrderNotFound
+		}
+		lockedPayment, err := paymentRepo.GetByIDForUpdate(payment.ID)
+		if err != nil {
+			return ErrPaymentUpdateFailed
+		}
+		if lockedPayment == nil {
+			return ErrPaymentNotFound
 		}
 		if err := validateCallbackPaymentFacts(lockedPayment, lockedOrder.OrderNo, status, input); err != nil {
 			return err
@@ -257,11 +264,33 @@ func (s *PaymentService) applyPaymentUpdate(payment *paymentdomain.Payment, orde
 		returnVal = lockedPayment
 		processedOrder = lockedOrder
 
-		if lockedPayment.Status == constants.PaymentStatusSuccess {
+		// 人工确认：订单必须仍未支付（待支付或已取消）。支付记录可能已是 success
+		// （迟到回调只记账不履约），此时仍要继续恢复订单，不能走下面的幂等短路。
+		manualRecover := false
+		reopened := false
+		if input.manualConfirm {
+			if status != constants.PaymentStatusSuccess || lockedOrder.PaidAt != nil ||
+				(lockedOrder.Status != constants.OrderStatusPendingPayment && lockedOrder.Status != constants.OrderStatusCanceled) {
+				return orderapp.ErrOrderStatusInvalid
+			}
+			// 锁内再校验一次：欠付记录的款项已转入余额，不能再履约。
+			if lockedPayment.ExceptionCode == constants.PaymentExceptionUnderpaidSucceeded {
+				return ErrPaymentUnderpaidCredited
+			}
+			manualRecover = true
+			if lockedOrder.Status == constants.OrderStatusCanceled {
+				if err := orderapp.ReopenCanceledOrderInTx(tx, lockedOrder, now); err != nil {
+					return err
+				}
+				reopened = true
+			}
+		}
+
+		if lockedPayment.Status == constants.PaymentStatusSuccess && !manualRecover {
 			_, err := s.updateCallbackMeta(tx, lockedPayment, constants.PaymentStatusSuccess, input)
 			return err
 		}
-		if lockedPayment.Status == status {
+		if lockedPayment.Status == status && !manualRecover {
 			_, err := s.updateCallbackMeta(tx, lockedPayment, status, input)
 			return err
 		}
@@ -276,14 +305,30 @@ func (s *PaymentService) applyPaymentUpdate(payment *paymentdomain.Payment, orde
 		underpaid := status == constants.PaymentStatusSuccess && orderOpen &&
 			coveredOnlineAmount.LessThan(requiredOnlineAmount)
 
+		if manualRecover && underpaid {
+			// 已取消的混合支付订单：取消时余额部分已退回，重开后应付额变成全额，必然"欠付"。
+			// 这不是渠道到账有问题，给出专门的错误，提示走退款流程。
+			if reopened {
+				return ErrPaymentCanceledOrderUnderpaid
+			}
+			// 人工确认不能把欠付的钱转进余额后让订单继续挂起，直接回滚让管理员核对金额。
+			return ErrPaymentAmountMismatch
+		}
+
 		canFulfillOrder := status == constants.PaymentStatusSuccess && orderOpen && !underpaid
+		if manualRecover && !canFulfillOrder {
+			return orderapp.ErrOrderStatusInvalid
+		}
 		switch status {
 		case constants.PaymentStatusSuccess:
 			paidAt := now
 			if input.PaidAt != nil {
 				paidAt = *input.PaidAt
 			}
-			lockedPayment.PaidAt = &paidAt
+			// 迟到回调已记录网关侧真实支付时间，人工恢复订单时不要覆盖它。
+			if !(manualRecover && lockedPayment.PaidAt != nil) {
+				lockedPayment.PaidAt = &paidAt
+			}
 			switch {
 			case underpaid:
 				lockedPayment.ExceptionCode = constants.PaymentExceptionUnderpaidSucceeded
@@ -298,6 +343,11 @@ func (s *PaymentService) applyPaymentUpdate(payment *paymentdomain.Payment, orde
 			}
 		case constants.PaymentStatusExpired:
 			lockedPayment.ExpiredAt = &now
+		}
+
+		if manualRecover && canFulfillOrder {
+			// 订单已被人工恢复履约，之前"迟到/关闭订单成功"的待处理异常标记随之解除。
+			lockedPayment.ExceptionCode = ""
 		}
 
 		lockedPayment.Status = status
@@ -335,9 +385,16 @@ func (s *PaymentService) applyPaymentUpdate(payment *paymentdomain.Payment, orde
 				return err
 			}
 		}
-		if (status == constants.PaymentStatusFailed || status == constants.PaymentStatusExpired) && lockedOrder.Status == constants.OrderStatusPendingPayment && s.walletSvc != nil {
-			if _, err := orderapp.ReleaseWalletBalance(s.walletSvc, tx, lockedOrder, constants.WalletTxnTypeOrderRefund, "在线支付失败，退回余额"); err != nil {
-				return err
+		// 已被替代或已有更新尝试时，钱包占款归更新的尝试所有，旧链接的失败/过期回调不能退还。
+		if (status == constants.PaymentStatusFailed || status == constants.PaymentStatusExpired) && lockedOrder.Status == constants.OrderStatusPendingPayment && s.walletSvc != nil && lockedPayment.SupersededAt == nil {
+			payments, err := paymentRepo.ListByOrderID(lockedOrder.ID)
+			if err != nil {
+				return ErrPaymentUpdateFailed
+			}
+			if newerActivePaymentID(payments, lockedPayment.ID) == 0 {
+				if _, err := orderapp.ReleaseWalletBalance(s.walletSvc, tx, lockedOrder, constants.WalletTxnTypeOrderRefund, "在线支付失败，退回余额"); err != nil {
+					return err
+				}
 			}
 		}
 

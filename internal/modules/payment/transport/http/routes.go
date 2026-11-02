@@ -45,6 +45,7 @@ func RegisterAdminRoutes(authorized gin.IRoutes, handler *AdminHandler) {
 	authorized.GET("/payments/export", handler.ExportAdminPayments)
 	authorized.GET("/payments/:id", handler.GetAdminPayment)
 	authorized.POST("/payments/:id/recover-order", handler.RecoverClosedOrder)
+	authorized.POST("/orders/:id/manual-confirm-payment", handler.AdminManualConfirmPayment)
 }
 
 // RegisterAdminChannelRoutes 注册后台支付渠道路由。
