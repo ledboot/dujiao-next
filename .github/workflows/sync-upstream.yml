@@ -61,5 +61,5 @@ jobs:
           if [ "$(gh pr list --head upstream-sync --state open --json number --jq 'length')" = "0" ]; then
             gh pr create --base main --head upstream-sync \
               --title "chore: sync upstream/main" \
-              --body "upstream/main+§uçâçIºw^~)Şvéİyø§yÛ§uçâçdºw^~)Şvéİyø§yÛ§uçâçNºw^~)Şvéİyø§yĞ main+§uçâçXºw^~)Şvéİyø§yÛ§uçâçAºw^~)Şvéİyø§yÛ§uçâçAºw^~)Şvéİyø§yÛ§uçâçcºw^~)Şvéİyø§yÛ§uçâçHºw^~)Şvéİyø§yÒ"
+              --body "upstream/main has new commits that conflict with main. Resolve the conflicts in this pull request before merging."
           fi
