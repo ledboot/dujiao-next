@@ -6,6 +6,7 @@ import { STOREFRONT_VERIFICATION_REQUIRED } from '../../api/client'
 import TurnstileCaptcha from './TurnstileCaptcha.vue'
 
 const { t } = useI18n()
+const hostname = window.location.hostname
 const allowed = ref(false)
 const entered = ref(false)
 const checking = ref(false)
@@ -69,29 +70,51 @@ onBeforeUnmount(() => window.removeEventListener(STOREFRONT_VERIFICATION_REQUIRE
   <div v-if="entered" v-show="allowed" class="contents">
     <slot />
   </div>
-  <main v-if="!allowed" class="flex min-h-screen items-center justify-center px-4 py-8">
-    <section class="w-full max-w-sm space-y-4 rounded-xl border border-border bg-card p-5 text-center shadow-sm">
-      <h1 class="text-xl font-semibold">{{ t('storefrontGate.title') }}</h1>
-      <p v-if="checking" role="status" class="text-sm text-muted-foreground">{{ t('storefrontGate.checking') }}</p>
-      <template v-if="challenge && !failed">
-        <p class="text-sm text-muted-foreground">{{ t('storefrontGate.prompt') }}</p>
-        <div class="flex justify-center">
-          <TurnstileCaptcha
-            :site-key="challenge.siteKey"
-            :action="challenge.action"
-            size="compact"
-            @update:model-value="verify"
-            @challenge-error="onChallengeError"
-          />
+  <div v-if="!allowed" class="flex min-h-dvh flex-col bg-white px-6 text-[#313131] [color-scheme:light]">
+    <main class="mx-auto w-full max-w-[56rem] flex-1 pb-12 pt-20 sm:pt-32">
+      <h1 class="break-words text-3xl font-semibold leading-tight sm:text-[2.375rem]">{{ hostname }}</h1>
+      <h2 class="mt-2 text-xl font-semibold leading-tight sm:text-2xl">{{ t('storefrontGate.title') }}</h2>
+      <p class="mt-2 text-sm leading-relaxed sm:text-base">{{ t('storefrontGate.prompt') }}</p>
+
+      <div v-if="!failed" class="mt-7">
+        <div role="status">
+          <span
+            aria-hidden="true"
+            class="block size-7 rounded-full border-[4px] border-transparent border-t-current motion-safe:animate-spin"
+          ></span>
+          <span class="sr-only">{{ t(verifying ? 'storefrontGate.verifying' : 'storefrontGate.checking') }}</span>
         </div>
-        <p v-if="verifying" role="status" class="text-sm text-muted-foreground">{{ t('storefrontGate.verifying') }}</p>
-      </template>
-      <template v-if="failed">
-        <p role="alert" class="text-sm text-muted-foreground">{{ t('storefrontGate.failed') }}</p>
-        <button type="button" class="rounded-md bg-primary px-4 py-2 text-sm text-primary-foreground" @click="check()">
+        <TurnstileCaptcha
+          v-if="challenge"
+          class="mt-3"
+          :site-key="challenge.siteKey"
+          :action="challenge.action"
+          size="compact"
+          @update:model-value="verify"
+          @challenge-error="onChallengeError"
+        />
+      </div>
+
+      <div v-else class="mt-7">
+        <p role="alert" class="text-sm">{{ t('storefrontGate.failed') }}</p>
+        <button type="button" class="mt-3 rounded border border-[#767676] px-4 py-2 text-sm hover:bg-[#f4f4f4]" @click="check()">
           {{ t('storefrontGate.retry') }}
         </button>
-      </template>
-    </section>
-  </main>
+      </div>
+    </main>
+
+    <footer class="mx-auto flex w-full max-w-[56rem] flex-wrap items-center justify-center gap-x-2 gap-y-1 border-t border-[#dedede] py-4 text-center text-xs">
+      <i18n-t keypath="storefrontGate.poweredBy" tag="span">
+        <template #provider>
+          <a class="text-[#1746a2] underline" href="https://www.cloudflare.com/products/turnstile/" target="_blank" rel="noopener noreferrer">Cloudflare Turnstile</a>
+        </template>
+      </i18n-t>
+      <span class="inline-flex items-center gap-x-2">
+        <span aria-hidden="true" class="text-[#767676]">|</span>
+        <a class="text-[#1746a2] underline" href="https://www.cloudflare.com/privacypolicy/" target="_blank" rel="noopener noreferrer">
+          {{ t('storefrontGate.privacy') }}
+        </a>
+      </span>
+    </footer>
+  </div>
 </template>

@@ -1,11 +1,13 @@
 {
   "storefrontGate": {
-      "title": "人机验证",
-      "prompt": "请完成验证后进入店面。",
-      "checking": "正在检查访问状态…",
-      "verifying": "正在验证…",
-      "failed": "验证暂时无法完成，请重试。",
-      "retry": "重试"
+    "title": "正在进行安全验证",
+    "prompt": "本网站使用安全服务防护恶意自动程序。验证期间会显示此页面。",
+    "checking": "正在等待安全验证…",
+    "verifying": "正在验证…",
+    "failed": "验证暂时无法完成，请重试。",
+    "retry": "重试",
+    "poweredBy": "安全验证由 {provider} 提供",
+    "privacy": "隐私"
   },
   "common": {
     "siteName": "Dujiao-Next",

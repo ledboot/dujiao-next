@@ -1,11 +1,13 @@
 {
   "storefrontGate": {
-      "title": "Human verification",
-      "prompt": "Complete verification to enter the storefront.",
-      "checking": "Checking access…",
-      "verifying": "Verifying…",
-      "failed": "Verification could not be completed. Please try again.",
-      "retry": "Try again"
+    "title": "Security verification in progress",
+    "prompt": "This website uses a security service to protect against malicious bots. This page will be displayed while verification is in progress.",
+    "checking": "Waiting for security verification…",
+    "verifying": "Verifying…",
+    "failed": "Verification could not be completed. Please try again.",
+    "retry": "Try again",
+    "poweredBy": "Protected by {provider}",
+    "privacy": "Privacy"
   },
   "common": {
     "siteName": "Dujiao-Next",
