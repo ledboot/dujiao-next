@@ -1,6 +1,8 @@
 package httpserver
 
 import (
+	"net/http"
+
 	"github.com/dujiao-next/internal/app/container"
 	"github.com/dujiao-next/internal/app/httpserver/middleware"
 	affiliatebootstrap "github.com/dujiao-next/internal/bootstrap/affiliate"
@@ -19,6 +21,7 @@ import (
 	ordertransport "github.com/dujiao-next/internal/modules/order/transport/http"
 	paymenttransport "github.com/dujiao-next/internal/modules/payment/transport/http"
 	paymentcallbacktransport "github.com/dujiao-next/internal/modules/payment/transport/http/callback"
+	resellercontract "github.com/dujiao-next/internal/modules/reseller/contract"
 	resellertransport "github.com/dujiao-next/internal/modules/reseller/transport/http/user"
 	publicconfigtransport "github.com/dujiao-next/internal/modules/settings/transport/http/public"
 	wallettransport "github.com/dujiao-next/internal/modules/wallet/transport/http"
@@ -70,7 +73,10 @@ func registerStorefrontRoutes(
 	storefront := apiV1.Group("")
 	storefront.Use(middleware.ResellerTenantMiddleware(c.ResellerDomainResolver))
 	affiliateHandler := affiliatebootstrap.NewStorefrontHandler(c)
-	gate := captchatransport.NewStorefrontGate(c.CaptchaService, cfg.UserJWT.SecretKey)
+	gate := captchatransport.NewStorefrontGate(c.CaptchaService, cfg.UserJWT.SecretKey, func(r *http.Request) bool {
+		tenant, _ := resellercontract.TenantFromContext(r.Context())
+		return tenant.ResellerID == nil
+	})
 	verifyRule := guestWriteRule
 	verifyRule.Prefix += ":storefront-captcha"
 	verifyLimit := middleware.RateLimitMiddleware(redisClient, verifyRule, middleware.KeyByIP)

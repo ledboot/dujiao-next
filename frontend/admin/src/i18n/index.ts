@@ -3245,8 +3245,8 @@ const messages = {
             registerSendCode: '注册及发送邮件验证码',
             resetSendCode: '找回密码发送邮件验证码',
             guestCreateOrder: '游客下单创建订单',
-            storefrontEntry: '进入店面时验证',
-            storefrontEntryHint: '访客验证通过后可在当前域名浏览 24 小时。请确认 Turnstile 已允许所有启用的店面域名。开启后，搜索引擎可能无法索引店面内容。',
+            storefrontEntry: '进入主站店面时验证',
+            storefrontEntryHint: '主站访客验证通过后可在当前域名浏览 24 小时。请确认 Turnstile 已允许主站域名。开启后，搜索引擎可能无法索引店面内容。',
             giftCardRedeem: '礼品卡兑换',
           },
           image: {
@@ -7847,8 +7847,8 @@ const messages = {
             registerSendCode: '註冊及發送郵件驗證碼',
             resetSendCode: '找回密碼發送郵件驗證碼',
             guestCreateOrder: '遊客下單建立訂單',
-            storefrontEntry: '進入店面時驗證',
-            storefrontEntryHint: '訪客驗證通過後可在目前網域瀏覽 24 小時。請確認 Turnstile 已允許所有啟用的店面網域。開啟後，搜尋引擎可能無法索引店面內容。',
+            storefrontEntry: '進入主站店面時驗證',
+            storefrontEntryHint: '主站訪客驗證通過後可在目前網域瀏覽 24 小時。請確認 Turnstile 已允許主站網域。開啟後，搜尋引擎可能無法索引店面內容。',
             giftCardRedeem: '禮品卡兌換',
           },
           image: {
@@ -12449,8 +12449,8 @@ const messages = {
             registerSendCode: 'Registration and email code sending',
             resetSendCode: 'Reset password email code sending',
             guestCreateOrder: 'Guest checkout create order',
-            storefrontEntry: 'Verify on storefront entry',
-            storefrontEntryHint: 'Verification lasts 24 hours on the current domain. Make sure Turnstile allows all active storefront domains. Enabling this may prevent search engines from indexing storefront content.',
+            storefrontEntry: 'Verify on main storefront entry',
+            storefrontEntryHint: 'Verification lasts 24 hours on the current domain. Make sure Turnstile allows the main storefront domains. Enabling this may prevent search engines from indexing storefront content.',
             giftCardRedeem: 'Gift card redeem',
           },
           image: {

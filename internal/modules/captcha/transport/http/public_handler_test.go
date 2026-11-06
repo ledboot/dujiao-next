@@ -111,7 +111,9 @@ func TestGetImageCaptchaMapsUnknownErrors(t *testing.T) {
 func TestStorefrontGate(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	verifier := &storefrontVerifierStub{siteKey: "site-key"}
-	gate := NewStorefrontGate(verifier, "signing-key")
+	gate := NewStorefrontGate(verifier, "signing-key", func(r *http.Request) bool {
+		return r.Host != "reseller.example"
+	})
 	router := gin.New()
 	public := router.Group("/api/v1/public")
 	gate.RegisterRoutes(public, func(c *gin.Context) { c.Next() })
@@ -140,6 +142,12 @@ func TestStorefrontGate(t *testing.T) {
 	}
 	if w := request(http.MethodGet, "shop.example", productPath, "", nil); w.Code != http.StatusPreconditionRequired {
 		t.Fatalf("unverified request returned %d", w.Code)
+	}
+	if w := request(http.MethodGet, "reseller.example", productPath, "", nil); w.Code != http.StatusNoContent {
+		t.Fatalf("reseller request returned %d", w.Code)
+	}
+	if w := request(http.MethodGet, "reseller.example", challengePath, "", nil); !strings.Contains(w.Body.String(), `"required":false`) {
+		t.Fatalf("reseller status got %s", w.Body)
 	}
 	for i, token := range []string{"invalid", "valid", "valid"} {
 		w := request(http.MethodPost, "shop.example", challengePath, `{"turnstile_token":"`+token+`"}`, nil)

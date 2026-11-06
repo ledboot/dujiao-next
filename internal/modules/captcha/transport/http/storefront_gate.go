@@ -33,10 +33,11 @@ type storefrontVerifier interface {
 type StorefrontGate struct {
 	verifier storefrontVerifier
 	secret   string
+	applies  func(*http.Request) bool
 }
 
-func NewStorefrontGate(verifier storefrontVerifier, secret string) StorefrontGate {
-	return StorefrontGate{verifier: verifier, secret: secret}
+func NewStorefrontGate(verifier storefrontVerifier, secret string, applies func(*http.Request) bool) StorefrontGate {
+	return StorefrontGate{verifier: verifier, secret: secret, applies: applies}
 }
 
 func (g StorefrontGate) RegisterRoutes(public gin.IRoutes, limit gin.HandlerFunc) {
@@ -44,9 +45,16 @@ func (g StorefrontGate) RegisterRoutes(public gin.IRoutes, limit gin.HandlerFunc
 	public.POST("/captcha/storefront", limit, g.verify)
 }
 
+func (g StorefrontGate) siteKey(c *gin.Context) (string, error) {
+	if !g.applies(c.Request) {
+		return "", nil
+	}
+	return g.verifier.StorefrontSiteKey()
+}
+
 func (g StorefrontGate) status(c *gin.Context) {
 	c.Header("Cache-Control", "private, no-store")
-	key, err := g.verifier.StorefrontSiteKey()
+	key, err := g.siteKey(c)
 	if err != nil {
 		ginutil.RespondError(c, response.CodeInternal, "error.captcha_unavailable", err)
 		return
@@ -60,6 +68,10 @@ func (g StorefrontGate) status(c *gin.Context) {
 
 func (g StorefrontGate) verify(c *gin.Context) {
 	c.Header("Cache-Control", "private, no-store")
+	if !g.applies(c.Request) {
+		ginutil.RespondError(c, response.CodeBadRequest, "error.captcha_unavailable", nil)
+		return
+	}
 	var req CaptchaPayloadRequest
 	c.Request.Body = http.MaxBytesReader(c.Writer, c.Request.Body, 4096)
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -94,7 +106,7 @@ func (g StorefrontGate) verify(c *gin.Context) {
 
 // Require protects storefront APIs without intercepting protocol callbacks.
 func (g StorefrontGate) Require(c *gin.Context) {
-	key, err := g.verifier.StorefrontSiteKey()
+	key, err := g.siteKey(c)
 	if err == nil && key == "" {
 		c.Next()
 		return
