@@ -3,6 +3,8 @@ interface TurnstileRenderOptions {
   sitekey: string
   action?: string
   size?: 'normal' | 'compact'
+  appearance?: 'interaction-only'
+  'before-interactive-callback'?: () => void
   'timeout-callback'?: () => void
   theme?: 'auto' | 'light' | 'dark'
   callback?: (token: string) => void
@@ -61,11 +63,13 @@ const props = defineProps<{
   siteKey: string
   action?: string
   size?: 'normal' | 'compact'
+  appearance?: 'interaction-only'
 }>()
 
 const emit = defineEmits<{
   (event: 'update:modelValue', value: string): void
   (event: 'challenge-error'): void
+  (event: 'interactive'): void
 }>()
 
 const containerRef = ref<HTMLElement | null>(null)
@@ -99,6 +103,10 @@ const renderWidget = async () => {
     sitekey: props.siteKey,
     ...(props.action ? { action: props.action } : {}),
     ...(props.size ? { size: props.size } : {}),
+    ...(props.appearance ? {
+      appearance: props.appearance,
+      'before-interactive-callback': () => emit('interactive'),
+    } : {}),
     theme: 'auto',
     callback: (token: string) => emit('update:modelValue', token || ''),
     'expired-callback': () => emit('update:modelValue', ''),

@@ -12,6 +12,7 @@ const entered = ref(false)
 const checking = ref(false)
 const verifying = ref(false)
 const failed = ref(false)
+const needsInteraction = ref(false)
 const challenge = ref<{ siteKey: string; action: string } | null>(null)
 
 const check = async (expectClearance = false) => {
@@ -19,6 +20,7 @@ const check = async (expectClearance = false) => {
   allowed.value = false
   checking.value = true
   failed.value = false
+  needsInteraction.value = false
   challenge.value = null
   try {
     const { data } = await captchaAPI.storefrontStatus()
@@ -70,14 +72,14 @@ onBeforeUnmount(() => window.removeEventListener(STOREFRONT_VERIFICATION_REQUIRE
   <div v-if="entered" v-show="allowed" class="contents">
     <slot />
   </div>
-  <div v-if="!allowed" class="flex min-h-dvh flex-col bg-white px-6 text-[#313131] [color-scheme:light]">
+  <div v-if="!allowed" class="flex min-h-dvh flex-col bg-white px-2 text-[#313131] [color-scheme:light] min-[348px]:px-6">
     <main class="mx-auto w-full max-w-[56rem] flex-1 pb-12 pt-20 sm:pt-32">
       <h1 class="break-words text-3xl font-semibold leading-tight sm:text-[2.375rem]">{{ hostname }}</h1>
       <h2 class="mt-2 text-xl font-semibold leading-tight sm:text-2xl">{{ t('storefrontGate.title') }}</h2>
       <p class="mt-2 text-sm leading-relaxed sm:text-base">{{ t('storefrontGate.prompt') }}</p>
 
       <div v-if="!failed" class="mt-7">
-        <div role="status">
+        <div v-if="!needsInteraction" role="status">
           <span
             aria-hidden="true"
             class="block size-7 rounded-full border-[4px] border-transparent border-t-current motion-safe:animate-spin"
@@ -86,10 +88,11 @@ onBeforeUnmount(() => window.removeEventListener(STOREFRONT_VERIFICATION_REQUIRE
         </div>
         <TurnstileCaptcha
           v-if="challenge"
-          class="mt-3"
           :site-key="challenge.siteKey"
           :action="challenge.action"
-          size="compact"
+          size="normal"
+          appearance="interaction-only"
+          @interactive="needsInteraction = true"
           @update:model-value="verify"
           @challenge-error="onChallengeError"
         />
