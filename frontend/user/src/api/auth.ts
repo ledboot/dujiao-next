@@ -35,6 +35,8 @@ export const userTotpAPI = {
 
 export const captchaAPI = {
     image: () => api.get('/public/captcha/image'),
+    storefrontStatus: () => api.get('/public/captcha/storefront'),
+    verifyStorefront: (token: string) => api.post('/public/captcha/storefront', { turnstile_token: token }),
 }
 
 export const configAPI = {

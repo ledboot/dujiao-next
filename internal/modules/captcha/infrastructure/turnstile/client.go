@@ -22,12 +22,26 @@ var _ contract.TurnstileVerifier = Client{}
 func New() Client { return Client{} }
 
 type verifyResponse struct {
+	Action     string   `json:"action"`
+	Hostname   string   `json:"hostname"`
 	Success    bool     `json:"success"`
 	ErrorCodes []string `json:"error-codes"`
 }
 
 // Verify 校验令牌。
-func (Client) Verify(cfg settingssecurity.CaptchaTurnstileSetting, token, clientIP string) error {
+func (c Client) Verify(cfg settingssecurity.CaptchaTurnstileSetting, token, clientIP string) error {
+	return c.verify(cfg, token, clientIP, "")
+}
+
+// VerifyStorefront also checks the action and storefront hostname returned by Siteverify.
+func (c Client) VerifyStorefront(cfg settingssecurity.CaptchaTurnstileSetting, token, clientIP, hostname string) error {
+	if hostname == "" {
+		return contract.ErrConfigInvalid
+	}
+	return c.verify(cfg, token, clientIP, hostname)
+}
+
+func (Client) verify(cfg settingssecurity.CaptchaTurnstileSetting, token, clientIP, storefrontHost string) error {
 	if strings.TrimSpace(token) == "" {
 		return contract.ErrRequired
 	}
@@ -68,6 +82,13 @@ func (Client) Verify(cfg settingssecurity.CaptchaTurnstileSetting, token, client
 		return fmt.Errorf("%w: %v", contract.ErrVerifyFailed, err)
 	}
 	if !result.Success {
+		return contract.ErrInvalid
+	}
+	if storefrontHost == "" {
+		if result.Action == contract.StorefrontAction {
+			return contract.ErrInvalid
+		}
+	} else if result.Action != contract.StorefrontAction || !strings.EqualFold(result.Hostname, storefrontHost) {
 		return contract.ErrInvalid
 	}
 	return nil

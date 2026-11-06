@@ -1,4 +1,12 @@
 {
+  "storefrontGate": {
+      "title": "人机验证",
+      "prompt": "请完成验证后进入店面。",
+      "checking": "正在检查访问状态…",
+      "verifying": "正在验证…",
+      "failed": "验证暂时无法完成，请重试。",
+      "retry": "重试"
+  },
   "common": {
     "siteName": "Dujiao-Next",
     "loading": "加载中...",

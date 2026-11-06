@@ -70,21 +70,27 @@ func registerStorefrontRoutes(
 	storefront := apiV1.Group("")
 	storefront.Use(middleware.ResellerTenantMiddleware(c.ResellerDomainResolver))
 	affiliateHandler := affiliatebootstrap.NewStorefrontHandler(c)
+	gate := captchatransport.NewStorefrontGate(c.CaptchaService, cfg.UserJWT.SecretKey)
+	verifyRule := guestWriteRule
+	verifyRule.Prefix += ":storefront-captcha"
+	verifyLimit := middleware.RateLimitMiddleware(redisClient, verifyRule, middleware.KeyByIP)
 
 	// 公开接口
-	public := storefront.Group("/public")
+	bootstrap := storefront.Group("/public")
+	public := storefront.Group("/public", gate.Require)
 	{
-		publicconfigtransport.RegisterPublicRoutes(public, publicConfigHandler)
+		publicconfigtransport.RegisterPublicRoutes(bootstrap, publicConfigHandler)
 		producthttp.RegisterPublicRoutes(public, publicCatalogHandler)
 		categoryhttp.RegisterPublicRoutes(public, publicCategoryHandler)
 		contenttransport.RegisterPublicRoutes(public, publicContentHandler)
-		captchatransport.RegisterPublicRoutes(public, captchatransport.NewPublicHandler(c.CaptchaService))
-		affiliatetransport.RegisterPublicRoutes(public, affiliateHandler)
+		captchatransport.RegisterPublicRoutes(bootstrap, captchatransport.NewPublicHandler(c.CaptchaService))
+		gate.RegisterRoutes(bootstrap, verifyLimit)
+		affiliatetransport.RegisterPublicRoutes(bootstrap, affiliateHandler)
 		memberleveltransport.RegisterPublicRoutes(public, publicMemberLevelHandler)
 	}
 
 	// 游客接口
-	guest := storefront.Group("/guest")
+	guest := storefront.Group("/guest", gate.Require)
 	guestRead := guest.Group("")
 	guestRead.Use(middleware.RateLimitMiddleware(redisClient, guestReadRule, middleware.KeyByIP))
 	{
@@ -113,6 +119,14 @@ func registerStorefrontRoutes(
 
 	// 用户认证接口
 	auth := storefront.Group("/auth")
+	auth.Use(func(c *gin.Context) {
+		// Google posts the redirect result cross-site, so it cannot send the clearance cookie.
+		if c.FullPath() == auth.BasePath()+"/google/redirect/callback" {
+			c.Next()
+			return
+		}
+		gate.Require(c)
+	})
 	{
 		userauthtransport.RegisterUserVerifyAuthRoutes(auth, userVerifyHandler, authRateLimit)
 		userauthtransport.RegisterUserRegisterAuthRoutes(auth, userLoginHandler, authRateLimit)
@@ -126,7 +140,7 @@ func registerStorefrontRoutes(
 	}
 
 	// 用户接口（需鉴权）
-	user := storefront.Group("")
+	user := storefront.Group("", gate.Require)
 	user.Use(middleware.UserJWTAuthMiddleware(cfg.UserJWT.SecretKey, c.UserStore))
 	{
 		userauthtransport.RegisterUserProfileRoutes(user, userProfileHandler)

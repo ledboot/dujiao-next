@@ -1,4 +1,12 @@
 {
+  "storefrontGate": {
+      "title": "Human verification",
+      "prompt": "Complete verification to enter the storefront.",
+      "checking": "Checking access…",
+      "verifying": "Verifying…",
+      "failed": "Verification could not be completed. Please try again.",
+      "retry": "Try again"
+  },
   "common": {
     "siteName": "Dujiao-Next",
     "loading": "Loading...",

@@ -178,6 +178,7 @@ type CaptchaConfig struct {
 
 // CaptchaSceneConfig 验证码场景开关
 type CaptchaSceneConfig struct {
+	StorefrontEntry  bool `mapstructure:"storefront_entry"`
 	Login            bool `mapstructure:"login"`
 	RegisterSendCode bool `mapstructure:"register_send_code"`
 	ResetSendCode    bool `mapstructure:"reset_send_code"`
@@ -421,6 +422,7 @@ func Load() *Config {
 	viper.SetDefault("captcha.scenes.register_send_code", false)
 	viper.SetDefault("captcha.scenes.reset_send_code", false)
 	viper.SetDefault("captcha.scenes.guest_create_order", false)
+	viper.SetDefault("captcha.scenes.storefront_entry", false)
 	viper.SetDefault("captcha.scenes.gift_card_redeem", false)
 	viper.SetDefault("captcha.image.length", 5)
 	viper.SetDefault("captcha.image.width", 240)

@@ -2,6 +2,7 @@ package turnstile
 
 import (
 	"errors"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -89,5 +90,34 @@ func TestClientRejectsInvalidTokenLengthBeforeNetwork(t *testing.T) {
 		if !errors.Is(err, tc.want) {
 			t.Fatalf("got %v, want %v", err, tc.want)
 		}
+	}
+}
+
+func TestVerifyStorefrontRequiresMatchingActionAndHostname(t *testing.T) {
+	for _, test := range []struct {
+		name, action, hostname string
+		want                   error
+	}{
+		{"match", contract.StorefrontAction, "shop.example", nil},
+		{"other action", "login", "shop.example", contract.ErrInvalid},
+		{"other hostname", contract.StorefrontAction, "another.example", contract.ErrInvalid},
+		{"missing fields", "", "", contract.ErrInvalid},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				_, _ = fmt.Fprintf(w, `{"success":true,"action":%q,"hostname":%q}`, test.action, test.hostname)
+			}))
+			defer server.Close()
+
+			cfg := settingssecurity.CaptchaTurnstileSetting{SecretKey: "secret", VerifyURL: server.URL}
+			if err := New().VerifyStorefront(cfg, "token", "", "shop.example"); !errors.Is(err, test.want) {
+				t.Fatalf("VerifyStorefront error = %v, want %v", err, test.want)
+			}
+			if test.action == contract.StorefrontAction {
+				if err := New().Verify(cfg, "token", ""); !errors.Is(err, contract.ErrInvalid) {
+					t.Fatalf("Verify accepted storefront action: %v", err)
+				}
+			}
+		})
 	}
 }

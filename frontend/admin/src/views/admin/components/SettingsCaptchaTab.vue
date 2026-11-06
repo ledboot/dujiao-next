@@ -16,6 +16,7 @@ interface CaptchaData {
     login: boolean
     register_send_code: boolean
     reset_send_code: boolean
+    storefront_entry: boolean
     guest_create_order: boolean
     gift_card_redeem: boolean
   }
@@ -53,6 +54,7 @@ const form = reactive({
     login: false,
     register_send_code: false,
     reset_send_code: false,
+    storefront_entry: false,
     guest_create_order: false,
     gift_card_redeem: false,
   },
@@ -106,6 +108,7 @@ const save = async () => {
         login: form.scenes.login,
         register_send_code: form.scenes.register_send_code,
         reset_send_code: form.scenes.reset_send_code,
+        storefront_entry: form.provider === 'turnstile' && form.scenes.storefront_entry,
         guest_create_order: form.scenes.guest_create_order,
         gift_card_redeem: form.scenes.gift_card_redeem,
       },
@@ -195,6 +198,13 @@ defineExpose({ save, submitting })
               <Switch v-model="form.scenes.gift_card_redeem" />
               <Label class="text-sm">{{ t('admin.settings.captcha.scenes.giftCardRedeem') }}</Label>
             </div>
+          </div>
+          <div v-if="form.provider === 'turnstile'" class="mt-4 space-y-1">
+            <div class="flex items-center gap-2 text-sm">
+              <Switch id="storefront-entry" v-model="form.scenes.storefront_entry" />
+              <Label for="storefront-entry" class="text-sm">{{ t('admin.settings.captcha.scenes.storefrontEntry') }}</Label>
+            </div>
+            <p class="text-xs text-muted-foreground">{{ t('admin.settings.captcha.scenes.storefrontEntryHint') }}</p>
           </div>
         </div>
 

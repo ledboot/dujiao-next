@@ -15,6 +15,7 @@ var ErrCaptchaConfigInvalid = errors.New("captcha config invalid")
 
 // CaptchaSceneSetting 验证码场景配置。
 type CaptchaSceneSetting struct {
+	StorefrontEntry  bool `json:"storefront_entry"`
 	Login            bool `json:"login"`
 	RegisterSendCode bool `json:"register_send_code"`
 	ResetSendCode    bool `json:"reset_send_code"`
@@ -51,6 +52,7 @@ type CaptchaSetting struct {
 
 // CaptchaScenePatch 场景配置补丁。
 type CaptchaScenePatch struct {
+	StorefrontEntry  *bool `json:"storefront_entry"`
 	Login            *bool `json:"login"`
 	RegisterSendCode *bool `json:"register_send_code"`
 	ResetSendCode    *bool `json:"reset_send_code"`
@@ -90,6 +92,7 @@ func DefaultCaptchaSetting(cfg config.CaptchaConfig) CaptchaSetting {
 	setting := CaptchaSetting{
 		Provider: strings.ToLower(strings.TrimSpace(cfg.Provider)),
 		Scenes: CaptchaSceneSetting{
+			StorefrontEntry:  cfg.Scenes.StorefrontEntry,
 			Login:            cfg.Scenes.Login,
 			RegisterSendCode: cfg.Scenes.RegisterSendCode,
 			ResetSendCode:    cfg.Scenes.ResetSendCode,
@@ -123,6 +126,10 @@ func NormalizeCaptchaSetting(setting CaptchaSetting) CaptchaSetting {
 		setting.Provider = provider
 	default:
 		setting.Provider = constants.CaptchaProviderNone
+	}
+
+	if setting.Provider != constants.CaptchaProviderTurnstile {
+		setting.Scenes.StorefrontEntry = false
 	}
 
 	if setting.Image.Length < 4 || setting.Image.Length > 8 {
@@ -205,6 +212,7 @@ func CaptchaSettingToConfig(setting CaptchaSetting) config.CaptchaConfig {
 	return config.CaptchaConfig{
 		Provider: normalized.Provider,
 		Scenes: config.CaptchaSceneConfig{
+			StorefrontEntry:  normalized.Scenes.StorefrontEntry,
 			Login:            normalized.Scenes.Login,
 			RegisterSendCode: normalized.Scenes.RegisterSendCode,
 			ResetSendCode:    normalized.Scenes.ResetSendCode,
@@ -235,6 +243,7 @@ func EncodeCaptchaSetting(setting CaptchaSetting) jsonmap.JSON {
 	return jsonmap.JSON{
 		"provider": normalized.Provider,
 		"scenes": map[string]interface{}{
+			"storefront_entry":   normalized.Scenes.StorefrontEntry,
 			"login":              normalized.Scenes.Login,
 			"register_send_code": normalized.Scenes.RegisterSendCode,
 			"reset_send_code":    normalized.Scenes.ResetSendCode,
@@ -265,6 +274,7 @@ func MaskCaptchaSettingForAdmin(setting CaptchaSetting) jsonmap.JSON {
 	return jsonmap.JSON{
 		"provider": normalized.Provider,
 		"scenes": map[string]interface{}{
+			"storefront_entry":   normalized.Scenes.StorefrontEntry,
 			"login":              normalized.Scenes.Login,
 			"register_send_code": normalized.Scenes.RegisterSendCode,
 			"reset_send_code":    normalized.Scenes.ResetSendCode,
@@ -296,6 +306,7 @@ func PublicCaptchaSetting(setting CaptchaSetting) jsonmap.JSON {
 	public := jsonmap.JSON{
 		"provider": normalized.Provider,
 		"scenes": map[string]interface{}{
+			"storefront_entry":   normalized.Scenes.StorefrontEntry,
 			"login":              normalized.Scenes.Login,
 			"register_send_code": normalized.Scenes.RegisterSendCode,
 			"reset_send_code":    normalized.Scenes.ResetSendCode,
@@ -342,6 +353,7 @@ func DecodeCaptchaSetting(raw jsonmap.JSON, fallback CaptchaSetting) CaptchaSett
 	next.Provider = settingsvalue.ReadString(raw, "provider", next.Provider)
 
 	if scenesMap := settingsvalue.ToStringAnyMap(raw["scenes"]); scenesMap != nil {
+		next.Scenes.StorefrontEntry = settingsvalue.ReadBool(scenesMap, "storefront_entry", next.Scenes.StorefrontEntry)
 		next.Scenes.Login = settingsvalue.ReadBool(scenesMap, "login", next.Scenes.Login)
 		next.Scenes.RegisterSendCode = settingsvalue.ReadBool(scenesMap, "register_send_code", next.Scenes.RegisterSendCode)
 		next.Scenes.ResetSendCode = settingsvalue.ReadBool(scenesMap, "reset_send_code", next.Scenes.ResetSendCode)
@@ -376,6 +388,9 @@ func ApplyCaptchaSettingPatch(current CaptchaSetting, patch CaptchaSettingPatch)
 		next.Provider = strings.ToLower(strings.TrimSpace(*patch.Provider))
 	}
 	if patch.Scenes != nil {
+		if patch.Scenes.StorefrontEntry != nil {
+			next.Scenes.StorefrontEntry = *patch.Scenes.StorefrontEntry
+		}
 		if patch.Scenes.Login != nil {
 			next.Scenes.Login = *patch.Scenes.Login
 		}

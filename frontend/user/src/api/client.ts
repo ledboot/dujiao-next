@@ -18,6 +18,7 @@ export interface ApiResponse<T = any> {
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || ''
 const API_PREFIX = '/api/v1'
+export const STOREFRONT_VERIFICATION_REQUIRED = 'storefront-verification-required'
 
 interface RequestOptions {
     params?: Record<string, any>
@@ -115,6 +116,10 @@ function createClient(injectAuth: boolean) {
             return Promise.reject(new Error(message))
         } finally {
             clearTimeout(timer)
+        }
+
+        if (response.status === 428) {
+            window.dispatchEvent(new Event(STOREFRONT_VERIFICATION_REQUIRED))
         }
 
         // Blob response

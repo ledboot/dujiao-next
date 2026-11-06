@@ -30,6 +30,10 @@ func (s *turnstileStub) Verify(cfg settingssecurity.CaptchaTurnstileSetting, tok
 	return nil
 }
 
+func (s *turnstileStub) VerifyStorefront(cfg settingssecurity.CaptchaTurnstileSetting, token, clientIP, _ string) error {
+	return s.Verify(cfg, token, clientIP)
+}
+
 func TestVerifyTurnstileDelegatesToVerifier(t *testing.T) {
 	setting := settingssecurity.CaptchaSetting{
 		Provider: constants.CaptchaProviderTurnstile,

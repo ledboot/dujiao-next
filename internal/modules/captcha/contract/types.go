@@ -1,5 +1,7 @@
 package contract
 
+const StorefrontAction = "storefront_entry"
+
 // VerifyPayload 是验证码校验输入。
 type VerifyPayload struct {
 	CaptchaID      string

@@ -12,5 +12,6 @@ type SettingReader interface {
 
 // TurnstileVerifier 是应用层校验 Turnstile 令牌所需的端口。
 type TurnstileVerifier interface {
+	VerifyStorefront(cfg settingssecurity.CaptchaTurnstileSetting, token, clientIP, hostname string) error
 	Verify(cfg settingssecurity.CaptchaTurnstileSetting, token, clientIP string) error
 }

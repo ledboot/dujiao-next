@@ -1,4 +1,12 @@
 {
+  "storefrontGate": {
+      "title": "人機驗證",
+      "prompt": "請完成驗證後進入店面。",
+      "checking": "正在檢查存取狀態…",
+      "verifying": "正在驗證…",
+      "failed": "暫時無法完成驗證，請重試。",
+      "retry": "重試"
+  },
   "common": {
     "siteName": "Dujiao-Next",
     "loading": "載入中...",

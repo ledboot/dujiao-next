@@ -1,22 +1,10 @@
 <template>
   <div id="app" class="min-h-screen bg-background text-foreground flex flex-col">
-    <!-- 首次访问还不知道站点用哪套模板时先不渲染外壳，等配置返回（见 shellReady） -->
-    <template v-if="shellReady">
-      <!-- vault 模板：自带顶栏/页脚的外壳包裹页面（控制台仍走下方分支） -->
-      <VaultLayout v-if="isVault && !isResellerConsole">
-        <ErrorBoundary>
-          <RouterView v-slot="{ Component }">
-            <Transition name="page-fade" :mode="route.name === 'payment' ? undefined : 'out-in'" :css="route.name !== 'payment'">
-              <component :is="Component" />
-            </Transition>
-          </RouterView>
-        </ErrorBoundary>
-      </VaultLayout>
-
-      <!-- classic 模板 / 分销控制台（保持原有结构不变） -->
-      <template v-else>
-        <Navbar v-if="!isResellerConsole" />
-        <main class="flex-1" :class="isResellerConsole ? '' : 'pb-14 lg:pb-0'">
+    <StorefrontGate>
+      <!-- 首次访问还不知道站点用哪套模板时先不渲染外壳，等配置返回（见 shellReady） -->
+      <template v-if="shellReady">
+        <!-- vault 模板：自带顶栏/页脚的外壳包裹页面（控制台仍走下方分支） -->
+        <VaultLayout v-if="isVault && !isResellerConsole">
           <ErrorBoundary>
             <RouterView v-slot="{ Component }">
               <Transition name="page-fade" :mode="route.name === 'payment' ? undefined : 'out-in'" :css="route.name !== 'payment'">
@@ -24,16 +12,30 @@
               </Transition>
             </RouterView>
           </ErrorBoundary>
-        </main>
-        <Footer v-if="!isResellerConsole" />
-        <BackToTop v-if="!isResellerConsole" />
-        <MobileBottomNav v-if="!isResellerConsole" />
-      </template>
-    </template>
+        </VaultLayout>
 
-    <Loading :loading="appStore.loading" />
-    <Toast />
-    <ConfirmDialog />
+        <!-- classic 模板 / 分销控制台（保持原有结构不变） -->
+        <template v-else>
+          <Navbar v-if="!isResellerConsole" />
+          <main class="flex-1" :class="isResellerConsole ? '' : 'pb-14 lg:pb-0'">
+            <ErrorBoundary>
+              <RouterView v-slot="{ Component }">
+                <Transition name="page-fade" :mode="route.name === 'payment' ? undefined : 'out-in'" :css="route.name !== 'payment'">
+                  <component :is="Component" />
+                </Transition>
+              </RouterView>
+            </ErrorBoundary>
+          </main>
+          <Footer v-if="!isResellerConsole" />
+          <BackToTop v-if="!isResellerConsole" />
+          <MobileBottomNav v-if="!isResellerConsole" />
+        </template>
+      </template>
+
+      <Loading :loading="appStore.loading" />
+      <Toast />
+      <ConfirmDialog />
+    </StorefrontGate>
   </div>
 </template>
 
@@ -49,6 +51,7 @@ import Footer from './components/Footer.vue'
 import Loading from './components/Loading.vue'
 import Toast from './components/Toast.vue'
 import ConfirmDialog from './components/ConfirmDialog.vue'
+import StorefrontGate from './components/captcha/StorefrontGate.vue'
 import ErrorBoundary from './components/ErrorBoundary.vue'
 import BackToTop from './components/BackToTop.vue'
 import MobileBottomNav from './components/MobileBottomNav.vue'

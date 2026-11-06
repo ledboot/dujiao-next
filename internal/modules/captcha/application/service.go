@@ -150,6 +150,36 @@ func (s *Service) Verify(scene string, payload contract.VerifyPayload, clientIP 
 	}
 }
 
+// StorefrontSiteKey returns an empty key when storefront verification is disabled.
+func (s *Service) StorefrontSiteKey() (string, error) {
+	setting, err := s.getSetting()
+	if err != nil || !setting.Scenes.StorefrontEntry {
+		return "", err
+	}
+	if setting.Turnstile.SiteKey == "" || setting.Turnstile.SecretKey == "" {
+		return "", contract.ErrConfigInvalid
+	}
+	return setting.Turnstile.SiteKey, nil
+}
+
+// VerifyStorefront validates a token for the storefront entry challenge.
+func (s *Service) VerifyStorefront(token, clientIP, hostname string) (string, error) {
+	setting, err := s.getSetting()
+	if err != nil {
+		return "", err
+	}
+	if !setting.Scenes.StorefrontEntry || setting.Turnstile.SiteKey == "" {
+		return "", contract.ErrConfigInvalid
+	}
+	if s.turnstile == nil {
+		return "", contract.ErrVerifyFailed
+	}
+	if err := s.turnstile.VerifyStorefront(setting.Turnstile, strings.TrimSpace(token), clientIP, hostname); err != nil {
+		return "", err
+	}
+	return setting.Turnstile.SiteKey, nil
+}
+
 func (s *Service) ensureImageStore(setting settingssecurity.CaptchaSetting) base64Captcha.Store {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -174,9 +204,8 @@ func (s *Service) getSetting() (settingssecurity.CaptchaSetting, error) {
 		s.mu.RUnlock()
 		return cached, nil
 	}
-	s.mu.RUnlock()
-
 	fallback := s.defaultConfig
+	s.mu.RUnlock()
 	if s.settingService == nil {
 		setting := settingssecurity.DefaultCaptchaSetting(fallback)
 		s.mu.Lock()

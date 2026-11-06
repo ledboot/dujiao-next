@@ -250,6 +250,7 @@ const captchaData = reactive({
     login: false,
     register_send_code: false,
     reset_send_code: false,
+    storefront_entry: false,
     guest_create_order: false,
     gift_card_redeem: false,
   },
@@ -499,6 +500,7 @@ const fetchSettings = async () => {
       captchaData.scenes.login = !!captchaScenes?.login
       captchaData.scenes.register_send_code = !!captchaScenes?.register_send_code
       captchaData.scenes.reset_send_code = !!captchaScenes?.reset_send_code
+      captchaData.scenes.storefront_entry = !!captchaScenes?.storefront_entry
       captchaData.scenes.guest_create_order = !!captchaScenes?.guest_create_order
       captchaData.scenes.gift_card_redeem = !!captchaScenes?.gift_card_redeem
 
