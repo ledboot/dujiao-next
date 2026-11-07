@@ -3,11 +3,13 @@ package application
 import (
 	"context"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/dujiao-next/internal/constants"
 	"github.com/dujiao-next/internal/logger"
 	procurementcontract "github.com/dujiao-next/internal/modules/procurement/contract"
+	"github.com/google/uuid"
 )
 
 // RetryManual 手动重试失败的采购单
@@ -30,6 +32,11 @@ func (s *Service) RetryManual(id uint) error {
 		"next_retry_at": nil,
 		"error_message": "",
 		"updated_at":    now,
+	}
+	// 只有上游明确确认旧编号属于已取消订单时才换号。超时、断网等未知结果
+	// 必须复用原编号，防止同一采购重复扣款；新编号与状态一起原子落库。
+	if procOrder.UpstreamOrderID == 0 && strings.TrimSpace(procOrder.ErrorMessage) == canceledDownstreamOrderMessage {
+		updates["downstream_order_no"] = fmt.Sprintf("DPR%d-%s", procOrder.ID, uuid.NewString())
 	}
 	reset, err := s.procRepo.UpdateStatus(procOrder.ID, procOrder.Status, constants.ProcurementStatusPending, updates)
 	if err != nil {

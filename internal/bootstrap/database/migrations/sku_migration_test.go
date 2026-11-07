@@ -586,17 +586,18 @@ type supersededProcurementOrderReference struct {
 func (supersededProcurementOrderReference) TableName() string { return "orders" }
 
 type procurementOrderIndexSchema struct {
-	ID              uint       `gorm:"primarykey"`
-	ConnectionID    uint       `gorm:"index"`
-	LocalOrderID    uint       `gorm:"index"`
-	LocalOrderNo    string     `gorm:"index"`
-	UpstreamOrderNo string     `gorm:"index"`
-	Status          string     `gorm:"index"`
-	NextRetryAt     *time.Time `gorm:"index"`
-	TraceID         string     `gorm:"index"`
-	CreatedAt       time.Time  `gorm:"index"`
-	UpdatedAt       time.Time  `gorm:"index"`
-	DeletedAt       *time.Time `gorm:"index"`
+	ID                uint       `gorm:"primarykey"`
+	ConnectionID      uint       `gorm:"index"`
+	LocalOrderID      uint       `gorm:"index"`
+	LocalOrderNo      string     `gorm:"index"`
+	DownstreamOrderNo string     `gorm:"index"`
+	UpstreamOrderNo   string     `gorm:"index"`
+	Status            string     `gorm:"index"`
+	NextRetryAt       *time.Time `gorm:"index"`
+	TraceID           string     `gorm:"index"`
+	CreatedAt         time.Time  `gorm:"index"`
+	UpdatedAt         time.Time  `gorm:"index"`
+	DeletedAt         *time.Time `gorm:"index"`
 }
 
 func (procurementOrderIndexSchema) TableName() string { return "procurement_orders" }

@@ -5,6 +5,7 @@ import (
 	"errors"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 
 	orderdomain "github.com/dujiao-next/internal/modules/order/domain"
@@ -15,6 +16,110 @@ import (
 	procurementcontract "github.com/dujiao-next/internal/modules/procurement/contract"
 	siteconnectionapp "github.com/dujiao-next/internal/modules/siteconnection/application"
 )
+
+func TestRetryCanceledUpstreamOrderUsesPersistentAttemptNumber(t *testing.T) {
+	db := setupProcurementTestDB(t)
+	sqlDB, err := db.DB()
+	if err != nil {
+		t.Fatal(err)
+	}
+	sqlDB.SetMaxOpenConns(1)
+	order := createProcTestOrder(t, db, "PROC-CANCELED-RETRY", constants.OrderStatusPaid, constants.FulfillmentTypeUpstream)
+	pm := &mappingdomain.Mapping{ConnectionID: 1, LocalProductID: 1, UpstreamProductID: 101, IsActive: true}
+	if err := db.Create(pm).Error; err != nil {
+		t.Fatal(err)
+	}
+	if err := db.Create(&mappingdomain.SKUMapping{ProductMappingID: pm.ID, LocalSKUID: 1, UpstreamSKUID: 201, UpstreamIsActive: true}).Error; err != nil {
+		t.Fatal(err)
+	}
+	var numbers []string
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		var request struct {
+			DownstreamOrderNo string `json:"downstream_order_no"`
+		}
+		if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
+			t.Error(err)
+			w.WriteHeader(http.StatusBadRequest)
+			return
+		}
+		numbers = append(numbers, request.DownstreamOrderNo)
+		w.Header().Set("Content-Type", "application/json")
+		switch len(numbers) {
+		case 1:
+			json.NewEncoder(w).Encode(map[string]any{"ok": false, "error_code": "order_canceled", "error_message": "downstream_order_no was already used by a canceled order; please retry with a new downstream_order_no"})
+		case 2:
+			json.NewEncoder(w).Encode(map[string]any{"ok": false, "error_code": "server_error", "error_message": "temporary failure"})
+		default:
+			json.NewEncoder(w).Encode(map[string]any{"ok": true, "order_id": 999, "order_no": "UP-999", "status": "accepted", "amount": "50.00", "currency": "CNY"})
+		}
+	}))
+	defer server.Close()
+	connections := newTestSiteConnectionService(db, "test-key", t.TempDir())
+	conn, err := connections.Create(siteconnectionapp.CreateInput{Name: "test-upstream", BaseURL: server.URL, ApiKey: "key", ApiSecret: "secret", Protocol: constants.ConnectionProtocolDujiaoNext})
+	if err != nil {
+		t.Fatal(err)
+	}
+	proc := createTestProcurementOrder(t, db, conn.ID, order.ID, order.OrderNo, constants.ProcurementStatusPending)
+	svc := newTestProcurementService(db, connections)
+	if err := svc.SubmitToUpstream(proc.ID); err == nil {
+		t.Fatal("canceled idempotency key must reject instead of scheduling the same request")
+	}
+	if err := svc.RetryManual(proc.ID); err != nil {
+		t.Fatal(err)
+	}
+	updated, err := svc.GetByID(proc.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	attempt := updated.DownstreamOrderNo
+	if attempt == "" || attempt == order.OrderNo || len(attempt) > 64 {
+		t.Fatalf("invalid replacement attempt number: %q", attempt)
+	}
+	if stale, err := svc.GetByLocalOrderNo(order.OrderNo); err != nil || stale != nil {
+		t.Fatalf("old canceled callback still resolves: %+v, %v", stale, err)
+	}
+	if current, err := svc.GetByLocalOrderNo(attempt); err != nil || current == nil || current.ID != proc.ID {
+		t.Fatalf("new callback cannot resolve original procurement: %+v, %v", current, err)
+	}
+	if err := svc.SubmitToUpstream(proc.ID); err != nil {
+		t.Fatal(err)
+	}
+	// Unknown/transient outcomes retain the attempt key even after a manual retry.
+	if err := svc.RetryManual(proc.ID); err != nil {
+		t.Fatal(err)
+	}
+	if err := svc.SubmitToUpstream(proc.ID); err != nil {
+		t.Fatal(err)
+	}
+	if len(numbers) != 3 || numbers[0] != order.OrderNo || numbers[1] != attempt || numbers[2] != attempt {
+		t.Fatalf("unexpected submitted attempt numbers: %v", numbers)
+	}
+	updated, err = svc.GetByID(proc.ID)
+	if err != nil || updated.Status != constants.ProcurementStatusAccepted || updated.UpstreamOrderID != 999 || updated.LocalOrderNo != order.OrderNo {
+		t.Fatalf("purchase not associated with original order: %+v, %v", updated, err)
+	}
+	var original orderdomain.Order
+	if err := db.First(&original, order.ID).Error; err != nil || original.OrderNo != order.OrderNo {
+		t.Fatalf("changed business order number: %+v, %v", original, err)
+	}
+}
+
+func TestManualRetryOrdinaryFailureKeepsOriginalDownstreamNumber(t *testing.T) {
+	db := setupProcurementTestDB(t)
+	order := createProcTestOrder(t, db, "PROC-NETWORK-RETRY", constants.OrderStatusPaid, constants.FulfillmentTypeUpstream)
+	proc := createTestProcurementOrder(t, db, 1, order.ID, order.OrderNo, constants.ProcurementStatusFailed)
+	if err := db.Model(proc).Update("error_message", "upstream request error: timeout").Error; err != nil {
+		t.Fatal(err)
+	}
+	svc := newTestProcurementService(db, newTestSiteConnectionService(db, "test-key", t.TempDir()))
+	if err := svc.RetryManual(proc.ID); err != nil {
+		t.Fatal(err)
+	}
+	updated, err := svc.GetByLocalOrderNo(order.OrderNo)
+	if err != nil || updated == nil || updated.ID != proc.ID || strings.TrimSpace(updated.DownstreamOrderNo) != "" {
+		t.Fatalf("ordinary retry changed idempotency key: %+v, %v", updated, err)
+	}
+}
 
 // ── SubmitToUpstream tests ──
 

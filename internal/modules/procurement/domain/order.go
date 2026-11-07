@@ -17,6 +17,7 @@ type Order struct {
 	ConnectionID             uint         `gorm:"index;not null" json:"connection_id"`
 	LocalOrderID             uint         `gorm:"index;not null" json:"local_order_id"`
 	LocalOrderNo             string       `gorm:"type:varchar(64);index" json:"local_order_no"`
+	DownstreamOrderNo        string       `gorm:"type:varchar(64);index" json:"downstream_order_no,omitempty"` // 上游当前采购尝试的幂等号；空值兼容原本站订单号
 	UpstreamOrderID          uint         `json:"-"`
 	UpstreamOrderNo          string       `gorm:"type:varchar(64);index" json:"upstream_order_no,omitempty"`
 	Status                   string       `gorm:"type:varchar(20);not null;default:'pending';index" json:"status"`

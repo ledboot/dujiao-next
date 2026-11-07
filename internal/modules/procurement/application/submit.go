@@ -14,6 +14,8 @@ import (
 	procurementdomain "github.com/dujiao-next/internal/modules/procurement/domain"
 )
 
+const canceledDownstreamOrderMessage = "downstream_order_no was already used by a canceled order; please retry with a new downstream_order_no"
+
 // SubmitToUpstream Worker 调用：向上游站点提交采购单
 func (s *Service) SubmitToUpstream(procurementOrderID uint) error {
 	procOrder, err := s.procRepo.GetByID(procurementOrderID)
@@ -73,10 +75,14 @@ func (s *Service) SubmitToUpstream(procurementOrderID uint) error {
 	}
 
 	// 构建上游请求
+	downstreamOrderNo := strings.TrimSpace(procOrder.DownstreamOrderNo)
+	if downstreamOrderNo == "" {
+		downstreamOrderNo = localOrder.OrderNo
+	}
 	req := procurementcontract.CreateOrderRequest{
 		SKUID:             upstreamSKUID,
 		Quantity:          item.Quantity,
-		DownstreamOrderNo: localOrder.OrderNo,
+		DownstreamOrderNo: downstreamOrderNo,
 		TraceID:           procOrder.TraceID,
 		CallbackURL:       connection.CallbackURL(),
 	}
@@ -99,6 +105,10 @@ func (s *Service) SubmitToUpstream(procurementOrderID uint) error {
 		errMsg := resp.ErrorMessage
 		if errMsg == "" {
 			errMsg = resp.ErrorCode
+		}
+		// 原编号已取消时，自动重放不可能成功；等待人工重试原子生成新尝试编号。
+		if strings.TrimSpace(errMsg) == canceledDownstreamOrderMessage {
+			retryable = false
 		}
 		return s.handleSubmitFailure(procOrder, connection, errMsg, retryable)
 	}

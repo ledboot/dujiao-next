@@ -114,7 +114,7 @@ func (h *Handler) HandleCallback(c *gin.Context) {
 		return
 	}
 
-	// 根据 downstream_order_no（即本站的 local_order_no）查找对应的采购单
+	// 根据当前采购尝试的 downstream_order_no 查找采购单（兼容旧单的本站订单号）。
 	procOrder, err := h.Procurements.GetByLocalOrderNo(payload.DownstreamOrderNo)
 	if err != nil || procOrder == nil {
 		logger.Warnw("upstream_callback_procurement_not_found",

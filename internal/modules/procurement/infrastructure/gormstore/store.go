@@ -41,12 +41,13 @@ func (s *Store) GetByLocalOrderID(localOrderID uint) (*procurementdomain.Order, 
 }
 
 func (s *Store) GetByLocalOrderNo(localOrderNo string) (*procurementdomain.Order, error) {
-	return s.first("local_order_no = ?", localOrderNo)
+	// 换号后只接受当前尝试的回调，旧已取消订单的迟到回调不得作用于新采购。
+	return s.first("downstream_order_no = ? OR ((downstream_order_no IS NULL OR downstream_order_no = '') AND local_order_no = ?)", localOrderNo, localOrderNo)
 }
 
-func (s *Store) first(query string, argument any) (*procurementdomain.Order, error) {
+func (s *Store) first(query string, arguments ...any) (*procurementdomain.Order, error) {
 	var order procurementdomain.Order
-	if err := preloadProcurement(s.active().Where(query, argument)).First(&order).Error; err != nil {
+	if err := preloadProcurement(s.active().Where(query, arguments...)).First(&order).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, nil
 		}
