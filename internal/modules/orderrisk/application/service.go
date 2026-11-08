@@ -148,9 +148,6 @@ func (s *Service) CheckPendingOrderAllowed(input orderriskcontract.CheckInput, p
 		return nil
 	}
 	cfg := prepared.ConfigSnapshot
-	if !cfg.Enabled {
-		return nil
-	}
 	if input.RiskIP == "" {
 		input.RiskIP = prepared.RiskIP
 		if input.RiskIP == "" {
@@ -158,9 +155,14 @@ func (s *Service) CheckPendingOrderAllowed(input orderriskcontract.CheckInput, p
 		}
 	}
 	if input.IsGuest {
+		if !cfg.Enabled {
+			return nil
+		}
 		return checkGuestPendingOrder(input, cfg.Guest, gate)
 	}
-	return checkMemberPendingOrder(input, cfg.Member, gate)
+	policy := cfg.Member
+	policy.Enabled = cfg.Enabled && policy.Enabled
+	return checkMemberPendingOrder(input, policy, gate)
 }
 
 func checkGuestPendingOrder(input orderriskcontract.CheckInput, policy settingssecurity.OrderRiskGuestPolicy, gate orderriskcontract.PendingOrderGate) error {
@@ -207,20 +209,38 @@ func checkGuestPendingOrder(input orderriskcontract.CheckInput, policy settingss
 }
 
 func checkMemberPendingOrder(input orderriskcontract.CheckInput, policy settingssecurity.OrderRiskMemberPolicy, gate orderriskcontract.PendingOrderGate) error {
-	if !policy.Enabled {
-		return nil
-	}
 	keys := make([]string, 0, 2)
-	if input.UserID > 0 && policy.MaxPendingOrdersPerUser > 0 {
+	if input.UserID > 0 {
 		keys = append(keys, fmt.Sprintf("member:user:%d", input.UserID))
 	}
-	if !input.SkipIPCheck && input.RiskIP != "" && policy.MaxPendingOrdersPerIP > 0 {
+	if policy.Enabled && !input.SkipIPCheck && input.RiskIP != "" && policy.MaxPendingOrdersPerIP > 0 {
 		keys = append(keys, "member:ip:"+input.RiskIP)
 	}
 	if len(keys) > 0 {
 		if err := gate.LockRiskKeys(keys); err != nil {
 			return err
 		}
+	}
+	// Product deduplication is always enforced for members, including when the
+	// optional risk policies or IP checks are disabled. The user lock serializes
+	// this read with creation of the order and its stock reservations.
+	if input.UserID > 0 {
+		requested := aggregateProductQuantities(input.Items)
+		productIDs := make([]uint, 0, len(requested))
+		for productID := range requested {
+			productIDs = append(productIDs, productID)
+		}
+		sort.Slice(productIDs, func(i, j int) bool { return productIDs[i] < productIDs[j] })
+		exists, err := gate.HasPendingProductByUserID(input.UserID, productIDs)
+		if err != nil {
+			return err
+		}
+		if exists {
+			return orderriskcontract.ErrPendingProductOrder
+		}
+	}
+	if !policy.Enabled {
+		return nil
 	}
 	if input.UserID > 0 && policy.MaxPendingOrdersPerUser > 0 {
 		count, err := gate.CountPendingByUserID(input.UserID)

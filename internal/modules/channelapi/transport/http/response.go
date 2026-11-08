@@ -34,6 +34,7 @@ var channelOrderCreateErrorRules = []mappedChannelError{
 	channelErrorRule(ErrRiskIPBlacklisted, http.StatusForbidden, response.CodeForbidden, "risk_blocked", "error.risk_ip_blacklisted"),
 	channelErrorRule(ErrRiskClientIPUnavailable, http.StatusForbidden, response.CodeForbidden, "risk_blocked", "error.risk_client_ip_unavailable"),
 	channelErrorRule(ErrRiskTooManyPendingOrders, http.StatusTooManyRequests, response.CodeTooManyRequests, "risk_blocked", "error.risk_too_many_pending_orders"),
+	channelErrorRule(ErrRiskPendingProductOrder, http.StatusTooManyRequests, response.CodeTooManyRequests, "risk_blocked", "error.risk_pending_product_order"),
 	channelErrorRule(ErrRiskProductQuantityLimit, http.StatusBadRequest, response.CodeBadRequest, "quantity_limit_exceeded", "error.risk_product_quantity_limit"),
 	channelErrorRule(ErrRiskPendingProductLimit, http.StatusTooManyRequests, response.CodeTooManyRequests, "risk_blocked", "error.risk_pending_product_quantity_limit"),
 	channelErrorRule(ErrRiskOrderRateLimited, http.StatusTooManyRequests, response.CodeTooManyRequests, "risk_blocked", "error.risk_order_rate_limited"),

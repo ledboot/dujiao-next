@@ -145,3 +145,74 @@ func TestRiskGateSerializesConcurrentGuestQuotaChecks(t *testing.T) {
 }
 
 var errQuotaReached = errors.New("quota reached")
+
+func TestPendingProductMatchesIdentityAndOrderLifecycle(t *testing.T) {
+	for _, tc := range []struct {
+		name      string
+		userID    uint
+		productID uint
+		parent    string
+		child     string
+		deleted   string
+		legacy    bool
+		paid      bool
+		want      bool
+	}{
+		{name: "pending", userID: 9, productID: 7, want: true},
+		{name: "another user", userID: 10, productID: 7},
+		{name: "another product", userID: 9, productID: 8},
+		{name: "guest", productID: 7},
+		{name: "paid", userID: 9, productID: 7, parent: constants.OrderStatusPaid, paid: true},
+		{name: "canceled", userID: 9, productID: 7, parent: constants.OrderStatusCanceled},
+		{name: "canceled child", userID: 9, productID: 7, child: constants.OrderStatusCanceled},
+		{name: "deleted parent", userID: 9, productID: 7, deleted: "parent"},
+		{name: "deleted child", userID: 9, productID: 7, deleted: "child"},
+		{name: "deleted item", userID: 9, productID: 7, deleted: "item"},
+		{name: "legacy order with direct items", userID: 9, productID: 7, legacy: true, want: true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			db := setupRiskGateDB(t)
+			now := time.Now()
+			expired := now.Add(-time.Minute)
+			parentStatus, childStatus := tc.parent, tc.child
+			if parentStatus == "" {
+				parentStatus = constants.OrderStatusPendingPayment
+			}
+			if childStatus == "" {
+				childStatus = constants.OrderStatusPendingPayment
+			}
+			parent := orderdomain.Order{OrderNo: "parent", UserID: 9, Status: parentStatus, ExpiresAt: &expired}
+			if tc.paid {
+				parent.PaidAt = &now
+			}
+			if tc.deleted == "parent" {
+				parent.DeletedAt = &now
+			}
+			if err := db.Create(&parent).Error; err != nil {
+				t.Fatal(err)
+			}
+			itemOrderID := parent.ID
+			if !tc.legacy {
+				child := orderdomain.Order{OrderNo: "child", UserID: 9, ParentID: &parent.ID, Status: childStatus}
+				if tc.deleted == "child" {
+					child.DeletedAt = &now
+				}
+				if err := db.Create(&child).Error; err != nil {
+					t.Fatal(err)
+				}
+				itemOrderID = child.ID
+			}
+			item := orderdomain.OrderItem{OrderID: itemOrderID, ProductID: 7, SKUID: 99, Quantity: 1, TitleJSON: jsonmap.JSON{}}
+			if tc.deleted == "item" {
+				item.DeletedAt = &now
+			}
+			if err := db.Create(&item).Error; err != nil {
+				t.Fatal(err)
+			}
+			got, err := New(db, "pending-product-secret").HasPendingProductByUserID(tc.userID, []uint{tc.productID})
+			if err != nil || got != tc.want {
+				t.Fatalf("pending=%v want=%v err=%v", got, tc.want, err)
+			}
+		})
+	}
+}

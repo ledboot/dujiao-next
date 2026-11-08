@@ -41,6 +41,7 @@ var (
 	ErrRiskIPBlacklisted         = errors.New("risk: ip blacklisted")
 	ErrRiskClientIPUnavailable   = errors.New("risk: client ip unavailable")
 	ErrRiskTooManyPendingOrders  = errors.New("risk: too many pending orders")
+	ErrRiskPendingProductOrder   = errors.New("risk: pending order already exists for product")
 	ErrRiskProductQuantityLimit  = errors.New("risk: product quantity limit")
 	ErrRiskPendingProductLimit   = errors.New("risk: pending product quantity limit")
 	ErrRiskOrderRateLimited      = errors.New("risk: order rate limited")
@@ -330,6 +331,7 @@ var orderRiskControlErrorRules = []mappedError{
 	{target: ErrRiskIPBlacklisted, code: response.CodeForbidden, key: "error.risk_ip_blacklisted"},
 	{target: ErrRiskClientIPUnavailable, code: response.CodeForbidden, key: "error.risk_client_ip_unavailable"},
 	{target: ErrRiskTooManyPendingOrders, code: response.CodeTooManyRequests, key: "error.risk_too_many_pending_orders"},
+	{target: ErrRiskPendingProductOrder, code: response.CodeTooManyRequests, key: "error.risk_pending_product_order"},
 	{target: ErrRiskProductQuantityLimit, code: response.CodeBadRequest, key: "error.risk_product_quantity_limit"},
 	{target: ErrRiskPendingProductLimit, code: response.CodeTooManyRequests, key: "error.risk_pending_product_quantity_limit"},
 	{target: ErrRiskOrderRateLimited, code: response.CodeTooManyRequests, key: "error.risk_order_rate_limited"},

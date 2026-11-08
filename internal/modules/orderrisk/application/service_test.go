@@ -58,6 +58,7 @@ func (s *rateLimiterStub) Check(input orderriskcontract.CheckInput, config setti
 type pendingGateStub struct {
 	lockedKeys       []string
 	pendingByUser    int64
+	pendingProduct   bool
 	pendingGuestIP   int64
 	pendingMemberIP  int64
 	pendingByProduct map[uint]int64
@@ -70,6 +71,9 @@ func (s *pendingGateStub) LockRiskKeys(keys []string) error {
 }
 func (s *pendingGateStub) CountPendingByUserID(uint) (int64, error) {
 	return s.pendingByUser, s.err
+}
+func (s *pendingGateStub) HasPendingProductByUserID(uint, []uint) (bool, error) {
+	return s.pendingProduct, s.err
 }
 func (s *pendingGateStub) CountPendingGuestByRiskIP(string) (int64, error) {
 	return s.pendingGuestIP, s.err
@@ -356,5 +360,26 @@ func TestCheckOrderAllowed_GuestReturnsExpiryOverride(t *testing.T) {
 	}
 	if result.PaymentExpireMinutes != 8 {
 		t.Fatalf("expected guest expiry 8, got %d", result.PaymentExpireMinutes)
+	}
+}
+
+func TestMemberProductDeduplicationDoesNotDependOnOptionalRiskPolicy(t *testing.T) {
+	for _, enabled := range []bool{false, true} {
+		for _, memberEnabled := range []bool{false, true} {
+			cfg := testConfig()
+			cfg.Enabled, cfg.Member.Enabled = enabled, memberEnabled
+			gate := &pendingGateStub{pendingProduct: true}
+			svc := NewService(Options{})
+			err := svc.CheckPendingOrderAllowed(orderriskcontract.CheckInput{
+				UserID: 9, SkipIPCheck: true,
+				Items: []orderriskcontract.OrderItem{{ProductID: 7, Quantity: 1}},
+			}, orderriskcontract.CheckResult{ConfigSnapshot: cfg}, gate)
+			if !errors.Is(err, orderriskcontract.ErrPendingProductOrder) {
+				t.Fatalf("global=%v member=%v: expected product conflict, got %v", enabled, memberEnabled, err)
+			}
+			if !reflect.DeepEqual(gate.lockedKeys, []string{"member:user:9"}) {
+				t.Fatalf("missing user lock: %v", gate.lockedKeys)
+			}
+		}
 	}
 }

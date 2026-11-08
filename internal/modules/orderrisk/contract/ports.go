@@ -10,6 +10,7 @@ type SettingReader interface {
 type PendingOrderGate interface {
 	LockRiskKeys(keys []string) error
 	CountPendingByUserID(userID uint) (int64, error)
+	HasPendingProductByUserID(userID uint, productIDs []uint) (bool, error)
 	CountPendingGuestByRiskIP(riskIP string) (int64, error)
 	CountPendingMemberByRiskIP(riskIP string) (int64, error)
 	SumPendingGuestQuantityByRiskIP(riskIP string, productIDs []uint) (map[uint]int64, error)

@@ -199,6 +199,7 @@ func mapError(err error) error {
 		{orderriskcontract.ErrIPBlacklisted, channeltransport.ErrRiskIPBlacklisted},
 		{orderriskcontract.ErrClientIPUnavailable, channeltransport.ErrRiskClientIPUnavailable},
 		{orderriskcontract.ErrTooManyPendingOrders, channeltransport.ErrRiskTooManyPendingOrders},
+		{orderriskcontract.ErrPendingProductOrder, channeltransport.ErrRiskPendingProductOrder},
 		{orderriskcontract.ErrProductQuantityLimit, channeltransport.ErrRiskProductQuantityLimit},
 		{orderriskcontract.ErrPendingProductQuantityLimit, channeltransport.ErrRiskPendingProductLimit},
 		{orderriskcontract.ErrOrderRateLimited, channeltransport.ErrRiskOrderRateLimited},

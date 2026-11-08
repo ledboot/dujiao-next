@@ -28,6 +28,7 @@ var (
 	ErrRiskIPBlacklisted             = errors.New("risk ip blacklisted")
 	ErrRiskClientIPUnavailable       = errors.New("risk client ip unavailable")
 	ErrRiskTooManyPendingOrders      = errors.New("too many pending orders")
+	ErrRiskPendingProductOrder       = errors.New("pending order already exists for product")
 	ErrRiskProductQuantityLimit      = errors.New("risk product quantity limit")
 	ErrRiskPendingProductLimit       = errors.New("risk pending product quantity limit")
 	ErrRiskOrderRateLimited          = errors.New("order rate limited")

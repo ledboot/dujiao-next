@@ -731,6 +731,7 @@ func (s *OrderService) createOrder(input orderCreateParams) (*orderdomain.Order,
 		for _, riskErr := range []error{
 			orderriskcontract.ErrClientIPUnavailable,
 			orderriskcontract.ErrTooManyPendingOrders,
+			orderriskcontract.ErrPendingProductOrder,
 			orderriskcontract.ErrProductQuantityLimit,
 			orderriskcontract.ErrPendingProductQuantityLimit,
 			orderriskcontract.ErrOrderRateLimited,

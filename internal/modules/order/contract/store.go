@@ -45,6 +45,7 @@ type Store interface {
 	UpdateStatus(id uint, status string, updates map[string]interface{}) error
 	CountOrderItemsByProduct(productID uint) (int64, error)
 	CountPendingByUserID(userID uint) (int64, error)
+	HasPendingProductByUserID(userID uint, productIDs []uint) (bool, error)
 	LockRiskKeys(keys []string) error
 	CountPendingGuestByRiskIP(riskIP string) (int64, error)
 	CountPendingMemberByRiskIP(riskIP string) (int64, error)

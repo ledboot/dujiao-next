@@ -682,6 +682,23 @@ func (r *Store) CountPendingByUserID(userID uint) (int64, error) {
 	return count, nil
 }
 
+// HasPendingProductByUserID checks product identity across SKUs and parent/child orders.
+// Pending orders retain their reservation until cancellation, even past expires_at.
+func (r *Store) HasPendingProductByUserID(userID uint, productIDs []uint) (bool, error) {
+	if userID == 0 || len(productIDs) == 0 {
+		return false, nil
+	}
+	var id uint
+	err := r.db.Table("order_items AS oi").Select("parent.id").
+		Joins("JOIN orders AS child ON child.id = oi.order_id AND child.deleted_at IS NULL").
+		Joins("JOIN orders AS parent ON parent.id = COALESCE(child.parent_id, child.id) AND parent.deleted_at IS NULL").
+		Where("oi.deleted_at IS NULL AND parent.user_id = ? AND parent.parent_id IS NULL", userID).
+		Where("parent.status = ? AND child.status = ? AND parent.paid_at IS NULL", constants.OrderStatusPendingPayment, constants.OrderStatusPendingPayment).
+		Where("oi.product_id IN ?", productIDs).
+		Limit(1).Scan(&id).Error
+	return id != 0, err
+}
+
 // LockRiskKeys 在当前事务中按固定顺序锁定风控维度；数据库只保存 SHA-256 摘要。
 func (r *Store) LockRiskKeys(keys []string) error {
 	if len(keys) == 0 {
