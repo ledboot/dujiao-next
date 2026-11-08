@@ -43,7 +43,7 @@ type orderAdminQueryAdapter struct {
 }
 
 func (a orderAdminQueryAdapter) ListOrdersForAdmin(filter ordertransport.OrderListFilter) ([]orderdomain.Order, int64, error) {
-	return a.orders.ListOrdersForAdmin(ordercontract.ListFilter{
+	orders, total, err := a.orders.ListOrdersForAdmin(ordercontract.ListFilter{
 		Page:           filter.Page,
 		PageSize:       filter.PageSize,
 		UserID:         filter.UserID,
@@ -57,6 +57,7 @@ func (a orderAdminQueryAdapter) ListOrdersForAdmin(filter ordertransport.OrderLi
 		SortBy:         filter.SortBy,
 		SortOrder:      filter.SortOrder,
 	})
+	return a.billing.enrichList(orders, total, err)
 }
 
 func (a orderAdminQueryAdapter) GetOrderForAdmin(orderID uint) (*orderdomain.Order, error) {

@@ -30,6 +30,7 @@ import {
   userStatusLabel,
 } from '@/utils/status'
 import { formatDate, formatMoney, getLocalizedText } from '@/utils/format'
+import { orderPaidAmount } from '@/utils/orderBilling'
 
 const { t } = useI18n()
 const route = useRoute()
@@ -760,7 +761,7 @@ watch(
                 {{ orderStatusLabel(order.status) }}
               </span>
             </TableCell>
-            <TableCell class="px-6 py-4 text-foreground font-mono">{{ formatMoney(order.total_amount, order.currency) }}</TableCell>
+            <TableCell class="px-6 py-4 text-foreground font-mono">{{ formatMoney(orderPaidAmount(order), order.currency) }}</TableCell>
             <TableCell class="px-6 py-4 text-xs text-muted-foreground">{{ formatDate(order.created_at) }}</TableCell>
           </TableRow>
         </TableBody>

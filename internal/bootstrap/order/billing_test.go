@@ -4,7 +4,10 @@ import (
 	"encoding/json"
 	"errors"
 	"github.com/dujiao-next/internal/constants"
+	orderapp "github.com/dujiao-next/internal/modules/order/application"
+	ordercontract "github.com/dujiao-next/internal/modules/order/contract"
 	orderdomain "github.com/dujiao-next/internal/modules/order/domain"
+	ordertransport "github.com/dujiao-next/internal/modules/order/transport/http"
 	orderpresenter "github.com/dujiao-next/internal/modules/order/transport/presenter"
 	paymentdomain "github.com/dujiao-next/internal/modules/payment/domain"
 	"github.com/dujiao-next/internal/shared/money"
@@ -14,6 +17,42 @@ import (
 )
 
 func billingMoney(s string) money.Amount { return money.FromDecimal(decimal.RequireFromString(s)) }
+
+type adminBillingOrderStore struct {
+	ordercontract.Store
+	orders []orderdomain.Order
+}
+
+func (s adminBillingOrderStore) ListAdmin(ordercontract.ListFilter) ([]orderdomain.Order, int64, error) {
+	return s.orders, 42, nil
+}
+
+func TestAdminOrderListIncludesBillingSnapshots(t *testing.T) {
+	now := time.Now()
+	store := adminBillingOrderStore{orders: []orderdomain.Order{{ID: 1, Status: constants.OrderStatusCompleted,
+		TotalAmount: billingMoney("123.60"), PaidAt: &now}}}
+	payments := billingStoreStub{payments: []paymentdomain.Payment{{OrderID: 1, Status: constants.PaymentStatusSuccess,
+		FeePolicy: constants.PaymentFeePolicyCustomerSurcharge, FeeAmount: billingMoney("6"), TaxAmount: billingMoney("0.18")}}}
+	adapter := orderAdminQueryAdapter{
+		orders:  orderapp.NewOrderService(orderapp.OrderServiceOptions{OrderStore: store}),
+		billing: orderBillingReader{payments: payments},
+	}
+	orders, total, err := adapter.ListOrdersForAdmin(ordertransport.OrderListFilter{UserID: 1})
+	if err != nil || len(orders) != 1 || total != 42 {
+		t.Fatalf("admin list: orders=%v total=%d err=%v", orders, total, err)
+	}
+	if orders[0].CustomerFeeAmount.StringFixed(2) != "6.00" || orders[0].PaymentTaxAmount.StringFixed(2) != "0.18" {
+		t.Fatalf("admin list missing customer billing: %+v", orders[0])
+	}
+	if orders[0].TotalAmount.StringFixed(2) != "123.60" {
+		t.Fatal("admin list changed settlement amount")
+	}
+	payments.err = errors.New("billing query failed")
+	adapter.billing.payments = payments
+	if _, _, err := adapter.ListOrdersForAdmin(ordertransport.OrderListFilter{}); err == nil {
+		t.Fatal("admin list ignored billing query error")
+	}
+}
 
 func TestOrderBillingIncludesFeeAndTaxWithoutChangingSettlement(t *testing.T) {
 	now := time.Now()
