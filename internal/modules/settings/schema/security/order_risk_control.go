@@ -18,6 +18,14 @@ type OrderRateLimitConfig struct {
 	BlockSeconds  int  `json:"block_seconds"`
 }
 
+// OrderCancellationCooldownConfig limits repeated unpaid cancellations per account.
+type OrderCancellationCooldownConfig struct {
+	Enabled           bool `json:"enabled"`
+	WindowSeconds     int  `json:"window_seconds"`
+	MaxCanceledOrders int  `json:"max_canceled_orders"`
+	BlockSeconds      int  `json:"block_seconds"`
+}
+
 // OrderRiskCommonPolicy 保存与购买身份无关的订单风控策略。
 type OrderRiskCommonPolicy struct {
 	IPBlacklist []string `json:"ip_blacklist"`
@@ -35,11 +43,12 @@ type OrderRiskGuestPolicy struct {
 
 // OrderRiskMemberPolicy 保存以用户 ID 为主体、默认更宽松的会员策略。
 type OrderRiskMemberPolicy struct {
-	Enabled                       bool                 `json:"enabled"`
-	MaxPendingOrdersPerUser       int                  `json:"max_pending_orders_per_user"`
-	MaxPendingOrdersPerIP         int                  `json:"max_pending_orders_per_ip"`
-	MaxQuantityPerProductPerOrder int                  `json:"max_quantity_per_product_per_order"`
-	RateLimit                     OrderRateLimitConfig `json:"rate_limit"`
+	CancellationCooldown          OrderCancellationCooldownConfig `json:"cancellation_cooldown"`
+	Enabled                       bool                            `json:"enabled"`
+	MaxPendingOrdersPerUser       int                             `json:"max_pending_orders_per_user"`
+	MaxPendingOrdersPerIP         int                             `json:"max_pending_orders_per_ip"`
+	MaxQuantityPerProductPerOrder int                             `json:"max_quantity_per_product_per_order"`
+	RateLimit                     OrderRateLimitConfig            `json:"rate_limit"`
 }
 
 // OrderRiskControlConfig 订单风控配置。游客邮箱仅用于订单业务，不作为风控身份。
@@ -71,6 +80,7 @@ func DefaultOrderRiskControlConfig() OrderRiskControlConfig {
 			},
 		},
 		Member: OrderRiskMemberPolicy{
+			CancellationCooldown:          OrderCancellationCooldownConfig{WindowSeconds: 1800, MaxCanceledOrders: 3, BlockSeconds: 600},
 			Enabled:                       true,
 			MaxPendingOrdersPerUser:       5,
 			MaxPendingOrdersPerIP:         0,
@@ -99,6 +109,16 @@ func NormalizeOrderRiskControlConfig(cfg OrderRiskControlConfig) OrderRiskContro
 	cfg.Member.MaxPendingOrdersPerIP = normalizeRiskLimit(cfg.Member.MaxPendingOrdersPerIP, 100, defaults.Member.MaxPendingOrdersPerIP)
 	cfg.Member.MaxQuantityPerProductPerOrder = normalizeRiskLimit(cfg.Member.MaxQuantityPerProductPerOrder, 100000, defaults.Member.MaxQuantityPerProductPerOrder)
 	cfg.Member.RateLimit = normalizeRateLimit(cfg.Member.RateLimit, defaults.Member.RateLimit)
+	cooldown := &cfg.Member.CancellationCooldown
+	if cooldown.WindowSeconds < 60 || cooldown.WindowSeconds > 86400 {
+		cooldown.WindowSeconds = defaults.Member.CancellationCooldown.WindowSeconds
+	}
+	if cooldown.MaxCanceledOrders < 1 || cooldown.MaxCanceledOrders > 100 {
+		cooldown.MaxCanceledOrders = defaults.Member.CancellationCooldown.MaxCanceledOrders
+	}
+	if cooldown.BlockSeconds < 60 || cooldown.BlockSeconds > 86400 {
+		cooldown.BlockSeconds = defaults.Member.CancellationCooldown.BlockSeconds
+	}
 
 	cleanIPs := make([]string, 0, len(cfg.Common.IPBlacklist))
 	seen := make(map[string]struct{}, len(cfg.Common.IPBlacklist))

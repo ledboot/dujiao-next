@@ -735,6 +735,7 @@ func (s *OrderService) createOrder(input orderCreateParams) (*orderdomain.Order,
 			orderriskcontract.ErrProductQuantityLimit,
 			orderriskcontract.ErrPendingProductQuantityLimit,
 			orderriskcontract.ErrOrderRateLimited,
+			orderriskcontract.ErrOrderCooldown,
 		} {
 			if errors.Is(err, riskErr) {
 				return nil, err
@@ -764,7 +765,7 @@ func (s *OrderService) createOrder(input orderCreateParams) (*orderdomain.Order,
 					"error", fetchErr,
 				)
 			} else if full != nil {
-				if cancelErr := s.cancelOrderWithChildren(full, true); cancelErr != nil {
+				if cancelErr := s.cancelOrderWithChildren(full, true, constants.OrderCancelReasonSystem); cancelErr != nil {
 					logger.Errorw("order_timeout_rollback_cancel_failed",
 						"order_id", order.ID,
 						"order_no", order.OrderNo,

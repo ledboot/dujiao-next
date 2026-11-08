@@ -10,6 +10,10 @@ const (
 	OrderStatusDelivered          = "delivered"
 	OrderStatusCompleted          = "completed"
 	OrderStatusCanceled           = "canceled"
+	OrderCancelReasonUser         = "user"
+	OrderCancelReasonTimeout      = "timeout"
+	OrderCancelReasonAdmin        = "admin"
+	OrderCancelReasonSystem       = "system"
 	OrderStatusRefunded           = "refunded"
 )
 

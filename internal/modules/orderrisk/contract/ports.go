@@ -1,6 +1,9 @@
 package contract
 
-import settingssecurity "github.com/dujiao-next/internal/modules/settings/schema/security"
+import (
+	settingssecurity "github.com/dujiao-next/internal/modules/settings/schema/security"
+	"time"
+)
 
 type SettingReader interface {
 	GetOrderRiskControlConfig() (settingssecurity.OrderRiskControlConfig, error)
@@ -11,6 +14,7 @@ type PendingOrderGate interface {
 	LockRiskKeys(keys []string) error
 	CountPendingByUserID(userID uint) (int64, error)
 	HasPendingProductByUserID(userID uint, productIDs []uint) (bool, error)
+	RecentMemberCancellations(userID uint, since time.Time) ([]time.Time, error)
 	CountPendingGuestByRiskIP(riskIP string) (int64, error)
 	CountPendingMemberByRiskIP(riskIP string) (int64, error)
 	SumPendingGuestQuantityByRiskIP(riskIP string, productIDs []uint) (map[uint]int64, error)

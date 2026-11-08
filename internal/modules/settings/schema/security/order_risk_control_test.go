@@ -155,3 +155,17 @@ func TestIsValidIPOrCIDR(t *testing.T) {
 		}
 	}
 }
+
+func TestCancellationCooldownConfigRoundTripAndBounds(t *testing.T) {
+	cfg := DefaultOrderRiskControlConfig()
+	cfg.Member.CancellationCooldown.Enabled = true
+	decoded := DecodeOrderRiskControlConfig(EncodeOrderRiskControlConfig(cfg), DefaultOrderRiskControlConfig())
+	if decoded.Member.CancellationCooldown != cfg.Member.CancellationCooldown {
+		t.Fatalf("cooldown lost: %+v", decoded.Member.CancellationCooldown)
+	}
+	cfg.Member.CancellationCooldown = OrderCancellationCooldownConfig{Enabled: true, WindowSeconds: -1, MaxCanceledOrders: 0, BlockSeconds: 999999}
+	normalized := NormalizeOrderRiskControlConfig(cfg).Member.CancellationCooldown
+	if !normalized.Enabled || normalized.WindowSeconds != 1800 || normalized.MaxCanceledOrders != 3 || normalized.BlockSeconds != 600 {
+		t.Fatalf("invalid normalized cooldown: %+v", normalized)
+	}
+}

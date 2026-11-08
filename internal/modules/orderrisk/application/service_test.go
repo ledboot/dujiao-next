@@ -59,6 +59,7 @@ type pendingGateStub struct {
 	lockedKeys       []string
 	pendingByUser    int64
 	pendingProduct   bool
+	cancellations    []time.Time
 	pendingGuestIP   int64
 	pendingMemberIP  int64
 	pendingByProduct map[uint]int64
@@ -68,6 +69,9 @@ type pendingGateStub struct {
 func (s *pendingGateStub) LockRiskKeys(keys []string) error {
 	s.lockedKeys = append([]string(nil), keys...)
 	return s.err
+}
+func (s *pendingGateStub) RecentMemberCancellations(uint, time.Time) ([]time.Time, error) {
+	return s.cancellations, s.err
 }
 func (s *pendingGateStub) CountPendingByUserID(uint) (int64, error) {
 	return s.pendingByUser, s.err
@@ -381,5 +385,55 @@ func TestMemberProductDeduplicationDoesNotDependOnOptionalRiskPolicy(t *testing.
 				t.Fatalf("missing user lock: %v", gate.lockedKeys)
 			}
 		}
+	}
+}
+
+func TestCancellationCooldownKeepsFullBlockAcrossWindowBoundary(t *testing.T) {
+	now := time.Now()
+	cfg := settingssecurity.OrderCancellationCooldownConfig{Enabled: true, WindowSeconds: 1800, MaxCanceledOrders: 3, BlockSeconds: 600}
+	for _, tc := range []struct {
+		name      string
+		ages      []time.Duration
+		remaining time.Duration
+	}{
+		{"below threshold", []time.Duration{time.Minute, 2 * time.Minute}, 0},
+		{"threshold", []time.Duration{time.Minute, 2 * time.Minute, 3 * time.Minute}, 9 * time.Minute},
+		{"oldest outside current rolling window", []time.Duration{5 * time.Minute, 33 * time.Minute, 34 * time.Minute}, 5 * time.Minute},
+		{"events too far apart", []time.Duration{time.Minute, 2 * time.Minute, 40 * time.Minute}, 0},
+		{"block expired", []time.Duration{11 * time.Minute, 12 * time.Minute, 13 * time.Minute}, 0},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			history := make([]time.Time, 0, len(tc.ages))
+			for _, age := range tc.ages {
+				history = append(history, now.Add(-age))
+			}
+			until := cancellationCooldownUntil(history, cfg)
+			if tc.remaining == 0 {
+				if until.After(now) {
+					t.Fatalf("unexpected active block until %v", until)
+				}
+				return
+			}
+			if !until.Equal(now.Add(tc.remaining)) {
+				t.Fatalf("until=%v want=%v", until, now.Add(tc.remaining))
+			}
+		})
+	}
+}
+
+func TestMemberCancellationCooldownRejectsNewOrdersWithRetryAfter(t *testing.T) {
+	cfg := testConfig()
+	cfg.Member.CancellationCooldown = settingssecurity.OrderCancellationCooldownConfig{Enabled: true, WindowSeconds: 1800, MaxCanceledOrders: 3, BlockSeconds: 600}
+	now := time.Now()
+	gate := &pendingGateStub{cancellations: []time.Time{now.Add(-time.Minute), now.Add(-2 * time.Minute), now.Add(-3 * time.Minute)}}
+	input := orderriskcontract.CheckInput{UserID: 9, SkipIPCheck: true, Items: []orderriskcontract.OrderItem{{ProductID: 7, Quantity: 1}}}
+	svc := NewService(Options{})
+	err := svc.CheckPendingOrderAllowed(input, orderriskcontract.CheckResult{ConfigSnapshot: cfg}, gate)
+	if !errors.Is(err, orderriskcontract.ErrOrderCooldown) || orderriskcontract.GetRetryAfter(err) < 539 {
+		t.Fatalf("cooldown error=%v retry=%d", err, orderriskcontract.GetRetryAfter(err))
+	}
+	cfg.Member.CancellationCooldown.Enabled = false
+	if err := svc.CheckPendingOrderAllowed(input, orderriskcontract.CheckResult{ConfigSnapshot: cfg}, gate); err != nil {
+		t.Fatalf("disabled cooldown: %v", err)
 	}
 }

@@ -46,6 +46,7 @@ type Store interface {
 	CountOrderItemsByProduct(productID uint) (int64, error)
 	CountPendingByUserID(userID uint) (int64, error)
 	HasPendingProductByUserID(userID uint, productIDs []uint) (bool, error)
+	RecentMemberCancellations(userID uint, since time.Time) ([]time.Time, error)
 	LockRiskKeys(keys []string) error
 	CountPendingGuestByRiskIP(riskIP string) (int64, error)
 	CountPendingMemberByRiskIP(riskIP string) (int64, error)

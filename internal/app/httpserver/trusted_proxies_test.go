@@ -57,3 +57,28 @@ func TestConfigureTrustedProxiesRejectsTrustAllNetworks(t *testing.T) {
 		})
 	}
 }
+
+func TestCloudflareClientIPHeaderRequiresTrustedPeer(t *testing.T) {
+	for _, tc := range []struct{ peer, forwarded, want string }{
+		{"172.18.0.6:1234", "198.51.100.23", "198.51.100.23"},
+		{"172.18.0.9:1234", "2001:db8::23", "2001:db8::23"},
+		{"203.0.113.9:1234", "198.51.100.23", "203.0.113.9"},
+		{"172.18.0.8:1234", "198.51.100.23", "172.18.0.8"},
+	} {
+		engine := gin.New()
+		if err := configureTrustedProxies(engine, []string{"172.18.0.6/32", "172.18.0.9/32"}); err != nil {
+			t.Fatal(err)
+		}
+		engine.RemoteIPHeaders = []string{"CF-Connecting-IP", "X-Forwarded-For", "X-Real-IP"}
+		engine.GET("/ip", func(c *gin.Context) { c.String(http.StatusOK, c.ClientIP()) })
+		req := httptest.NewRequest(http.MethodGet, "/ip", nil)
+		req.RemoteAddr = tc.peer
+		req.Header.Set("CF-Connecting-IP", tc.forwarded)
+		req.Header.Set("X-Forwarded-For", "192.0.2.99")
+		resp := httptest.NewRecorder()
+		engine.ServeHTTP(resp, req)
+		if resp.Body.String() != tc.want {
+			t.Fatalf("peer=%s client=%s want=%s", tc.peer, resp.Body.String(), tc.want)
+		}
+	}
+}

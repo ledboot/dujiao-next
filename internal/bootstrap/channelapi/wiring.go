@@ -203,6 +203,7 @@ func mapError(err error) error {
 		{orderriskcontract.ErrProductQuantityLimit, channeltransport.ErrRiskProductQuantityLimit},
 		{orderriskcontract.ErrPendingProductQuantityLimit, channeltransport.ErrRiskPendingProductLimit},
 		{orderriskcontract.ErrOrderRateLimited, channeltransport.ErrRiskOrderRateLimited},
+		{orderriskcontract.ErrOrderCooldown, channeltransport.ErrRiskOrderCooldown},
 		{orderapp.ErrProductSKURequired, channeltransport.ErrProductSKURequired},
 		{orderapp.ErrProductSKUInvalid, channeltransport.ErrProductSKUInvalid},
 		{orderapp.ErrInvalidOrderItem, channeltransport.ErrInvalidOrderItem},

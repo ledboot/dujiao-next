@@ -36,6 +36,7 @@ const form = reactive({
   },
   member: {
     enabled: true,
+    cancellation_cooldown: { enabled: false, window_seconds: 1800, max_canceled_orders: 3, block_seconds: 600 },
     max_pending_orders_per_user: 5,
     max_pending_orders_per_ip: 0,
     max_quantity_per_product_per_order: 0,
@@ -93,6 +94,11 @@ const loadNestedConfig = (data: Record<string, unknown>) => {
   form.member.max_pending_orders_per_ip = numberValue(member?.max_pending_orders_per_ip, 0)
   form.member.max_quantity_per_product_per_order = numberValue(member?.max_quantity_per_product_per_order, 0)
   applyRateLimit(form.member.rate_limit, member?.rate_limit, false)
+  const cooldown = member?.cancellation_cooldown as Record<string, unknown> | undefined
+  form.member.cancellation_cooldown.enabled = !!cooldown?.enabled
+  form.member.cancellation_cooldown.window_seconds = numberValue(cooldown?.window_seconds, 1800)
+  form.member.cancellation_cooldown.max_canceled_orders = numberValue(cooldown?.max_canceled_orders, 3)
+  form.member.cancellation_cooldown.block_seconds = numberValue(cooldown?.block_seconds, 600)
 }
 
 const loadFlatConfig = (data: Record<string, unknown>) => {
@@ -158,6 +164,12 @@ const save = async () => {
         },
         member: {
           enabled: form.member.enabled,
+          cancellation_cooldown: {
+            enabled: form.member.cancellation_cooldown.enabled,
+            window_seconds: Number(form.member.cancellation_cooldown.window_seconds),
+            max_canceled_orders: Number(form.member.cancellation_cooldown.max_canceled_orders),
+            block_seconds: Number(form.member.cancellation_cooldown.block_seconds),
+          },
           max_pending_orders_per_user: Number(form.member.max_pending_orders_per_user),
           max_pending_orders_per_ip: Number(form.member.max_pending_orders_per_ip),
           max_quantity_per_product_per_order: Number(form.member.max_quantity_per_product_per_order),
@@ -312,6 +324,17 @@ onMounted(loadConfig)
             <div class="space-y-2"><Label>{{ t('admin.settings.orderRiskControl.rateLimit.windowSeconds') }}</Label><Input v-model.number="form.member.rate_limit.window_seconds" type="number" min="10" max="3600" /></div>
             <div class="space-y-2"><Label>{{ t('admin.settings.orderRiskControl.rateLimit.maxRequests') }}</Label><Input v-model.number="form.member.rate_limit.max_requests" type="number" min="1" max="100" /></div>
             <div class="space-y-2"><Label>{{ t('admin.settings.orderRiskControl.rateLimit.blockSeconds') }}</Label><Input v-model.number="form.member.rate_limit.block_seconds" type="number" min="0" max="86400" /></div>
+          </div>
+        </div>
+        <div class="rounded-lg border p-4">
+          <div class="mb-4 flex items-center justify-between gap-4">
+            <div><Label>{{ t('admin.settings.orderRiskControl.cooldown.title') }}</Label><p class="mt-1 text-xs text-muted-foreground">{{ t('admin.settings.orderRiskControl.cooldown.hint') }}</p></div>
+            <Switch v-model="form.member.cancellation_cooldown.enabled" />
+          </div>
+          <div v-show="form.member.cancellation_cooldown.enabled" class="grid grid-cols-1 gap-4 sm:grid-cols-3">
+            <div class="space-y-2"><Label>{{ t('admin.settings.orderRiskControl.cooldown.windowSeconds') }}</Label><Input v-model.number="form.member.cancellation_cooldown.window_seconds" type="number" min="60" max="86400" /></div>
+            <div class="space-y-2"><Label>{{ t('admin.settings.orderRiskControl.cooldown.maxCanceledOrders') }}</Label><Input v-model.number="form.member.cancellation_cooldown.max_canceled_orders" type="number" min="1" max="100" /></div>
+            <div class="space-y-2"><Label>{{ t('admin.settings.orderRiskControl.cooldown.blockSeconds') }}</Label><Input v-model.number="form.member.cancellation_cooldown.block_seconds" type="number" min="60" max="86400" /></div>
           </div>
         </div>
       </div>

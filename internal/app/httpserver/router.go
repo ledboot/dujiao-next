@@ -65,6 +65,9 @@ func SetupRouter(cfg *config.Config, c *container.Container) *gin.Engine {
 	if err := configureTrustedProxies(r, cfg.Server.TrustedProxies); err != nil {
 		panic(fmt.Errorf("server.trusted_proxies 配置错误: %w", err))
 	}
+	if len(cfg.Server.ClientIPHeaders) > 0 {
+		r.RemoteIPHeaders = cfg.Server.ClientIPHeaders
+	}
 	captchaVerifier := captchahttp.NewVerifier(c.CaptchaService)
 
 	// 初始化 Handler（按前台/后台分组）

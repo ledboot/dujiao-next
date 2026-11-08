@@ -43,6 +43,7 @@ type AppConfig struct {
 
 // ServerConfig 服务器配置
 type ServerConfig struct {
+	ClientIPHeaders             []string `mapstructure:"client_ip_headers"`
 	DevDisableEmailVerification bool     `mapstructure:"dev_disable_email_verification"` // 仅本机 debug 开发生效
 	Host                        string   `mapstructure:"host"`
 	Port                        string   `mapstructure:"port"`
@@ -331,6 +332,7 @@ func Load() *Config {
 	viper.SetDefault("server.mode", "debug")
 	viper.SetDefault("server.dev_disable_email_verification", false)
 	viper.SetDefault("server.trusted_proxies", []string{"127.0.0.1/32", "::1/128"})
+	viper.SetDefault("server.client_ip_headers", []string{"X-Forwarded-For", "X-Real-IP"})
 	viper.SetDefault("log.dir", "")
 	viper.SetDefault("log.filename", "app.log")
 	viper.SetDefault("log.max_size_mb", 100)

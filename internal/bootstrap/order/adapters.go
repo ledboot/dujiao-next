@@ -499,6 +499,9 @@ func mapOrderTransportError(err error) error {
 	if err == nil {
 		return nil
 	}
+	if errors.Is(err, orderriskcontract.ErrOrderCooldown) {
+		return ordertransport.WrapRiskCooldown(orderriskcontract.GetRetryAfter(err), err)
+	}
 	if retryAfter := orderriskcontract.GetRetryAfter(err); retryAfter > 0 {
 		return ordertransport.WrapRiskRateLimited(retryAfter, err)
 	}

@@ -15,7 +15,7 @@ import (
 )
 
 // cancelOrderWithChildren 取消父订单并级联子订单
-func (s *OrderService) cancelOrderWithChildren(order *orderdomain.Order, rollbackCoupon bool) error {
+func (s *OrderService) cancelOrderWithChildren(order *orderdomain.Order, rollbackCoupon bool, reason string) error {
 	if order == nil {
 		return ErrOrderNotFound
 	}
@@ -37,8 +37,9 @@ func (s *OrderService) cancelOrderWithChildren(order *orderdomain.Order, rollbac
 			return ErrOrderCancelNotAllowed
 		}
 		updates := map[string]interface{}{
-			"canceled_at": now,
-			"updated_at":  now,
+			"canceled_at":   now,
+			"cancel_reason": reason,
+			"updated_at":    now,
 		}
 		if err := orderStore.UpdateStatus(order.ID, constants.OrderStatusCanceled, updates); err != nil {
 			return ErrOrderUpdateFailed
@@ -118,10 +119,12 @@ func (s *OrderService) cancelOrderWithChildren(order *orderdomain.Order, rollbac
 	}
 	order.Status = constants.OrderStatusCanceled
 	order.CanceledAt = &now
+	order.CancelReason = reason
 	order.UpdatedAt = now
 	for i := range order.Children {
 		order.Children[i].Status = constants.OrderStatusCanceled
 		order.Children[i].CanceledAt = &now
+		order.Children[i].CancelReason = reason
 		order.Children[i].UpdatedAt = now
 	}
 	return nil
@@ -140,7 +143,7 @@ func (s *OrderService) CancelOrder(orderID uint, userID uint) (*orderdomain.Orde
 		return nil, ErrOrderCancelNotAllowed
 	}
 	// 未支付订单取消时同步回滚优惠券用量
-	if err := s.cancelOrderWithChildren(order, true); err != nil {
+	if err := s.cancelOrderWithChildren(order, true, constants.OrderCancelReasonUser); err != nil {
 		if errors.Is(err, ErrOrderCancelNotAllowed) {
 			return nil, err
 		}
@@ -187,7 +190,7 @@ func (s *OrderService) UpdateOrderStatus(orderID uint, targetStatus string) (*or
 			if order.Status != constants.OrderStatusPendingPayment {
 				return nil, ErrOrderStatusInvalid
 			}
-			if err := s.cancelOrderWithChildren(order, true); err != nil {
+			if err := s.cancelOrderWithChildren(order, true, constants.OrderCancelReasonAdmin); err != nil {
 				return nil, ErrOrderUpdateFailed
 			}
 			if s.affiliateSvc != nil {
@@ -295,6 +298,7 @@ func (s *OrderService) UpdateOrderStatus(orderID uint, targetStatus string) (*or
 	}
 	if target == constants.OrderStatusCanceled {
 		updates["canceled_at"] = now
+		updates["cancel_reason"] = constants.OrderCancelReasonAdmin
 	}
 
 	if target == constants.OrderStatusCanceled {
@@ -320,6 +324,7 @@ func (s *OrderService) UpdateOrderStatus(orderID uint, targetStatus string) (*or
 	if v, ok := updates["canceled_at"]; ok {
 		if t, ok := v.(time.Time); ok {
 			order.CanceledAt = &t
+			order.CancelReason = constants.OrderCancelReasonAdmin
 		}
 	}
 	if order.ParentID != nil {
@@ -442,7 +447,7 @@ func (s *OrderService) CancelExpiredOrder(orderID uint) (*orderdomain.Order, err
 	if order.ExpiresAt.After(now) {
 		return order, nil
 	}
-	if err := s.cancelOrderWithChildren(order, true); err != nil {
+	if err := s.cancelOrderWithChildren(order, true, constants.OrderCancelReasonTimeout); err != nil {
 		return nil, err
 	}
 	if s.affiliateSvc != nil {
@@ -499,13 +504,14 @@ func ReopenCanceledOrderInTx(tx ordercontract.Transaction, order *orderdomain.Or
 
 	orderStore := tx.Orders()
 	reopenUpdates := func() map[string]interface{} {
-		return map[string]interface{}{"canceled_at": nil, "updated_at": now}
+		return map[string]interface{}{"canceled_at": nil, "cancel_reason": "", "updated_at": now}
 	}
 	if err := orderStore.UpdateStatus(order.ID, constants.OrderStatusPendingPayment, reopenUpdates()); err != nil {
 		return ErrOrderUpdateFailed
 	}
 	order.Status = constants.OrderStatusPendingPayment
 	order.CanceledAt = nil
+	order.CancelReason = ""
 	order.UpdatedAt = now
 
 	// 重新占用自动发货卡密与人工库存：取消时两者都已释放。
@@ -522,6 +528,7 @@ func ReopenCanceledOrderInTx(tx ordercontract.Transaction, order *orderdomain.Or
 			}
 			child.Status = constants.OrderStatusPendingPayment
 			child.CanceledAt = nil
+			child.CancelReason = ""
 			child.UpdatedAt = now
 			if err := reserveAutoSecretsByItems(secretRepo, child.ID, child.Items, now); err != nil {
 				return err

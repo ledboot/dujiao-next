@@ -2870,7 +2870,7 @@ const messages = {
           subtitle: '按游客与会员身份分别配置订单和库存占用保护。',
           master: {
             title: '订单风险防线',
-            subtitle: '总开关关闭时所有身份策略均不执行；商品自身的销售数量规则不受影响。',
+            subtitle: '总开关控制限频、总量和取消冷却；同一账号同一商品的待支付订单去重始终生效。',
           },
           statusEnabled: '防护已开启',
           statusDisabled: '防护未开启',
@@ -2908,6 +2908,13 @@ const messages = {
             windowSeconds: '时间窗口（秒）',
             maxRequests: '最大下单次数',
             blockSeconds: '超限封禁时长（秒）',
+          },
+          cooldown: {
+            title: '取消/超时冷却',
+            hint: '按账号累计主动取消和超时未支付的父订单；管理员取消和系统故障回滚不计入。达到阈值后暂停新下单，已有订单仍可支付。',
+            windowSeconds: '统计时间窗口（秒）',
+            maxCanceledOrders: '触发冷却的订单数',
+            blockSeconds: '冷却时长（秒）',
           },
           ipBlacklist: {
             title: 'IP 黑名单',
@@ -7472,7 +7479,7 @@ const messages = {
           subtitle: '按遊客與會員身份分別配置訂單和庫存佔用保護。',
           master: {
             title: '訂單風險防線',
-            subtitle: '總開關關閉時所有身份策略均不執行；商品自身的銷售數量規則不受影響。',
+            subtitle: '總開關控制頻率、總量和取消冷卻；同一帳號同一商品的待付款訂單去重始終生效。',
           },
           statusEnabled: '防護已開啟',
           statusDisabled: '防護未開啟',
@@ -7510,6 +7517,13 @@ const messages = {
             windowSeconds: '時間窗口（秒）',
             maxRequests: '最大下單次數',
             blockSeconds: '超限封禁時長（秒）',
+          },
+          cooldown: {
+            title: '取消/逾時冷卻',
+            hint: '按帳號累計主動取消和逾時未付款的父訂單；管理員取消和系統故障回滾不計入。達到門檻後暫停新下單，已有訂單仍可付款。',
+            windowSeconds: '統計時間視窗（秒）',
+            maxCanceledOrders: '觸發冷卻的訂單數',
+            blockSeconds: '冷卻時長（秒）',
           },
           ipBlacklist: {
             title: 'IP 黑名單',
@@ -12074,7 +12088,7 @@ const messages = {
           subtitle: 'Configure order and inventory protection separately for guests and members.',
           master: {
             title: 'Order Risk Guard',
-            subtitle: 'When the master switch is off, identity policies are skipped. Product sales quantity rules still apply.',
+            subtitle: 'The master switch controls rate limits, pending order limits and cancellation cooldowns. Duplicate unpaid orders for the same account and product are always blocked.',
           },
           statusEnabled: 'Protection enabled',
           statusDisabled: 'Protection disabled',
@@ -12112,6 +12126,13 @@ const messages = {
             windowSeconds: 'Time window (seconds)',
             maxRequests: 'Max orders',
             blockSeconds: 'Block duration (seconds)',
+          },
+          cooldown: {
+            title: 'Cancellation cooldown',
+            hint: 'Counts unpaid parent orders canceled by the buyer or timeout. Admin cancellations and system rollbacks are excluded. New orders pause at the threshold; existing orders remain payable.',
+            windowSeconds: 'History window (seconds)',
+            maxCanceledOrders: 'Canceled orders threshold',
+            blockSeconds: 'Cooldown (seconds)',
           },
           ipBlacklist: {
             title: 'IP Blacklist',

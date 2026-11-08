@@ -45,6 +45,7 @@ var (
 	ErrRiskProductQuantityLimit  = errors.New("risk: product quantity limit")
 	ErrRiskPendingProductLimit   = errors.New("risk: pending product quantity limit")
 	ErrRiskOrderRateLimited      = errors.New("risk: order rate limited")
+	ErrRiskOrderCooldown         = errors.New("risk: order cancellation cooldown")
 )
 
 type riskRateLimitedError struct {
@@ -75,6 +76,10 @@ func WrapRiskRateLimited(retryAfter int64, err error) error {
 		wrapped = fmt.Errorf("%w: %v", ErrRiskOrderRateLimited, err)
 	}
 	return &riskRateLimitedError{retryAfter: retryAfter, err: wrapped}
+}
+
+func WrapRiskCooldown(retryAfter int64, err error) error {
+	return &riskRateLimitedError{retryAfter: retryAfter, err: fmt.Errorf("%w: %v", ErrRiskOrderCooldown, err)}
 }
 
 // OrderItemRequest 订单项请求
@@ -335,6 +340,7 @@ var orderRiskControlErrorRules = []mappedError{
 	{target: ErrRiskProductQuantityLimit, code: response.CodeBadRequest, key: "error.risk_product_quantity_limit"},
 	{target: ErrRiskPendingProductLimit, code: response.CodeTooManyRequests, key: "error.risk_pending_product_quantity_limit"},
 	{target: ErrRiskOrderRateLimited, code: response.CodeTooManyRequests, key: "error.risk_order_rate_limited"},
+	{target: ErrRiskOrderCooldown, code: response.CodeTooManyRequests, key: "error.risk_order_cooldown"},
 }
 
 var guestOrderCreateExtraErrorRules = []mappedError{

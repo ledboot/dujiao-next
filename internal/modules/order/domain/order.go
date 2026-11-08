@@ -44,9 +44,10 @@ type Order struct {
 	ExpiresAt               *time.Time   `gorm:"index" json:"expires_at"`                                                  // 过期时间
 	PaidAt                  *time.Time   `gorm:"index" json:"paid_at"`                                                     // 支付时间
 	CanceledAt              *time.Time   `gorm:"index" json:"canceled_at"`                                                 // 取消时间
-	CreatedAt               time.Time    `gorm:"index" json:"created_at"`                                                  // 创建时间
-	UpdatedAt               time.Time    `gorm:"index" json:"updated_at"`                                                  // 更新时间
-	DeletedAt               *time.Time   `gorm:"index;index:idx_orders_risk_pending,priority:5" json:"-"`                  // 软删除时间
+	CancelReason            string       `gorm:"type:varchar(32);not null;default:''" json:"cancel_reason,omitempty"`
+	CreatedAt               time.Time    `gorm:"index" json:"created_at"`                                 // 创建时间
+	UpdatedAt               time.Time    `gorm:"index" json:"updated_at"`                                 // 更新时间
+	DeletedAt               *time.Time   `gorm:"index;index:idx_orders_risk_pending,priority:5" json:"-"` // 软删除时间
 
 	Items []OrderItem `gorm:"foreignKey:OrderID" json:"items,omitempty"` // 订单项
 	// 关联

@@ -65,6 +65,13 @@ func TestCancelOrderPreservesInvoiceAndPaymentFeeSnapshots(t *testing.T) {
 			if err := db.First(&storedOrder, order.ID).Error; err != nil {
 				t.Fatal(err)
 			}
+			wantReason := constants.OrderCancelReasonUser
+			if automatic {
+				wantReason = constants.OrderCancelReasonTimeout
+			}
+			if storedOrder.CancelReason != wantReason {
+				t.Fatalf("cancel reason=%s want=%s", storedOrder.CancelReason, wantReason)
+			}
 			var storedPayment paymentdomain.Payment
 			if err := db.First(&storedPayment, payment.ID).Error; err != nil {
 				t.Fatal(err)

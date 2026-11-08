@@ -3,10 +3,12 @@ package application
 import (
 	"crypto/sha256"
 	"fmt"
+	"math"
 	"net"
 	"sort"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/dujiao-next/internal/logger"
 	orderriskcontract "github.com/dujiao-next/internal/modules/orderrisk/contract"
@@ -242,6 +244,18 @@ func checkMemberPendingOrder(input orderriskcontract.CheckInput, policy settings
 	if !policy.Enabled {
 		return nil
 	}
+	if input.UserID > 0 && policy.CancellationCooldown.Enabled {
+		now := time.Now()
+		cooldown := policy.CancellationCooldown
+		// Include the cooldown horizon so a rolling window cannot end a block early.
+		history, err := gate.RecentMemberCancellations(input.UserID, now.Add(-time.Duration(cooldown.WindowSeconds+cooldown.BlockSeconds)*time.Second))
+		if err != nil {
+			return err
+		}
+		if until := cancellationCooldownUntil(history, cooldown); until.After(now) {
+			return &orderriskcontract.CooldownError{RetryAfter: int64(math.Ceil(until.Sub(now).Seconds()))}
+		}
+	}
 	if input.UserID > 0 && policy.MaxPendingOrdersPerUser > 0 {
 		count, err := gate.CountPendingByUserID(input.UserID)
 		if err != nil {
@@ -261,6 +275,21 @@ func checkMemberPendingOrder(input orderriskcontract.CheckInput, policy settings
 		}
 	}
 	return nil
+}
+
+// Each threshold-reaching window blocks from its newest cancellation. Checking
+// historical windows preserves a full cooldown even after older events age out.
+func cancellationCooldownUntil(history []time.Time, cfg settingssecurity.OrderCancellationCooldownConfig) time.Time {
+	if cfg.MaxCanceledOrders < 1 {
+		return time.Time{}
+	}
+	sort.Slice(history, func(i, j int) bool { return history[i].After(history[j]) })
+	for i := 0; i+cfg.MaxCanceledOrders <= len(history); i++ {
+		if history[i].Sub(history[i+cfg.MaxCanceledOrders-1]) <= time.Duration(cfg.WindowSeconds)*time.Second {
+			return history[i].Add(time.Duration(cfg.BlockSeconds) * time.Second)
+		}
+	}
+	return time.Time{}
 }
 
 func (s *Service) getOrBuildBlacklist(blacklist []string) *parsedIPBlacklist {

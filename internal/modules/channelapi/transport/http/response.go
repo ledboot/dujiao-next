@@ -38,6 +38,7 @@ var channelOrderCreateErrorRules = []mappedChannelError{
 	channelErrorRule(ErrRiskProductQuantityLimit, http.StatusBadRequest, response.CodeBadRequest, "quantity_limit_exceeded", "error.risk_product_quantity_limit"),
 	channelErrorRule(ErrRiskPendingProductLimit, http.StatusTooManyRequests, response.CodeTooManyRequests, "risk_blocked", "error.risk_pending_product_quantity_limit"),
 	channelErrorRule(ErrRiskOrderRateLimited, http.StatusTooManyRequests, response.CodeTooManyRequests, "risk_blocked", "error.risk_order_rate_limited"),
+	channelErrorRule(ErrRiskOrderCooldown, http.StatusTooManyRequests, response.CodeTooManyRequests, "risk_blocked", "error.risk_order_cooldown"),
 	channelErrorRule(ErrProductSKURequired, http.StatusBadRequest, response.CodeBadRequest, "validation_error", "error.order_item_invalid"),
 	channelErrorRule(ErrProductSKUInvalid, http.StatusBadRequest, response.CodeBadRequest, "sku_not_found", "error.order_item_invalid"),
 	channelErrorRule(ErrInvalidOrderItem, http.StatusBadRequest, response.CodeBadRequest, "validation_error", "error.order_item_invalid"),

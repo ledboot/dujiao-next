@@ -16,6 +16,10 @@ server:
   trusted_proxies:
     - 127.0.0.1/32
     - ::1/128
+  # 转发头只对上述可信代理生效。使用 CF-Connecting-IP 前须在代理端覆盖/清洗该头。
+  client_ip_headers:
+    - X-Forwarded-For
+    - X-Real-IP
 
 log:
   dir: ""  # 为空时使用当前运行目录/logs

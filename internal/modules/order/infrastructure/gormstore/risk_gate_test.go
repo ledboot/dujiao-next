@@ -216,3 +216,38 @@ func TestPendingProductMatchesIdentityAndOrderLifecycle(t *testing.T) {
 		})
 	}
 }
+
+func TestRecentMemberCancellationsExcludeAdministrativeAndSystemActions(t *testing.T) {
+	db := setupRiskGateDB(t)
+	store := New(db, "cooldown-test-secret")
+	now := time.Now()
+	old := now.Add(-time.Hour)
+	for i, reason := range []string{constants.OrderCancelReasonUser, constants.OrderCancelReasonTimeout, constants.OrderCancelReasonAdmin, constants.OrderCancelReasonSystem, ""} {
+		parent := orderdomain.Order{OrderNo: fmt.Sprintf("cancel-%d", i), UserID: 9, Status: constants.OrderStatusCanceled, CancelReason: reason, CanceledAt: &now}
+		if err := db.Create(&parent).Error; err != nil {
+			t.Fatal(err)
+		}
+		child := parent
+		child.ID = 0
+		child.ParentID = &parent.ID
+		child.OrderNo += "-child"
+		if err := db.Create(&child).Error; err != nil {
+			t.Fatal(err)
+		}
+	}
+	for i, order := range []orderdomain.Order{
+		{UserID: 10, Status: constants.OrderStatusCanceled, CanceledAt: &now, CancelReason: constants.OrderCancelReasonUser},
+		{UserID: 9, Status: constants.OrderStatusCanceled, CanceledAt: &old, CancelReason: constants.OrderCancelReasonUser},
+		{UserID: 9, Status: constants.OrderStatusCanceled, CanceledAt: &now, PaidAt: &now, CancelReason: constants.OrderCancelReasonUser},
+		{UserID: 9, Status: constants.OrderStatusCanceled, CanceledAt: &now, DeletedAt: &now, CancelReason: constants.OrderCancelReasonUser},
+	} {
+		order.OrderNo = fmt.Sprintf("excluded-%d", i)
+		if err := db.Create(&order).Error; err != nil {
+			t.Fatal(err)
+		}
+	}
+	history, err := store.RecentMemberCancellations(9, now.Add(-30*time.Minute))
+	if err != nil || len(history) != 2 {
+		t.Fatalf("history=%v err=%v", history, err)
+	}
+}

@@ -32,6 +32,7 @@ var (
 	ErrRiskProductQuantityLimit      = errors.New("risk product quantity limit")
 	ErrRiskPendingProductLimit       = errors.New("risk pending product quantity limit")
 	ErrRiskOrderRateLimited          = errors.New("order rate limited")
+	ErrRiskOrderCooldown             = errors.New("order cancellation cooldown")
 	ErrProductSKURequired            = errors.New("product sku required")
 	ErrProductSKUInvalid             = errors.New("product sku invalid")
 	ErrInvalidOrderItem              = errors.New("invalid order item")

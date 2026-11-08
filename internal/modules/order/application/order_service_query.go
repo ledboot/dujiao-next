@@ -87,7 +87,7 @@ func (s *OrderService) ensureOrderCanceledIfExpired(order *orderdomain.Order) er
 	if order.ExpiresAt.After(time.Now()) {
 		return nil
 	}
-	if err := s.cancelOrderWithChildren(order, true); err != nil {
+	if err := s.cancelOrderWithChildren(order, true, constants.OrderCancelReasonTimeout); err != nil {
 		return err
 	}
 	return nil

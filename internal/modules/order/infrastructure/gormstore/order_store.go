@@ -699,6 +699,27 @@ func (r *Store) HasPendingProductByUserID(userID uint, productIDs []uint) (bool,
 	return id != 0, err
 }
 
+// RecentMemberCancellations excludes administrative actions, system rollbacks and paid orders.
+func (r *Store) RecentMemberCancellations(userID uint, since time.Time) ([]time.Time, error) {
+	var rows []struct{ CanceledAt time.Time }
+	if userID == 0 {
+		return nil, nil
+	}
+	err := r.db.Model(&orderdomain.Order{}).Select("canceled_at").
+		Where("deleted_at IS NULL AND parent_id IS NULL AND user_id = ? AND paid_at IS NULL", userID).
+		Where("status = ? AND cancel_reason IN ? AND canceled_at >= ?", constants.OrderStatusCanceled,
+			[]string{constants.OrderCancelReasonUser, constants.OrderCancelReasonTimeout}, since).
+		Order("canceled_at DESC").Find(&rows).Error
+	if err != nil {
+		return nil, err
+	}
+	result := make([]time.Time, 0, len(rows))
+	for _, row := range rows {
+		result = append(result, row.CanceledAt)
+	}
+	return result, nil
+}
+
 // LockRiskKeys 在当前事务中按固定顺序锁定风控维度；数据库只保存 SHA-256 摘要。
 func (r *Store) LockRiskKeys(keys []string) error {
 	if len(keys) == 0 {
