@@ -142,11 +142,11 @@ func (s *Service) SyncProduct(mappingID uint) error {
 		if localSKU != nil {
 			localSKU.SpecValuesJSON = upSKU.SpecValues
 			localSKU.IsActive = upSKU.IsActive
-			// 如果启用了自动同步价格，按加价比例更新本地售价和成本价
+			// 成本价始终跟随上游；自动同步价格开关仅控制本地售价
+			localSKU.CostPriceAmount = money.FromDecimal(convertCurrency(upPrice, conn.ExchangeRate).Round(2))
 			if conn.AutoSyncPrice {
 				newLocalPrice := CalculateLocalPrice(upPrice, conn.ExchangeRate, conn.PriceMarkupPercent, conn.PriceRoundingMode)
 				localSKU.PriceAmount = money.FromDecimal(newLocalPrice.Round(2))
-				localSKU.CostPriceAmount = money.FromDecimal(convertCurrency(upPrice, conn.ExchangeRate).Round(2))
 			}
 			_ = s.skus.Update(localSKU)
 		}
@@ -185,9 +185,9 @@ func (s *Service) SyncProduct(mappingID uint) error {
 		_ = s.skuMappings.Create(newMapping)
 	}
 
-	// ── 2c. 如果启用了自动同步价格，更新 Product.PriceAmount 为最低 SKU 价格 ──
-	if conn.AutoSyncPrice && localProduct != nil {
-		s.recalcProductPrice(localProduct)
+	// ── 2c. 汇总最低活跃 SKU 成本价，按开关决定是否更新售价 ──
+	if localProduct != nil {
+		s.recalcProductPrice(localProduct, conn.AutoSyncPrice)
 	}
 
 	// 批发价独立于普通售价同步开关，开启时以本次上游阶梯覆盖本地配置。
@@ -688,10 +688,10 @@ func (s *Service) syncProductFromData(mapping *mappingdomain.Mapping, conn *site
 		if localSKU != nil {
 			localSKU.SpecValuesJSON = upSKU.SpecValues
 			localSKU.IsActive = upSKU.IsActive
+			localSKU.CostPriceAmount = money.FromDecimal(convertCurrency(upPrice, conn.ExchangeRate).Round(2))
 			if conn.AutoSyncPrice {
 				newLocalPrice := CalculateLocalPrice(upPrice, conn.ExchangeRate, conn.PriceMarkupPercent, conn.PriceRoundingMode)
 				localSKU.PriceAmount = money.FromDecimal(newLocalPrice.Round(2))
-				localSKU.CostPriceAmount = money.FromDecimal(convertCurrency(upPrice, conn.ExchangeRate).Round(2))
 			}
 			_ = s.skus.Update(localSKU)
 		}
@@ -736,9 +736,9 @@ func (s *Service) syncProductFromData(mapping *mappingdomain.Mapping, conn *site
 		_ = s.skuMappings.Create(newSKUMapping)
 	}
 
-	// 同步价格
-	if conn.AutoSyncPrice && localProduct != nil {
-		s.recalcProductPrice(localProduct)
+	// 成本价始终同步，售价由自动同步价格开关控制。
+	if localProduct != nil {
+		s.recalcProductPrice(localProduct, conn.AutoSyncPrice)
 	}
 
 	if conn.SyncWholesalePrice {
