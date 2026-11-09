@@ -8,6 +8,7 @@ import (
 	admindomain "github.com/dujiao-next/internal/modules/identity/admin/domain"
 	"github.com/dujiao-next/internal/shared/jsonmap"
 	"github.com/dujiao-next/internal/shared/money"
+	"github.com/shopspring/decimal"
 )
 
 // LedgerEntry 分销商资金流水。
@@ -36,19 +37,23 @@ func (LedgerEntry) TableName() string { return "reseller_ledger_entries" }
 
 // WithdrawRequest 分销商提现申请。
 type WithdrawRequest struct {
-	ID           uint         `gorm:"primarykey" json:"id"`
-	ResellerID   uint         `gorm:"not null;index" json:"reseller_id"`
-	Amount       money.Amount `gorm:"type:decimal(20,2);not null;default:0" json:"amount"`
-	Currency     string       `gorm:"type:varchar(16);not null;index" json:"currency"`
-	Channel      string       `gorm:"type:varchar(64);not null" json:"channel"`
-	Account      string       `gorm:"type:varchar(255);not null" json:"account"`
-	Status       string       `gorm:"type:varchar(32);not null;index" json:"status"`
-	RejectReason string       `gorm:"type:text" json:"reject_reason,omitempty"`
-	ProcessedBy  *uint        `gorm:"index" json:"processed_by,omitempty"`
-	ProcessedAt  *time.Time   `gorm:"index" json:"processed_at,omitempty"`
-	CreatedAt    time.Time    `gorm:"index" json:"created_at"`
-	UpdatedAt    time.Time    `gorm:"index" json:"updated_at"`
-	DeletedAt    *time.Time   `gorm:"index" json:"-"`
+	ExchangeRate        decimal.Decimal `gorm:"type:decimal(20,8);not null;default:0" json:"exchange_rate"`
+	EstimatedUSDTAmount money.Amount    `gorm:"type:decimal(20,2);not null;default:0" json:"estimated_usdt_amount"`
+	PayoutRate          decimal.Decimal `gorm:"type:decimal(20,8);not null;default:0" json:"payout_rate"`
+	PayoutUSDTAmount    money.Amount    `gorm:"type:decimal(20,2);not null;default:0" json:"payout_usdt_amount"`
+	ID                  uint            `gorm:"primarykey" json:"id"`
+	ResellerID          uint            `gorm:"not null;index" json:"reseller_id"`
+	Amount              money.Amount    `gorm:"type:decimal(20,2);not null;default:0" json:"amount"`
+	Currency            string          `gorm:"type:varchar(16);not null;index" json:"currency"`
+	Channel             string          `gorm:"type:varchar(64);not null" json:"channel"`
+	Account             string          `gorm:"type:varchar(255);not null" json:"account"`
+	Status              string          `gorm:"type:varchar(32);not null;index" json:"status"`
+	RejectReason        string          `gorm:"type:text" json:"reject_reason,omitempty"`
+	ProcessedBy         *uint           `gorm:"index" json:"processed_by,omitempty"`
+	ProcessedAt         *time.Time      `gorm:"index" json:"processed_at,omitempty"`
+	CreatedAt           time.Time       `gorm:"index" json:"created_at"`
+	UpdatedAt           time.Time       `gorm:"index" json:"updated_at"`
+	DeletedAt           *time.Time      `gorm:"index" json:"-"`
 
 	Profile   *Profile           `gorm:"foreignKey:ResellerID" json:"profile,omitempty"`
 	Processor *admindomain.Admin `gorm:"foreignKey:ProcessedBy" json:"processor,omitempty"`

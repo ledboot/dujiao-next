@@ -83,7 +83,7 @@ const sortMoneyValues = (items: string[]) => {
 
 const isSkuListed = (sku: ResellerProductSettingSKULike) => {
   if (sku.is_active === false) return false
-  return sku.setting?.is_listed !== false
+  return sku.setting?.is_listed !== false && Number(sku.effective_price_amount || sku.setting?.effective_price_amount) > 0
 }
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
@@ -152,13 +152,14 @@ export const buildResellerProductSettingPayload = (items: ResellerProductSetting
 
 export const summarizeEffectivePrice = (setting?: ResellerProductSettingDataLike | null) => {
   const value = String(setting?.effective_price_amount || '').trim()
-  return value || '-'
+  return Number(value) > 0 ? value : '-'
 }
 
 export const countListedSkus = (detail?: ResellerProductSettingDetailLike | null) => {
   const skus = detail?.skus || []
+  if (detail?.product_setting?.is_listed === false) return 0
   if (skus.length === 0) {
-    return detail?.product_setting?.is_listed === false ? 0 : 1
+    return Number(detail?.product_setting?.effective_price_amount) > 0 ? 1 : 0
   }
   return skus.filter(isSkuListed).length
 }
@@ -183,8 +184,9 @@ export const summarizeProductEffectivePrice = (
     const sorted = sortMoneyValues(skuPrices)
     return sorted.length === 1 ? sorted[0] : `${sorted[0]} - ${sorted[sorted.length - 1]}`
   }
+  if (skus.length > 0) return fallback
   const productPrice = normalizeMoneyText(detail?.product_setting?.effective_price_amount)
-  return productPrice || fallback
+  return Number(productPrice) > 0 ? productPrice : fallback
 }
 
 export const getResellerRuleSourceLabelKey = (source?: string) => {

@@ -5,8 +5,8 @@
         <div class="truncate text-sm font-bold text-foreground">{{ label }}</div>
         <div class="mt-1 flex flex-wrap items-center gap-1.5">
           <Badge variant="neutral" size="xs">{{ t('personalCenter.reseller.productSettings.basePrice') }} {{ basePrice }}</Badge>
-          <Badge :variant="invalid ? 'danger' : 'accent'" size="xs">{{ t('personalCenter.reseller.productSettings.effectivePrice') }} {{ effectivePrice || '-' }}</Badge>
-          <span v-if="invalid && errorHint" class="text-xs font-medium text-destructive">{{ errorHint }}</span>
+          <Badge :variant="invalid ? 'danger' : 'accent'" size="xs">{{ t('personalCenter.reseller.productSettings.effectivePrice') }} {{ hasSalePrice ? effectivePrice : '-' }}</Badge>
+          <span v-if="hasSalePrice && invalid && errorHint" class="text-xs font-medium text-destructive">{{ errorHint }}</span>
         </div>
       </div>
       <label class="inline-flex items-center gap-2 text-sm text-foreground">
@@ -14,6 +14,10 @@
         {{ t('personalCenter.reseller.productSettings.listed') }}
       </label>
     </div>
+
+    <Alert v-if="!hasSalePrice" variant="destructive">
+      <AlertDescription>{{ t('personalCenter.reseller.productSettings.priceNotSetHint') }}</AlertDescription>
+    </Alert>
 
     <div class="grid grid-cols-1 gap-3 md:grid-cols-[220px_minmax(0,1fr)]">
       <Select :model-value="modelValue.pricing_mode" @update:model-value="(v) => updateString('pricing_mode', v)">
@@ -59,6 +63,7 @@
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { Badge } from '@/components/ui/badge'
+import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Switch } from '@/components/ui/switch'
@@ -78,6 +83,8 @@ const emit = defineEmits<{
 }>()
 
 const { t } = useI18n()
+
+const hasSalePrice = computed(() => Number(props.effectivePrice) > 0)
 
 const errorHint = computed(() => {
   if (!props.invalid) return ''

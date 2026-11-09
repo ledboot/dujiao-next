@@ -1,6 +1,7 @@
 package application
 
 import (
+	productcontract "github.com/dujiao-next/internal/modules/catalog/product/contract"
 	"strings"
 
 	resellercontract "github.com/dujiao-next/internal/modules/reseller/contract"
@@ -29,23 +30,23 @@ type PricingRule struct {
 	FixedPriceAmount  decimal.Decimal
 }
 
-// ResolveUnitAmount 按 SKU → 商品 → 资料默认加价 → 继承底价的优先级解析成交单价。
+// ResolveUnitAmount 解析商品自身规则；SKU 场景必须使用 ResolveSKUUnitAmount，禁止回退商品价。
 func ResolveUnitAmount(profile *resellerdomain.Profile, productSetting *resellerdomain.ProductSetting, skuSetting *resellerdomain.ProductSetting, baseUnit decimal.Decimal) (decimal.Decimal, PricingRule, error) {
-	if skuSetting != nil && strings.TrimSpace(skuSetting.PricingMode) != resellerdomain.PricingModeInherit {
-		return ApplyPricingRule(*skuSetting, RuleSourceSKU, baseUnit)
+	if skuSetting != nil {
+		return ResolveSKUUnitAmount(skuSetting, baseUnit)
 	}
 	if productSetting != nil && strings.TrimSpace(productSetting.PricingMode) != resellerdomain.PricingModeInherit {
 		return ApplyPricingRule(*productSetting, RuleSourceProduct, baseUnit)
 	}
-	if profile != nil && profile.DefaultMarkupPercent.Decimal.GreaterThan(decimal.Zero) {
-		rule := PricingRule{
-			Mode:          resellerdomain.PricingModeMarkupPercent,
-			Source:        RuleSourceProfile,
-			MarkupPercent: profile.DefaultMarkupPercent.Decimal.Round(2),
-		}
-		return ApplyMarkupPercent(baseUnit, rule.MarkupPercent), rule, nil
+	return decimal.Zero, PricingRule{Mode: resellerdomain.PricingModeInherit, Source: RuleSourceInherit}, productcontract.ErrResellerProductNotListed
+}
+
+// ResolveSKUUnitAmount requires every SKU to have its own explicit sale rule.
+func ResolveSKUUnitAmount(setting *resellerdomain.ProductSetting, baseUnit decimal.Decimal) (decimal.Decimal, PricingRule, error) {
+	if setting == nil || strings.TrimSpace(setting.PricingMode) == "" || strings.TrimSpace(setting.PricingMode) == resellerdomain.PricingModeInherit {
+		return decimal.Zero, PricingRule{Mode: resellerdomain.PricingModeInherit, Source: RuleSourceInherit}, productcontract.ErrResellerProductNotListed
 	}
-	return baseUnit.Round(2), PricingRule{Mode: resellerdomain.PricingModeInherit, Source: RuleSourceInherit}, nil
+	return ApplyPricingRule(*setting, RuleSourceSKU, baseUnit)
 }
 
 // ResolveSupplyPrice prefers reseller SKU/product overrides, then ordered catalog defaults, then retail.
@@ -83,7 +84,7 @@ func ApplyPricingRule(setting resellerdomain.ProductSetting, source string, base
 	case resellerdomain.PricingModeFixedPrice:
 		return rule.FixedPriceAmount.Round(2), rule, nil
 	case resellerdomain.PricingModeInherit:
-		return baseUnit.Round(2), rule, nil
+		return decimal.Zero, rule, productcontract.ErrResellerProductNotListed
 	default:
 		return decimal.Zero, rule, resellercontract.ErrPricingModeInvalid
 	}

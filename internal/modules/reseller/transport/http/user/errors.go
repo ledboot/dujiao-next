@@ -3,6 +3,7 @@ package userhttp
 import (
 	"errors"
 	resellercontract "github.com/dujiao-next/internal/modules/reseller/contract"
+	settingscontract "github.com/dujiao-next/internal/modules/settings/contract"
 
 	productcontract "github.com/dujiao-next/internal/modules/catalog/product/contract"
 
@@ -93,6 +94,9 @@ func respondUserProductSettingError(c *gin.Context, err error, fallbackKey strin
 }
 
 var userFinanceErrorRules = []mappedError{
+	{target: settingscontract.ErrExchangeRateUnavailable, code: response.CodeBadRequest, key: "error.exchange_rate_unavailable"},
+	{target: resellermodule.ErrWithdrawAddressInvalid, code: response.CodeBadRequest, key: "error.reseller_withdraw_address_invalid"},
+	{target: resellermodule.ErrWithdrawBelowMinimum, code: response.CodeBadRequest, key: "error.reseller_withdraw_minimum"},
 	{target: resellermodule.ErrNotOpened, code: response.CodeBadRequest, key: "error.bad_request"},
 	{target: resellermodule.ErrProfileInactive, code: response.CodeBadRequest, key: "error.reseller_profile_inactive"},
 	{target: resellermodule.ErrSettlementUnavailable, code: response.CodeBadRequest, key: "error.reseller_settlement_unavailable"},

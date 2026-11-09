@@ -1,7 +1,10 @@
 package adminhttp
 
 import (
+	"context"
 	"errors"
+	settingscontract "github.com/dujiao-next/internal/modules/settings/contract"
+	"github.com/shopspring/decimal"
 	"strings"
 	"time"
 
@@ -151,7 +154,23 @@ func (h *AdminFinanceHandler) PayWithdraw(c *gin.Context) {
 		ginutil.RespondError(c, response.CodeBadRequest, "error.bad_request", nil)
 		return
 	}
-	row, err := h.reviewer.ReviewWithdraw(adminID, id, "pay", "")
+	var row *resellerdomain.WithdrawRequest
+	if reviewer, ok := h.reviewer.(interface {
+		ReviewWithdrawAtRate(uint, uint, decimal.Decimal) (*resellerdomain.WithdrawRequest, error)
+	}); ok {
+		var req struct {
+			PayoutRate decimal.Decimal `json:"payout_rate"`
+		}
+		if c.Request.ContentLength > 0 {
+			if err := c.ShouldBindJSON(&req); err != nil {
+				ginutil.RespondBindError(c, err)
+				return
+			}
+		}
+		row, err = reviewer.ReviewWithdrawAtRate(adminID, id, req.PayoutRate)
+	} else {
+		row, err = h.reviewer.ReviewWithdraw(adminID, id, "pay", "")
+	}
 	if err != nil {
 		respondAdminWithdrawReviewError(c, err)
 		return
@@ -163,6 +182,16 @@ func respondAdminWithdrawReviewError(c *gin.Context, err error) {
 	switch {
 	case errors.Is(err, productcontract.ErrNotFound):
 		ginutil.RespondError(c, response.CodeNotFound, "error.bad_request", nil)
+	case errors.Is(err, settingscontract.ErrExchangeRateUnavailable):
+		ginutil.RespondError(c, response.CodeBadRequest, "error.exchange_rate_unavailable", nil)
+	case errors.Is(err, resellermodule.ErrWithdrawCurrencyUnavailable):
+		ginutil.RespondError(c, response.CodeBadRequest, "error.reseller_withdraw_currency_unavailable", nil)
+	case errors.Is(err, resellermodule.ErrWithdrawAddressInvalid):
+		ginutil.RespondError(c, response.CodeBadRequest, "error.reseller_withdraw_address_invalid", nil)
+	case errors.Is(err, resellermodule.ErrWithdrawBelowMinimum):
+		ginutil.RespondError(c, response.CodeBadRequest, "error.reseller_withdraw_minimum", nil)
+	case errors.Is(err, resellermodule.ErrWithdrawAmountInvalid):
+		ginutil.RespondError(c, response.CodeBadRequest, "error.reseller_withdraw_amount_invalid", nil)
 	case errors.Is(err, resellermodule.ErrWithdrawStatusInvalid):
 		ginutil.RespondError(c, response.CodeBadRequest, "error.bad_request", nil)
 	default:
@@ -179,4 +208,25 @@ func parseFinanceTimePointer(raw string) *time.Time {
 		return &t
 	}
 	return nil
+}
+
+func (h *AdminFinanceHandler) GetPayoutQuote(c *gin.Context) {
+	id, err := ginutil.ParseParamUint(c, "id")
+	if err != nil {
+		ginutil.RespondError(c, response.CodeBadRequest, "error.bad_request", nil)
+		return
+	}
+	provider, ok := h.reviewer.(interface {
+		GetWithdrawPayoutQuote(context.Context, uint) (resellermodule.WithdrawPayoutQuote, error)
+	})
+	if !ok {
+		ginutil.RespondError(c, response.CodeBadRequest, "error.exchange_rate_unavailable", nil)
+		return
+	}
+	quote, err := provider.GetWithdrawPayoutQuote(c.Request.Context(), id)
+	if err != nil {
+		respondAdminWithdrawReviewError(c, err)
+		return
+	}
+	response.Success(c, quote)
 }

@@ -73,6 +73,7 @@
           <div class="rounded-lg border border-primary/20 bg-primary/5 px-3 py-2">
             <div class="text-[11px] font-semibold uppercase tracking-[0.12em] text-primary">{{ t('personalCenter.reseller.productSettings.effectivePrice') }}</div>
             <div class="mt-1 font-mono text-sm font-bold text-primary">{{ summarizeProductEffectivePrice(row) }}</div>
+            <Alert v-if="summarizeProductEffectivePrice(row) === '-'" variant="destructive" class="mt-2"><AlertDescription>{{ t('personalCenter.reseller.productSettings.priceNotSetHint') }}</AlertDescription></Alert>
           </div>
           <div class="rounded-lg border bg-muted/30 px-3 py-2">
             <div class="text-[11px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">{{ t('personalCenter.reseller.productSettings.listedSkuCount') }}</div>

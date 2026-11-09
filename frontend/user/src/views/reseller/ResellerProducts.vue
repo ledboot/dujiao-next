@@ -25,7 +25,7 @@
         <div class="flex items-center justify-between gap-3">
           <div>
             <p class="text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">{{ t('resellerConsole.products.cards.defaultMarkup') }}</p>
-            <div class="mt-2 font-mono text-2xl font-black text-foreground">{{ profile?.default_markup_percent || '0.00' }}%</div>
+            <div class="mt-2 text-sm font-bold text-destructive">{{ t('personalCenter.reseller.productSettings.priceNotSetHint') }}</div>
           </div>
           <span class="flex h-11 w-11 items-center justify-center rounded-xl bg-primary/10 text-primary">
             <Percent class="h-5 w-5" />

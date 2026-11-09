@@ -217,7 +217,7 @@ func TestResellerPricingRepositoryProductSettingsAndHiddenProducts(t *testing.T)
 		t.Fatalf("ListHiddenProductIDs failed: %v", err)
 	}
 	sort.Slice(hiddenIDs, func(i, j int) bool { return hiddenIDs[i] < hiddenIDs[j] })
-	wantHidden := []uint{productHidden.ID, allSKUHidden.ID}
+	wantHidden := []uint{productHidden.ID, allSKUHidden.ID, partialSKUHidden.ID, otherResellerHidden.ID}
 	sort.Slice(wantHidden, func(i, j int) bool { return wantHidden[i] < wantHidden[j] })
 	if fmt.Sprint(hiddenIDs) != fmt.Sprint(wantHidden) {
 		t.Fatalf("hidden ids mismatch want %v got %v", wantHidden, hiddenIDs)

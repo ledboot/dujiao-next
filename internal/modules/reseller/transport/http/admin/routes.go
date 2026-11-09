@@ -70,6 +70,7 @@ func RegisterFinanceRoutes(admin gin.IRoutes, handler *AdminFinanceHandler) {
 	admin.GET("/resellers/ledger-entries", handler.ListLedgerEntries)
 	admin.GET("/resellers/balance-accounts", handler.ListBalanceAccounts)
 	admin.GET("/resellers/withdraws", handler.ListWithdraws)
+	admin.GET("/resellers/withdraws/:id/payout-quote", handler.GetPayoutQuote)
 	admin.POST("/resellers/withdraws/:id/reject", handler.RejectWithdraw)
 	admin.POST("/resellers/withdraws/:id/pay", handler.PayWithdraw)
 }

@@ -403,6 +403,10 @@ export interface ResellerLedgerData {
 }
 
 export interface ResellerWithdrawData {
+  exchange_rate?: string
+  estimated_usdt_amount?: string
+  payout_rate?: string
+  payout_usdt_amount?: string
     id: number
     amount: string
     currency: string

@@ -411,6 +411,12 @@ func validateSupplySettings(profile *resellerdomain.Profile, product productdoma
 			return nil
 		}
 		price, _, err := ResolveUnitAmount(profile, ps, ss, base)
+		if sku != nil {
+			price, _, err = ResolveSKUUnitAmount(ss, base)
+		}
+		if errors.Is(err, productcontract.ErrResellerProductNotListed) {
+			return nil
+		}
 		if err != nil {
 			return err
 		}
@@ -421,6 +427,11 @@ func validateSupplySettings(profile *resellerdomain.Profile, product productdoma
 			return resellercontract.ErrPriceBelowBase
 		}
 		return nil
+	}
+	if ps != nil && ps.IsListed && strings.TrimSpace(ps.PricingMode) != resellerdomain.PricingModeInherit {
+		if err := validate(nil, product.PriceAmount.Decimal, product.CostPriceAmount.Decimal, nil); err != nil {
+			return err
+		}
 	}
 	if len(product.SKUs) == 0 {
 		return validate(nil, product.PriceAmount.Decimal, product.CostPriceAmount.Decimal, nil)
@@ -473,14 +484,20 @@ func (s *ProductSettingService) previewSettings(profile *resellerdomain.Profile,
 	productBase := ResolveSupplyPrice(product.PriceAmount.Decimal, productSetting, nil, product.DefaultSupplyPriceAmount.Decimal)
 	productItem := ProductSettingPreviewItem{
 		SKUID:     0,
-		IsListed:  productSetting == nil || productSetting.IsListed,
+		IsListed:  false,
 		BasePrice: productBase,
-		Valid:     true,
+		Valid:     false,
+		ErrorCode: "price_not_set",
 	}
 	if productSetting != nil && productSetting.IsListed {
-		price, _, _ := ResolveUnitAmount(profile, productSetting, nil, productBase)
+		productItem.IsListed = true
+		price, _, priceErr := ResolveUnitAmount(profile, productSetting, nil, productBase)
 		productItem.EffectivePrice = price.Round(2)
-		if len(product.SKUs) == 0 {
+		if priceErr != nil {
+			productItem.Valid = false
+			productItem.IsListed = false
+			productItem.ErrorCode = previewErrorCode(priceErr)
+		} else if len(product.SKUs) == 0 {
 			perr := ValidateUnitAmount(profile, nil, productBase, price)
 			if perr == nil {
 				cost := product.CostPriceAmount.Decimal.Round(2)
@@ -513,7 +530,7 @@ func (s *ProductSettingService) previewSettings(profile *resellerdomain.Profile,
 			items = append(items, item)
 			continue
 		}
-		price, _, perr := ResolveUnitAmount(profile, productSetting, skuSetting, base)
+		price, _, perr := ResolveSKUUnitAmount(skuSetting, base)
 		if perr == nil {
 			perr = ValidateUnitAmount(profile, sku, base, price)
 			if perr == nil {
@@ -523,6 +540,9 @@ func (s *ProductSettingService) previewSettings(profile *resellerdomain.Profile,
 		item.EffectivePrice = price.Round(2)
 		item.Valid = perr == nil
 		item.ErrorCode = previewErrorCode(perr)
+		if errors.Is(perr, productcontract.ErrResellerProductNotListed) {
+			item.IsListed = false
+		}
 		items = append(items, item)
 	}
 	return items, nil
@@ -553,6 +573,8 @@ func previewErrorCode(err error) string {
 	switch {
 	case err == nil:
 		return ""
+	case errors.Is(err, productcontract.ErrResellerProductNotListed):
+		return "price_not_set"
 	case errors.Is(err, resellercontract.ErrMarkupExceeded):
 		return "markup_exceeded"
 	default:
@@ -567,11 +589,12 @@ func computeProductEffectivePrices(profile *resellerdomain.Profile, product prod
 	productSetting := byProduct[product.ID]
 	if productSetting != nil && productSetting.IsListed {
 		price, rule, err := ResolveUnitAmount(profile, productSetting, nil, ResolveSupplyPrice(product.PriceAmount.Decimal, productSetting, nil, product.DefaultSupplyPriceAmount.Decimal))
-		if err != nil {
+		if err == nil {
+			effective[0] = price.Round(2)
+			rules[0] = rule.Source
+		} else if !errors.Is(err, productcontract.ErrResellerProductNotListed) {
 			return effective, rules, err
 		}
-		effective[0] = price.Round(2)
-		rules[0] = rule.Source
 	}
 	for i := range product.SKUs {
 		sku := &product.SKUs[i]
@@ -585,7 +608,10 @@ func computeProductEffectivePrices(profile *resellerdomain.Profile, product prod
 		if skuSetting != nil && !skuSetting.IsListed {
 			continue
 		}
-		price, rule, err := ResolveUnitAmount(profile, productSetting, skuSetting, ResolveSupplyPrice(sku.PriceAmount.Decimal, productSetting, skuSetting, sku.DefaultSupplyPriceAmount.Decimal, product.DefaultSupplyPriceAmount.Decimal))
+		price, rule, err := ResolveSKUUnitAmount(skuSetting, ResolveSupplyPrice(sku.PriceAmount.Decimal, productSetting, skuSetting, sku.DefaultSupplyPriceAmount.Decimal, product.DefaultSupplyPriceAmount.Decimal))
+		if errors.Is(err, productcontract.ErrResellerProductNotListed) {
+			continue
+		}
 		if err != nil {
 			return effective, rules, err
 		}

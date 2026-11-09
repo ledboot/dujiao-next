@@ -147,7 +147,7 @@ func TestResellerPricingResolverMainTenantNoop(t *testing.T) {
 	}
 }
 
-func TestResellerPricingResolverAppliesPriorityAndDefaultMarkup(t *testing.T) {
+func TestResellerPricingResolverAppliesExplicitPricingPriority(t *testing.T) {
 	repo := &resellerPricingRepoStub{
 		profile: testResellerProfile(),
 		settings: []resellerdomain.ProductSetting{
@@ -182,6 +182,7 @@ func TestResellerPricingResolverAppliesPriorityAndDefaultMarkup(t *testing.T) {
 		},
 		related: map[uint]bool{},
 	}
+	repo.settings = append(repo.settings, resellerdomain.ProductSetting{ID: 4, ResellerID: 10, ProductID: 3, SKUID: 33, IsListed: true, PricingMode: resellerdomain.PricingModeMarkupPercent, MarkupPercent: money.FromDecimal(decimal.NewFromInt(20))})
 	resolver := NewResellerPricingResolver(repo)
 	result := testOrderBuildResult(
 		struct {
@@ -230,7 +231,7 @@ func TestResellerPricingResolverAppliesPriorityAndDefaultMarkup(t *testing.T) {
 		t.Fatalf("fixed markup plan total mismatch: %s", result.Plans[1].TotalAmount)
 	}
 	if !result.Plans[2].TotalAmount.Equal(decimal.NewFromInt(60)) {
-		t.Fatalf("profile default markup plan total mismatch: %s", result.Plans[2].TotalAmount)
+		t.Fatalf("explicit percentage markup plan total mismatch: %s", result.Plans[2].TotalAmount)
 	}
 	if !result.TotalAmount.Equal(decimal.NewFromInt(400)) || !result.OriginalAmount.Equal(decimal.NewFromInt(400)) {
 		t.Fatalf("parent totals must be derived from rewritten plan totals, got original=%s total=%s", result.OriginalAmount, result.TotalAmount)
@@ -269,7 +270,7 @@ func TestResellerPricingResolverRuntimePrioritySnapshotSources(t *testing.T) {
 				ID:                3,
 				ResellerID:        10,
 				ProductID:         2,
-				SKUID:             0,
+				SKUID:             22,
 				IsListed:          true,
 				PricingMode:       resellerdomain.PricingModeFixedMarkup,
 				FixedMarkupAmount: money.FromDecimal(decimal.NewFromInt(25)),
@@ -277,6 +278,7 @@ func TestResellerPricingResolverRuntimePrioritySnapshotSources(t *testing.T) {
 		},
 		related: map[uint]bool{},
 	}
+	repo.settings = append(repo.settings, resellerdomain.ProductSetting{ID: 4, ResellerID: 10, ProductID: 3, SKUID: 33, IsListed: true, PricingMode: resellerdomain.PricingModeMarkupPercent, MarkupPercent: money.FromDecimal(decimal.NewFromInt(20))})
 	resolver := NewResellerPricingResolver(repo)
 	result := testOrderBuildResult(
 		struct {
@@ -323,8 +325,8 @@ func TestResellerPricingResolverRuntimePrioritySnapshotSources(t *testing.T) {
 		}
 	}
 	assertRuntimePricingItem(0, resellerRuleSourceSKU, resellerdomain.PricingModeFixedPrice, "130.00", "30.00")
-	assertRuntimePricingItem(1, resellerRuleSourceProduct, resellerdomain.PricingModeFixedMarkup, "105.00", "50.00")
-	assertRuntimePricingItem(2, resellerRuleSourceProfile, resellerdomain.PricingModeMarkupPercent, "60.00", "10.00")
+	assertRuntimePricingItem(1, resellerRuleSourceSKU, resellerdomain.PricingModeFixedMarkup, "105.00", "50.00")
+	assertRuntimePricingItem(2, resellerRuleSourceSKU, resellerdomain.PricingModeMarkupPercent, "60.00", "10.00")
 
 	if ctx.BaseAmount.StringFixed(2) != "310.00" || ctx.ResellerAmount.StringFixed(2) != "400.00" || ctx.ProfitAmount.StringFixed(2) != "90.00" {
 		t.Fatalf("context totals mismatch base=%s reseller=%s profit=%s", ctx.BaseAmount, ctx.ResellerAmount, ctx.ProfitAmount)
@@ -515,7 +517,7 @@ func TestResellerPricingResolverSelfDealingRiskSnapshot(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			repo := &resellerPricingRepoStub{profile: testResellerProfile(), related: tt.related}
+			repo := &resellerPricingRepoStub{profile: testResellerProfile(), related: tt.related, settings: []resellerdomain.ProductSetting{{ProductID: 1, SKUID: 11, IsListed: true, PricingMode: resellerdomain.PricingModeMarkupPercent, MarkupPercent: money.FromDecimal(decimal.NewFromInt(20))}}}
 			resolver := NewResellerPricingResolver(repo)
 			result := testOrderBuildResult(struct {
 				productID uint
@@ -662,6 +664,9 @@ func TestResellerSupplyPriceDrivesDisplayAndProfitSnapshot(t *testing.T) {
 				setting.SKUID = 2
 			}
 			repo := &resellerPricingRepoStub{profile: testResellerProfile(), settings: []resellerdomain.ProductSetting{setting}}
+			if !skuOverride {
+				repo.settings = append(repo.settings, resellerdomain.ProductSetting{ProductID: 1, SKUID: 2, IsListed: true, PricingMode: resellerdomain.PricingModeFixedPrice, FixedPriceAmount: money.FromDecimal(decimal.NewFromInt(120))})
+			}
 			resolver := NewResellerPricingResolver(repo)
 			result := testOrderBuildResult(struct {
 				productID uint
@@ -763,9 +768,7 @@ func TestCatalogSupplyDefaultsDriveResellerPricing(t *testing.T) {
 			if tc.override > 0 {
 				repo.settings = append(repo.settings, resellerdomain.ProductSetting{ProductID: 1, IsListed: true, PricingMode: resellerdomain.PricingModeInherit, SupplyPriceAmount: money.FromDecimal(decimal.NewFromInt(tc.override))})
 			}
-			if tc.skuOverride > 0 {
-				repo.settings = append(repo.settings, resellerdomain.ProductSetting{ProductID: 1, SKUID: 2, IsListed: true, PricingMode: resellerdomain.PricingModeInherit, SupplyPriceAmount: money.FromDecimal(decimal.NewFromInt(tc.skuOverride))})
-			}
+			repo.settings = append(repo.settings, resellerdomain.ProductSetting{ProductID: 1, SKUID: 2, IsListed: true, PricingMode: resellerdomain.PricingModeMarkupPercent, SupplyPriceAmount: money.FromDecimal(decimal.NewFromInt(tc.skuOverride))})
 			resolver := NewResellerPricingResolver(repo)
 			result := testOrderBuildResult(struct {
 				productID uint
@@ -801,7 +804,7 @@ func TestCatalogSupplyDefaultsDriveResellerPricing(t *testing.T) {
 				t.Fatal("main store price changed")
 			}
 			// A fixed retail rule uses the same default supply cost for profit snapshots.
-			repo.settings = []resellerdomain.ProductSetting{{ProductID: 1, IsListed: true, PricingMode: resellerdomain.PricingModeFixedPrice, FixedPriceAmount: money.FromDecimal(decimal.NewFromInt(120))}}
+			repo.settings = []resellerdomain.ProductSetting{{ProductID: 1, SKUID: 2, IsListed: true, PricingMode: resellerdomain.PricingModeFixedPrice, FixedPriceAmount: money.FromDecimal(decimal.NewFromInt(120))}}
 			ctx, err = resolver.ApplyToOrderBuildResult(testResellerTenant(), 123, result)
 			if err != nil {
 				t.Fatal(err)
@@ -817,6 +820,39 @@ func TestCatalogSupplyDefaultsDriveResellerPricing(t *testing.T) {
 				t.Fatalf("default profit mismatch: %+v", ctx)
 			}
 
+		})
+	}
+}
+
+func TestResellerPricingResolverDefaultMarkupDoesNotListUnpricedProducts(t *testing.T) {
+	for _, legacyRule := range []bool{false, true} {
+		t.Run(fmt.Sprintf("legacyRule=%t", legacyRule), func(t *testing.T) {
+			repo := &resellerPricingRepoStub{profile: testResellerProfile()}
+			repo.settings = []resellerdomain.ProductSetting{{ProductID: 1, IsListed: true, PricingMode: resellerdomain.PricingModeFixedPrice, FixedPriceAmount: money.FromDecimal(decimal.NewFromInt(130))}}
+			if legacyRule {
+				repo.settings = append(repo.settings, []resellerdomain.ProductSetting{{ProductID: 1, SKUID: 11, IsListed: true, PricingMode: resellerdomain.PricingModeInherit}}...)
+			}
+			resolver := NewResellerPricingResolver(repo)
+			result := testOrderBuildResult(struct {
+				productID uint
+				skuID     uint
+				base      decimal.Decimal
+				cost      decimal.Decimal
+				quantity  int
+			}{1, 11, decimal.NewFromInt(100), decimal.NewFromInt(50), 1})
+			if _, err := resolver.ApplyToOrderBuildResult(testResellerTenant(), 123, result); !errors.Is(err, ErrResellerProductNotListed) {
+				t.Fatalf("unpriced order accepted: %v", err)
+			}
+			product := *result.Plans[0].Product
+			product.SKUs = []productdomain.ProductSKU{*result.Plans[0].SKU}
+			batch, err := resolver.LoadDisplayPricingBatch(testResellerTenant(), []productdomain.Product{product})
+			if err != nil {
+				t.Fatal(err)
+			}
+			display, err := resolver.ResolveDisplayPrices(testResellerTenant(), &product, batch)
+			if err != nil || display.Visible || !display.HiddenSKUIDs[11] {
+				t.Fatalf("unpriced product displayed: %+v %v", display, err)
+			}
 		})
 	}
 }

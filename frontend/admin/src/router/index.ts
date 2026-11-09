@@ -185,6 +185,12 @@ const routes = [
         meta: { permission: 'GET:/admin/member-levels' },
       },
       {
+        path: 'settings/exchange-rate',
+        name: 'exchange-rate-settings',
+        component: () => import('@/views/admin/ExchangeRateSettings.vue'),
+        meta: { permission: 'GET:/admin/settings/exchange-rate' },
+      },
+      {
         path: 'settings',
         name: 'settings',
         component: () => import('@/views/admin/Settings.vue'),

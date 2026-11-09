@@ -398,6 +398,9 @@ export const adminAPI = {
   createBanner: (data: Partial<AdminBanner>) => api.post('/admin/banners', data),
   updateBanner: (id: number, data: Partial<AdminBanner>) => api.put(`/admin/banners/${id}`, data),
   deleteBanner: (id: number) => api.delete(`/admin/banners/${id}`),
+  getExchangeRateSettings: () => api.get('/admin/settings/exchange-rate'),
+  updateExchangeRateSettings: (data: Record<string, unknown>) => api.put('/admin/settings/exchange-rate', data),
+  refreshExchangeRate: () => api.post('/admin/settings/exchange-rate/refresh'),
   getSettings: (params?: Record<string, unknown>) => api.get('/admin/settings', { params }),
   updateSettings: (data: Record<string, unknown>) => api.put('/admin/settings', data),
   getHomeAnnouncement: () => api.get('/admin/settings', { params: { key: 'home_announcement' } }),
@@ -489,8 +492,9 @@ export const adminAPI = {
     api.get('/admin/resellers/withdraws', { params }),
   rejectResellerWithdraw: (id: number, data: { reason?: string }) =>
     api.post(`/admin/resellers/withdraws/${id}/reject`, data),
-  payResellerWithdraw: (id: number) =>
-    api.post(`/admin/resellers/withdraws/${id}/pay`, {}),
+  getResellerPayoutQuote: (id: number) => api.get(`/admin/resellers/withdraws/${id}/payout-quote`),
+  payResellerWithdraw: (id: number, data?: { payout_rate: string }) =>
+    api.post(`/admin/resellers/withdraws/${id}/pay`, data || {}),
   getResellerProfiles: (params?: Record<string, unknown>) =>
     api.get('/admin/resellers/profiles', { params }),
   getResellerProfile: (id: number) =>

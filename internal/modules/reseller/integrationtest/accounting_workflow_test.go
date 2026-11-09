@@ -1,8 +1,10 @@
 package integrationtest
 
 import (
+	"context"
 	"errors"
 	"fmt"
+	settingscontract "github.com/dujiao-next/internal/modules/settings/contract"
 	"testing"
 	"time"
 
@@ -889,5 +891,96 @@ func TestResellerAccountingApplyWithdrawRejectsExceedingNetAvailable(t *testing.
 	}
 	if req == nil || req.Amount.Decimal.StringFixed(2) != "50.00" {
 		t.Fatalf("unexpected withdraw request: %+v", req)
+	}
+}
+
+// The quote provider checks that no SQLite transaction has occupied its only connection.
+type withdrawRateProvider struct {
+	db   *gorm.DB
+	rate decimal.Decimal
+}
+
+func (p *withdrawRateProvider) GetExchangeRate(ctx context.Context, _ bool) (settingscontract.ExchangeRateSnapshot, error) {
+	var n int64
+	if err := p.db.WithContext(ctx).Model(&resellerdomain.Profile{}).Count(&n).Error; err != nil {
+		return settingscontract.ExchangeRateSnapshot{}, err
+	}
+	return settingscontract.ExchangeRateSnapshot{Rate: p.rate}, nil
+}
+func TestUserWithdrawUsesCNYBSCAndMinimumUSDT(t *testing.T) {
+	db := openResellerAccountingServiceTestDB(t)
+	sqlDB, err := db.DB()
+	if err != nil {
+		t.Fatal(err)
+	}
+	sqlDB.SetMaxOpenConns(1)
+	profile := seedResellerAccountingProfile(t, db)
+	ledger := resellerdomain.LedgerEntry{ResellerID: profile.ID, Currency: "CNY", Amount: money.FromDecimal(decimal.NewFromInt(200)), Status: resellerdomain.LedgerStatusAvailable, Type: resellerdomain.LedgerTypeOrderProfit, IdempotencyKey: "bsc-withdraw"}
+	if err = db.Create(&ledger).Error; err != nil {
+		t.Fatal(err)
+	}
+	svc := resellerapplication.NewAccountingWithdrawService(resellergormstore.New(db))
+	svc.ExchangeRates = &withdrawRateProvider{db: db, rate: decimal.RequireFromString("6.88")}
+	input := resellercontract.WithdrawApplyInput{Amount: decimal.RequireFromString("68.79"), Currency: "CNY", Channel: "forged-channel", Account: "0x1234567890123456789012345678901234567890"}
+	if _, err = svc.ApplyUserWithdraw(profile.UserID, input); !errors.Is(err, resellercontract.ErrWithdrawBelowMinimum) {
+		t.Fatalf("below minimum accepted: %v", err)
+	}
+	input.Amount = decimal.RequireFromString("68.80")
+	invalid := input
+	invalid.Account = "T-wrong-network"
+	if _, err = svc.ApplyUserWithdraw(profile.UserID, invalid); !errors.Is(err, resellercontract.ErrWithdrawAddressInvalid) {
+		t.Fatalf("invalid address accepted: %v", err)
+	}
+	invalid.Account = "0x0000000000000000000000000000000000000000"
+	if _, err = svc.ApplyUserWithdraw(profile.UserID, invalid); !errors.Is(err, resellercontract.ErrWithdrawAddressInvalid) {
+		t.Fatalf("zero address accepted: %v", err)
+	}
+	invalid = input
+	invalid.Currency = "USD"
+	if _, err = svc.ApplyUserWithdraw(profile.UserID, invalid); !errors.Is(err, resellercontract.ErrWithdrawCurrencyUnavailable) {
+		t.Fatalf("non-CNY accepted: %v", err)
+	}
+	req, err := svc.ApplyUserWithdraw(profile.UserID, input)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if req.Currency != "CNY" || req.Channel != "BSC_USDT" || req.Amount.String() != "68.80" || req.EstimatedUSDTAmount.String() != "10.00" || !req.ExchangeRate.Equal(decimal.RequireFromString("6.88")) {
+		t.Fatalf("wrong conversion snapshot: %+v", req)
+	}
+	var locked []resellerdomain.LedgerEntry
+	if err = db.Where("withdraw_request_id = ?", req.ID).Find(&locked).Error; err != nil {
+		t.Fatal(err)
+	}
+	if len(locked) != 1 || locked[0].Amount.String() != "68.80" || locked[0].Status != resellerdomain.LedgerStatusLocked {
+		t.Fatalf("wrong CNY reservation: %+v", locked)
+	}
+	if _, err = svc.ReviewWithdraw(99, req.ID, resellercontract.WithdrawActionPay, ""); !errors.Is(err, resellercontract.ErrWithdrawAmountInvalid) {
+		t.Fatalf("BSC payout without an actual rate accepted: %v", err)
+	}
+	if _, err = svc.ReviewWithdrawAtRate(99, req.ID, decimal.RequireFromString("0.123456789")); !errors.Is(err, resellercontract.ErrWithdrawAmountInvalid) {
+		t.Fatalf("unsupported rate precision accepted: %v", err)
+	}
+	provider := svc.ExchangeRates.(*withdrawRateProvider)
+	provider.rate = decimal.NewFromInt(7)
+	if _, err = svc.GetWithdrawPayoutQuote(context.Background(), req.ID); !errors.Is(err, resellercontract.ErrWithdrawBelowMinimum) {
+		t.Fatalf("payout below 10 USDT accepted: %v", err)
+	}
+	provider.rate = decimal.RequireFromString("6.5")
+	quote, err := svc.GetWithdrawPayoutQuote(context.Background(), req.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !quote.USDTAmount.Equal(decimal.RequireFromString("10.58")) {
+		t.Fatalf("payout did not use the evening rate: %+v", quote)
+	}
+	paid, err := svc.ReviewWithdrawAtRate(99, req.ID, quote.Rate)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if paid.Status != resellerdomain.WithdrawStatusPaid || paid.PayoutUSDTAmount.String() != "10.58" || !paid.PayoutRate.Equal(provider.rate) || !paid.ExchangeRate.Equal(decimal.RequireFromString("6.88")) {
+		t.Fatalf("incorrect payout snapshot: %+v", paid)
+	}
+	if _, err = svc.ReviewWithdrawAtRate(99, req.ID, quote.Rate); !errors.Is(err, resellercontract.ErrWithdrawStatusInvalid) {
+		t.Fatalf("duplicate payout accepted: %v", err)
 	}
 }

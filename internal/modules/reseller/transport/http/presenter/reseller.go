@@ -41,15 +41,19 @@ type ResellerLedgerResp struct {
 }
 
 type ResellerWithdrawResp struct {
-	ID           uint       `json:"id"`
-	Amount       string     `json:"amount"`
-	Currency     string     `json:"currency"`
-	Channel      string     `json:"channel"`
-	Account      string     `json:"account"`
-	Status       string     `json:"status"`
-	RejectReason string     `json:"reject_reason,omitempty"`
-	ProcessedAt  *time.Time `json:"processed_at,omitempty"`
-	CreatedAt    time.Time  `json:"created_at"`
+	ExchangeRate        string     `json:"exchange_rate"`
+	EstimatedUSDTAmount string     `json:"estimated_usdt_amount"`
+	PayoutRate          string     `json:"payout_rate"`
+	PayoutUSDTAmount    string     `json:"payout_usdt_amount"`
+	ID                  uint       `json:"id"`
+	Amount              string     `json:"amount"`
+	Currency            string     `json:"currency"`
+	Channel             string     `json:"channel"`
+	Account             string     `json:"account"`
+	Status              string     `json:"status"`
+	RejectReason        string     `json:"reject_reason,omitempty"`
+	ProcessedAt         *time.Time `json:"processed_at,omitempty"`
+	CreatedAt           time.Time  `json:"created_at"`
 }
 
 type ResellerDashboardResp struct {
@@ -610,6 +614,7 @@ func NewResellerWithdrawResp(row *resellerdomain.WithdrawRequest) ResellerWithdr
 		return ResellerWithdrawResp{}
 	}
 	return ResellerWithdrawResp{
+		ExchangeRate: row.ExchangeRate.String(), EstimatedUSDTAmount: row.EstimatedUSDTAmount.String(), PayoutRate: row.PayoutRate.String(), PayoutUSDTAmount: row.PayoutUSDTAmount.String(),
 		ID:           row.ID,
 		Amount:       row.Amount.String(),
 		Currency:     row.Currency,

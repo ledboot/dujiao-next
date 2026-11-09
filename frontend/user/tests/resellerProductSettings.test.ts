@@ -7,6 +7,8 @@ import {
   normalizeResellerProductSettingsPagination,
   normalizeResellerProductSettingForm,
   summarizeEffectivePrice,
+  summarizeProductEffectivePrice,
+  countListedSkus,
 } from '../src/utils/resellerProductSettings.ts'
 
 test('pricing mode label keys are stable', () => {
@@ -65,4 +67,15 @@ test('product settings pagination normalizes API pagination payloads', () => {
     normalizeResellerProductSettingsPagination(null, { page: 4, page_size: 20, total: 80, total_page: 4 }),
     { page: 4, page_size: 20, total: 80, total_page: 4 },
   )
+})
+
+test('unpriced and zero-price rules display a dash and are not counted as listed', () => {
+  assert.equal(summarizeEffectivePrice({ effective_price_amount: '0.00' }), '-')
+  const unpriced = { skus: [{ id: 1, is_active: true }, { id: 2, is_active: true, effective_price_amount: '0.00' }] }
+  assert.equal(summarizeProductEffectivePrice(unpriced), '-')
+  assert.equal(countListedSkus(unpriced), 0)
+  assert.equal(summarizeProductEffectivePrice({ ...unpriced, product_setting: { effective_price_amount: '130.00', pricing_mode: 'fixed_price' } }), '-')
+  const priced = { skus: [...unpriced.skus, { id: 3, is_active: true, effective_price_amount: '120.00' }] }
+  assert.equal(summarizeProductEffectivePrice(priced), '120.00')
+  assert.equal(countListedSkus(priced), 1)
 })

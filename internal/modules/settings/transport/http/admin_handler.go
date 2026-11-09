@@ -2,6 +2,7 @@ package settingshttp
 
 import (
 	"errors"
+	settingscontract "github.com/dujiao-next/internal/modules/settings/contract"
 	"strings"
 
 	"github.com/dujiao-next/internal/cache"
@@ -64,6 +65,8 @@ var settingFieldErrorKeys = map[string]string{
 // dedicatedSettingEndpoints 有专用接口的设置：专用接口负责校验、归一化与运行时生效（如 SMTP、登录方式），
 // 走通用接口会跳过这些步骤，导致配置不生效或写入未校验的值。
 var dedicatedSettingEndpoints = map[string]string{
+	settingscontract.ExchangeRateConfigKey:       "/admin/settings/exchange-rate",
+	settingscontract.ExchangeRateStateKey:        "/admin/settings/exchange-rate/refresh",
 	constants.SettingKeySMTPConfig:               "/admin/settings/smtp",
 	constants.SettingKeyCaptchaConfig:            "/admin/settings/captcha",
 	constants.SettingKeyTelegramAuthConfig:       "/admin/settings/telegram-auth",

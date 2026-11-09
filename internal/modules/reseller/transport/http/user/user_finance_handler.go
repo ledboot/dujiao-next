@@ -1,6 +1,8 @@
 package userhttp
 
 import (
+	"context"
+	settingscontract "github.com/dujiao-next/internal/modules/settings/contract"
 	"strings"
 
 	resellerdomain "github.com/dujiao-next/internal/modules/reseller/domain"
@@ -46,7 +48,7 @@ func NewUserFinanceHandler(query UserFinanceQueryService, withdraw UserWithdrawS
 type withdrawApplyRequest struct {
 	Amount   string `json:"amount" binding:"required"`
 	Currency string `json:"currency" binding:"required"`
-	Channel  string `json:"channel" binding:"required"`
+	Channel  string `json:"channel"`
 	Account  string `json:"account" binding:"required"`
 }
 
@@ -155,4 +157,24 @@ func (h *UserFinanceHandler) ApplyWithdraw(c *gin.Context) {
 		return
 	}
 	response.Success(c, dto.NewResellerWithdrawResp(row))
+}
+
+// GetWithdrawExchangeRate exposes only the effective conversion quote, never source configuration.
+func (h *UserFinanceHandler) GetWithdrawExchangeRate(c *gin.Context) {
+	if _, ok := ginutil.GetUserID(c); !ok {
+		return
+	}
+	provider, ok := h.withdraw.(interface {
+		GetWithdrawExchangeRate(context.Context) (settingscontract.ExchangeRateSnapshot, error)
+	})
+	if !ok {
+		ginutil.RespondError(c, response.CodeBadRequest, "error.exchange_rate_unavailable", nil)
+		return
+	}
+	quote, err := provider.GetWithdrawExchangeRate(c.Request.Context())
+	if err != nil {
+		ginutil.RespondError(c, response.CodeBadRequest, "error.exchange_rate_unavailable", nil)
+		return
+	}
+	response.Success(c, gin.H{"rate": quote.Rate, "markup_amount": quote.MarkupAmount, "markup_percent": quote.MarkupPercent, "updated_at": quote.UpdatedAt, "mode": quote.Mode, "minimum_usdt": "10.00", "minimum_cny": quote.Rate.Mul(decimal.NewFromInt(10)).RoundCeil(2)})
 }

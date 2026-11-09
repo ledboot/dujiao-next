@@ -31,21 +31,21 @@
           />
           <span v-if="amountError" class="text-xs text-destructive">{{ t('resellerConsole.withdraws.exceedAvailable') }}</span>
         </div>
-        <Select v-if="balanceCurrencies.length > 0" v-model="form.currency" :disabled="!withdrawEnabled || submittingWithdraw">
-          <SelectTrigger>
-            <SelectValue :placeholder="t('personalCenter.reseller.withdrawCurrencyPlaceholder')" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem v-for="currency in balanceCurrencies" :key="currency" :value="currency">{{ currency }}</SelectItem>
-          </SelectContent>
-        </Select>
-        <Input v-else model-value="" readonly disabled :placeholder="t('resellerConsole.withdraws.noCurrency')" />
-        <Input v-model.trim="form.channel" :placeholder="t('personalCenter.reseller.withdrawChannelPlaceholder')" :disabled="!withdrawEnabled || submittingWithdraw" />
-        <Input v-model.trim="form.account" :placeholder="t('personalCenter.reseller.withdrawAccountPlaceholder')" :disabled="!withdrawEnabled || submittingWithdraw" />
-        <Button type="submit" :disabled="submittingWithdraw || !withdrawEnabled || amountError || balanceCurrencies.length === 0">
+        <Input model-value="CNY" readonly :aria-label="t('personalCenter.reseller.withdrawCurrencyPlaceholder')" />
+        <Input model-value="BSC USDT (BEP20)" readonly :aria-label="t('personalCenter.reseller.withdrawChannelPlaceholder')" />
+        <div class="flex flex-col gap-1">
+          <Input v-model.trim="form.account" :placeholder="t('resellerConsole.withdraws.bscAddress')" :disabled="!withdrawEnabled || submittingWithdraw" required />
+          <span v-if="addressError" class="text-xs text-destructive">{{ t('resellerConsole.withdraws.addressInvalid') }}</span>
+        </div>
+        <Button type="submit" :disabled="submittingWithdraw || !withdrawEnabled || amountError || belowMinimum || addressError || !validAmount || !quote || balanceCurrencies.length === 0">
           {{ submittingWithdraw ? t('personalCenter.reseller.withdrawing') : t('personalCenter.reseller.withdrawSubmit') }}
         </Button>
       </form>
+      <p v-if="quote" class="mt-4 text-sm text-muted-foreground">{{ t('resellerConsole.withdraws.rateTip', { markup: quote.markup_amount, percent: Number(quote.markup_percent) > 0 ? ` × (1 + ${quote.markup_percent}%)` : '', rate: quote.rate, minimum: quote.minimum_cny }) }}</p>
+      <p v-else class="mt-4 text-sm text-destructive">{{ t('resellerConsole.withdraws.rateUnavailable') }}</p>
+      <p v-if="belowMinimum" class="mt-2 text-sm text-destructive">{{ t('resellerConsole.withdraws.minimumTip', { amount: quote?.minimum_cny }) }}</p>
+      <p v-if="validAmount && quote" class="mt-2 text-sm">{{ t('resellerConsole.withdraws.estimatedUSDT', { amount: estimatedUSDT }) }}</p>
+      <a href="https://www.exchangerate-api.com" target="_blank" rel="noopener noreferrer" class="mt-2 inline-block text-xs text-muted-foreground underline">Rates By Exchange Rate API</a>
     </Card>
 
     <ResellerPageState v-if="withdrawsLoading" loading :title="t('resellerConsole.common.loading')" />
@@ -66,7 +66,10 @@
         <TableBody>
           <TableRow v-for="item in withdraws" :key="item.id">
             <TableCell class="px-4 py-3 text-right font-mono text-xs text-foreground">{{ formatResellerConsoleAmount(item.amount, item.currency) }}</TableCell>
-            <TableCell class="px-4 py-3 text-xs text-foreground">{{ item.channel }}</TableCell>
+            <TableCell class="px-4 py-3 text-xs text-foreground">{{ item.channel }}
+              <div v-if="item.channel === 'BSC_USDT'" class="mt-1 text-xs text-muted-foreground">{{ t('resellerConsole.withdraws.estimatedUSDT', { amount: item.estimated_usdt_amount }) }}<br />{{ item.account }}</div>
+              <div v-if="Number(item.payout_usdt_amount) > 0" class="mt-1">{{ t('resellerConsole.withdraws.paidUSDT', { amount: item.payout_usdt_amount, rate: item.payout_rate }) }}</div>
+            </TableCell>
             <TableCell class="px-4 py-3">
               <ResellerStatusBadge :label="withdrawStatusLabel(item.status)" :tone="withdrawTone(item.status)" />
               <span
@@ -91,7 +94,10 @@
           </template>
           <div class="col-span-2">
             <dt class="text-muted-foreground">{{ t('personalCenter.reseller.withdrawTable.channel') }}</dt>
-            <dd class="mt-0.5 break-all text-foreground">{{ item.channel }}</dd>
+            <dd class="mt-0.5 break-all text-foreground">{{ item.channel }}
+              <div v-if="item.channel === 'BSC_USDT'" class="mt-1 text-xs text-muted-foreground">{{ t('resellerConsole.withdraws.estimatedUSDT', { amount: item.estimated_usdt_amount }) }}<br />{{ item.account }}</div>
+              <div v-if="Number(item.payout_usdt_amount) > 0" class="mt-1">{{ t('resellerConsole.withdraws.paidUSDT', { amount: item.payout_usdt_amount, rate: item.payout_rate }) }}</div>
+            </dd>
           </div>
           <div v-if="item.status === RESELLER_WITHDRAW_STATUS_REJECTED && item.reject_reason" class="col-span-2">
             <dt class="text-muted-foreground">{{ t('personalCenter.reseller.withdrawTable.rejectReason') }}</dt>
@@ -112,14 +118,14 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, reactive, ref, watch } from 'vue'
+import { computed, onMounted, onUnmounted, reactive, ref } from 'vue'
+import { resellerAPI } from '../../api/reseller'
 import { useI18n } from 'vue-i18n'
 import { Upload } from 'lucide-vue-next'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import ResellerDataTable from '../../components/reseller-console/ResellerDataTable.vue'
 import ResellerPageState from '../../components/reseller-console/ResellerPageState.vue'
@@ -138,9 +144,19 @@ const { confirm } = useConfirmDialog()
 const finance = useResellerFinance()
 const { dashboard, balances, withdraws, withdrawsLoading, submittingWithdraw, loadDashboard, loadBalances, loadWithdraws, applyWithdraw } = finance
 const alert = ref<PageAlert | null>(null)
-const form = reactive({ amount: '', currency: '', channel: '', account: '' })
+const form = reactive({ amount: '', currency: 'CNY', channel: 'BSC_USDT', account: '' })
+const quote = ref<{ rate: string; markup_amount: string; markup_percent: string; minimum_cny: string } | null>(null)
+const loadQuote = async () => {
+  try { const response = await resellerAPI.withdrawExchangeRate(); quote.value = response.data.data }
+  catch { quote.value = null }
+}
+let quoteTimer: ReturnType<typeof setInterval> | undefined
+const validAmount = computed(() => /^\d+(\.\d{1,2})?$/.test(form.amount) && Number(form.amount) > 0)
+const belowMinimum = computed(() => !!form.amount && !!quote.value && Number(form.amount) < Number(quote.value.minimum_cny))
+const addressError = computed(() => !!form.account && (!/^0x[0-9a-fA-F]{40}$/.test(form.account) || /^0x0{40}$/.test(form.account)))
+const estimatedUSDT = computed(() => quote.value ? (Math.floor(Number(form.amount) / Number(quote.value.rate) * 100 + 1e-8) / 100).toFixed(2) : '-')
 
-const balanceCurrencies = computed(() => Array.from(new Set(balances.value.map((item) => item.currency).filter(Boolean))))
+const balanceCurrencies = computed(() => Array.from(new Set(balances.value.map((item) => item.currency).filter((currency) => currency === 'CNY'))))
 const withdrawEnabled = computed(() => isResellerWithdrawEnabled(dashboard.value))
 const withdrawDisabledReasonText = computed(() => {
   const key = getResellerWithdrawDisabledReasonKey(dashboard.value?.withdraw_disabled_reason)
@@ -160,15 +176,12 @@ const amountError = computed(() => {
   return amount > selectedAvailable.value
 })
 
-watch(balanceCurrencies, (values) => {
-  if (!form.currency && values[0]) form.currency = values[0]
-})
-
 const onSubmit = async () => {
-  if (amountError.value) return
+  await loadQuote()
+  if (amountError.value || belowMinimum.value || addressError.value || !form.account || !validAmount.value || !quote.value) return
   const ok = await confirm({
     title: t('resellerConsole.withdraws.confirmTitle'),
-    message: t('resellerConsole.withdraws.confirmMessage', { amount: form.amount, currency: form.currency }),
+    message: t('resellerConsole.withdraws.confirmMessage', { amount: form.amount, currency: form.currency, usdt: estimatedUSDT.value, address: form.account }),
     variant: 'default',
   })
   if (!ok) return
@@ -176,7 +189,6 @@ const onSubmit = async () => {
   try {
     await applyWithdraw({ ...form })
     form.amount = ''
-    form.channel = ''
     form.account = ''
     alert.value = { level: 'success', message: t('personalCenter.common.saveSuccess') }
   } catch (err) {
@@ -200,6 +212,8 @@ const withdrawTone = (status?: string): ResellerBadgeTone => {
 }
 
 onMounted(() => {
-  void Promise.all([loadDashboard(), loadBalances(), loadWithdraws({ page: 1 })])
+  void Promise.all([loadDashboard(), loadBalances(), loadWithdraws({ page: 1 }), loadQuote()])
+  quoteTimer = setInterval(() => { void loadQuote() }, 60_000)
 })
+onUnmounted(() => { if (quoteTimer) clearInterval(quoteTimer) })
 </script>

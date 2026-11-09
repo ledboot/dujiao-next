@@ -159,7 +159,7 @@ func TestProductServiceListPublicForTenantExcludesResellerHiddenProductsBeforePa
 		t.Fatalf("create profile failed: %v", err)
 	}
 
-	visible, _ := seedResellerPublicProduct(t, db, category.ID, "visible", 1)
+	visible, visibleSKUs := seedResellerPublicProduct(t, db, category.ID, "visible", 1)
 	productHidden, _ := seedResellerPublicProduct(t, db, category.ID, "product-hidden", 1)
 	allSKUHidden, allHiddenSKUs := seedResellerPublicProduct(t, db, category.ID, "all-sku-hidden", 2)
 	partialSKUHidden, partialHiddenSKUs := seedResellerPublicProduct(t, db, category.ID, "partial-sku-hidden", 2)
@@ -170,6 +170,12 @@ func TestProductServiceListPublicForTenantExcludesResellerHiddenProductsBeforePa
 	}
 	createResellerPublicSetting(t, db, resellerdomain.ProductSetting{ResellerID: profile.ID, ProductID: partialSKUHidden.ID, SKUID: partialHiddenSKUs[0].ID, IsListed: false, PricingMode: resellerdomain.PricingModeInherit})
 
+	// Only explicitly priced products are visible, before pagination.
+	createResellerPublicSetting(t, db, resellerdomain.ProductSetting{ResellerID: profile.ID, ProductID: visible.ID, SKUID: visibleSKUs[0].ID, IsListed: true, PricingMode: resellerdomain.PricingModeMarkupPercent})
+	createResellerPublicSetting(t, db, resellerdomain.ProductSetting{ResellerID: profile.ID, ProductID: partialSKUHidden.ID, SKUID: partialHiddenSKUs[1].ID, IsListed: true, PricingMode: resellerdomain.PricingModeMarkupPercent})
+	seedResellerPublicProduct(t, db, category.ID, "unpriced", 1)
+	productRuleOnly, _ := seedResellerPublicProduct(t, db, category.ID, "product-rule-only", 1)
+	createResellerPublicSetting(t, db, resellerdomain.ProductSetting{ResellerID: profile.ID, ProductID: productRuleOnly.ID, IsListed: true, PricingMode: resellerdomain.PricingModeMarkupPercent, MarkupPercent: money.FromDecimal(decimal.NewFromInt(20))})
 	tenant := reseller.ResellerTenantContext("shop.example.test", profile.ID, owner.ID, "shop.example.test")
 	rows, total, err := svc.Read.ListPublicForTenant(tenant, resellerRepo, "", "", 1, 20)
 	if err != nil {

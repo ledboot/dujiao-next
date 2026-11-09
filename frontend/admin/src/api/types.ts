@@ -1168,6 +1168,10 @@ export interface AdminResellerBalanceAccount {
 }
 
 export interface AdminResellerWithdraw {
+  exchange_rate?: string
+  estimated_usdt_amount?: string
+  payout_rate?: string
+  payout_usdt_amount?: string
   id: number
   reseller_id: number
   amount: number | string

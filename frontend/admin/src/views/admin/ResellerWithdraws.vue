@@ -155,11 +155,19 @@ const rejectWithdraw = async () => {
 }
 
 const payWithdraw = async (row: AdminResellerWithdraw) => {
-  const confirmed = await confirmAction({ description: t('admin.resellerWithdraws.actions.payConfirm', { id: row.id }) })
-  if (!confirmed) return
   operating.value = true
   try {
-    await adminAPI.payResellerWithdraw(row.id)
+    let payout: { payout_rate: string } | undefined
+    let description = t('admin.resellerWithdraws.actions.payConfirm', { id: row.id })
+    if (row.channel === 'BSC_USDT') {
+      const response = await adminAPI.getResellerPayoutQuote(row.id)
+      const quote = response.data.data
+      payout = { payout_rate: quote.rate }
+      description = t('admin.exchangeRate.payoutConfirm', { id: row.id, cny: row.amount, amount: quote.usdt_amount, rate: quote.rate, address: quote.account })
+    }
+    const confirmed = await confirmAction({ description })
+    if (!confirmed) return
+    await adminAPI.payResellerWithdraw(row.id, payout)
     notifySuccess(t('admin.resellerWithdraws.actions.paySuccess'))
     await fetchRows(pagination.value.page)
   } catch (err: any) {
@@ -225,6 +233,7 @@ onMounted(() => {
               <TableHead class="min-w-[180px] px-6 py-3">{{ t('admin.resellerWithdraws.table.reseller') }}</TableHead>
               <TableHead class="px-6 py-3">{{ t('admin.resellerWithdraws.table.amount') }}</TableHead>
               <TableHead class="px-6 py-3">{{ t('admin.resellerWithdraws.table.currency') }}</TableHead>
+              <TableHead class="min-w-[160px] px-6 py-3">{{ t('admin.resellerWithdraws.table.settlementRate') }}</TableHead>
               <TableHead class="min-w-[100px] px-6 py-3">{{ t('admin.resellerWithdraws.table.channel') }}</TableHead>
               <TableHead class="min-w-[180px] px-6 py-3">{{ t('admin.resellerWithdraws.table.account') }}</TableHead>
               <TableHead class="min-w-[100px] px-6 py-3">{{ t('admin.resellerWithdraws.table.status') }}</TableHead>
@@ -236,12 +245,12 @@ onMounted(() => {
           </TableHeader>
           <TableBody class="divide-y divide-border">
             <TableRow v-if="loading">
-              <TableCell :colspan="11" class="p-0">
-                <TableSkeleton :columns="11" :rows="5" />
+              <TableCell :colspan="12" class="p-0">
+                <TableSkeleton :columns="12" :rows="5" />
               </TableCell>
             </TableRow>
             <TableRow v-else-if="rows.length === 0">
-              <TableCell colspan="11" class="px-6 py-8 text-center text-muted-foreground">{{ t('admin.resellerWithdraws.empty') }}</TableCell>
+              <TableCell colspan="12" class="px-6 py-8 text-center text-muted-foreground">{{ t('admin.resellerWithdraws.empty') }}</TableCell>
             </TableRow>
             <TableRow v-for="item in rows" :key="item.id" class="hover:bg-muted/30">
               <TableCell class="px-6 py-4">
@@ -264,8 +273,12 @@ onMounted(() => {
                   <span class="ml-1 font-mono text-muted-foreground">/ R#{{ item.reseller_id }}</span>
                 </div>
               </TableCell>
-              <TableCell class="px-6 py-4 font-mono text-xs text-foreground">{{ item.amount || '0.00' }}</TableCell>
+              <TableCell class="px-6 py-4 font-mono text-xs text-foreground">{{ item.amount || '0.00' }}
+                <div v-if="item.channel === 'BSC_USDT'" class="mt-1 whitespace-nowrap text-xs text-muted-foreground">{{ t('admin.exchangeRate.estimatedPayout', { amount: item.estimated_usdt_amount, rate: item.exchange_rate }) }}</div>
+                <div v-if="Number(item.payout_usdt_amount) > 0" class="mt-1 whitespace-nowrap text-xs">{{ t('admin.exchangeRate.actualPayout', { amount: item.payout_usdt_amount, rate: item.payout_rate }) }}</div>
+              </TableCell>
               <TableCell class="px-6 py-4 font-mono text-xs text-muted-foreground">{{ item.currency || '-' }}</TableCell>
+              <TableCell class="px-6 py-4 font-mono text-xs text-muted-foreground">{{ item.status === RESELLER_WITHDRAW_STATUS_PAID && Number(item.payout_rate) > 0 ? item.payout_rate : '-' }}</TableCell>
               <TableCell class="min-w-[100px] px-6 py-4 text-xs text-foreground break-words">{{ item.channel || '-' }}</TableCell>
               <TableCell class="min-w-[180px] px-6 py-4 text-xs text-muted-foreground break-all">{{ item.account || '-' }}</TableCell>
               <TableCell class="min-w-[100px] px-6 py-4 text-xs">

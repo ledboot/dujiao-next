@@ -1,7 +1,10 @@
 package application
 
 import (
+	"context"
 	"fmt"
+	settingscontract "github.com/dujiao-next/internal/modules/settings/contract"
+	"regexp"
 	"strings"
 	"time"
 
@@ -17,7 +20,8 @@ import (
 
 // AccountingWithdrawService 分销提现申请与审核用例。
 type AccountingWithdrawService struct {
-	store resellercontract.AccountingWithdrawStore
+	store         resellercontract.AccountingWithdrawStore
+	ExchangeRates settingscontract.ExchangeRateProvider
 }
 
 func NewAccountingWithdrawService(store resellercontract.AccountingWithdrawStore) *AccountingWithdrawService {
@@ -37,6 +41,27 @@ func (s *AccountingWithdrawService) ApplyUserWithdraw(userID uint, input reselle
 	}
 	if err := RequireActiveProfile(profile); err != nil {
 		return nil, err
+	}
+	if strings.ToUpper(strings.TrimSpace(input.Currency)) != "CNY" {
+		return nil, resellercontract.ErrWithdrawCurrencyUnavailable
+	}
+	if !input.Amount.IsPositive() || !input.Amount.Equal(input.Amount.Round(2)) {
+		return nil, resellercontract.ErrWithdrawAmountInvalid
+	}
+	input.Account = strings.TrimSpace(input.Account)
+	if !validBSCWithdrawAddress(input.Account) {
+		return nil, resellercontract.ErrWithdrawAddressInvalid
+	}
+	snapshot, err := s.GetWithdrawExchangeRate(context.Background())
+	if err != nil {
+		return nil, err
+	}
+	input.Currency = "CNY"
+	input.Channel = "BSC_USDT"
+	input.ExchangeRate = snapshot.Rate
+	input.EstimatedUSDTAmount = input.Amount.Div(snapshot.Rate).Truncate(2)
+	if input.EstimatedUSDTAmount.LessThan(decimal.NewFromInt(10)) {
+		return nil, resellercontract.ErrWithdrawBelowMinimum
 	}
 	return s.ApplyWithdraw(profile.ID, input)
 }
@@ -125,14 +150,16 @@ func (s *AccountingWithdrawService) ApplyWithdraw(resellerID uint, input reselle
 			return resellercontract.ErrWithdrawInsufficient
 		}
 		req := &resellerdomain.WithdrawRequest{
-			ResellerID: resellerID,
-			Amount:     money.FromDecimal(amount),
-			Currency:   currency,
-			Channel:    channel,
-			Account:    account,
-			Status:     resellerdomain.WithdrawStatusPending,
-			CreatedAt:  now,
-			UpdatedAt:  now,
+			ResellerID:          resellerID,
+			ExchangeRate:        input.ExchangeRate,
+			EstimatedUSDTAmount: money.FromDecimal(input.EstimatedUSDTAmount),
+			Amount:              money.FromDecimal(amount),
+			Currency:            currency,
+			Channel:             channel,
+			Account:             account,
+			Status:              resellerdomain.WithdrawStatusPending,
+			CreatedAt:           now,
+			UpdatedAt:           now,
 		}
 		if err := store.CreateWithdrawRequest(req); err != nil {
 			return err
@@ -153,6 +180,15 @@ func (s *AccountingWithdrawService) ApplyWithdraw(resellerID uint, input reselle
 }
 
 func (s *AccountingWithdrawService) ReviewWithdraw(adminID uint, withdrawID uint, action string, rejectReason string) (*resellerdomain.WithdrawRequest, error) {
+	return s.reviewWithdraw(adminID, withdrawID, action, rejectReason, decimal.Zero)
+}
+
+// ReviewWithdrawAtRate records the actual conversion rate confirmed by finance after manual payout.
+func (s *AccountingWithdrawService) ReviewWithdrawAtRate(adminID, withdrawID uint, rate decimal.Decimal) (*resellerdomain.WithdrawRequest, error) {
+	return s.reviewWithdraw(adminID, withdrawID, resellercontract.WithdrawActionPay, "", rate)
+}
+
+func (s *AccountingWithdrawService) reviewWithdraw(adminID uint, withdrawID uint, action string, rejectReason string, payoutRate decimal.Decimal) (*resellerdomain.WithdrawRequest, error) {
 	if s == nil || s.store == nil || withdrawID == 0 {
 		return nil, productcontract.ErrNotFound
 	}
@@ -185,6 +221,17 @@ func (s *AccountingWithdrawService) ReviewWithdraw(adminID uint, withdrawID uint
 				return err
 			}
 		} else {
+			if req.Channel == "BSC_USDT" {
+				if req.Currency != "CNY" || !payoutRate.IsPositive() || !payoutRate.Equal(payoutRate.Round(8)) || !validBSCWithdrawAddress(req.Account) {
+					return resellercontract.ErrWithdrawAmountInvalid
+				}
+				payout := req.Amount.Decimal.Div(payoutRate).Truncate(2)
+				if payout.LessThan(decimal.NewFromInt(10)) {
+					return resellercontract.ErrWithdrawBelowMinimum
+				}
+				req.PayoutRate = payoutRate
+				req.PayoutUSDTAmount = money.FromDecimal(payout)
+			}
 			req.Status = resellerdomain.WithdrawStatusPaid
 			req.RejectReason = ""
 			if err := store.BatchUpdateLedgerEntriesByWithdrawID(withdrawID, map[string]interface{}{
@@ -202,4 +249,58 @@ func (s *AccountingWithdrawService) ReviewWithdraw(adminID uint, withdrawID uint
 		return nil, err
 	}
 	return s.store.GetWithdrawRequestByID(withdrawID)
+}
+
+var bscWithdrawAddress = regexp.MustCompile(`^0x[0-9a-fA-F]{40}$`)
+
+func validBSCWithdrawAddress(address string) bool {
+	return bscWithdrawAddress.MatchString(address) && !strings.EqualFold(address, "0x0000000000000000000000000000000000000000")
+}
+
+func (s *AccountingWithdrawService) GetWithdrawExchangeRate(ctx context.Context) (settingscontract.ExchangeRateSnapshot, error) {
+	if s == nil || s.ExchangeRates == nil {
+		return settingscontract.ExchangeRateSnapshot{}, settingscontract.ErrExchangeRateUnavailable
+	}
+	ctx, cancel := context.WithTimeout(ctx, 45*time.Second)
+	defer cancel()
+	quote, err := s.ExchangeRates.GetExchangeRate(ctx, false)
+	if err != nil {
+		return quote, err
+	}
+	if !quote.Rate.IsPositive() {
+		return quote, settingscontract.ErrExchangeRateUnavailable
+	}
+	return quote, nil
+}
+
+// GetWithdrawPayoutQuote reads settings and upstream quotes outside the funds transaction.
+func (s *AccountingWithdrawService) GetWithdrawPayoutQuote(ctx context.Context, id uint) (resellercontract.WithdrawPayoutQuote, error) {
+	if s == nil || s.store == nil {
+		return resellercontract.WithdrawPayoutQuote{}, resellercontract.ErrAccountingUnavailable
+	}
+	req, err := s.store.GetWithdrawRequestByID(id)
+	if err != nil {
+		return resellercontract.WithdrawPayoutQuote{}, err
+	}
+	if req == nil {
+		return resellercontract.WithdrawPayoutQuote{}, productcontract.ErrNotFound
+	}
+	if req.Status != resellerdomain.WithdrawStatusPending || req.Channel != "BSC_USDT" {
+		return resellercontract.WithdrawPayoutQuote{}, resellercontract.ErrWithdrawStatusInvalid
+	}
+	if req.Currency != "CNY" {
+		return resellercontract.WithdrawPayoutQuote{}, resellercontract.ErrWithdrawCurrencyUnavailable
+	}
+	if !validBSCWithdrawAddress(req.Account) {
+		return resellercontract.WithdrawPayoutQuote{}, resellercontract.ErrWithdrawAddressInvalid
+	}
+	snapshot, err := s.GetWithdrawExchangeRate(ctx)
+	if err != nil {
+		return resellercontract.WithdrawPayoutQuote{}, err
+	}
+	amount := req.Amount.Decimal.Div(snapshot.Rate).Truncate(2)
+	if amount.LessThan(decimal.NewFromInt(10)) {
+		return resellercontract.WithdrawPayoutQuote{}, resellercontract.ErrWithdrawBelowMinimum
+	}
+	return resellercontract.WithdrawPayoutQuote{Rate: snapshot.Rate, USDTAmount: amount, Account: req.Account}, nil
 }

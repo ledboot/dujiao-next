@@ -246,13 +246,13 @@ func (f orderResellerSnapshotFixture) addResellerSnapshotProduct(t *testing.T, s
 		setting := resellerdomain.ProductSetting{
 			ResellerID:        f.profile.ID,
 			ProductID:         product.ID,
-			SKUID:             0,
+			SKUID:             sku.ID,
 			IsListed:          true,
 			PricingMode:       resellerdomain.PricingModeFixedMarkup,
 			FixedMarkupAmount: money.FromDecimal(fixedMarkup),
 		}
 		if err := f.db.Create(&setting).Error; err != nil {
-			t.Fatalf("create extra product-level setting failed: %v", err)
+			t.Fatalf("create extra SKU setting failed: %v", err)
 		}
 	}
 	return product, sku
@@ -366,16 +366,19 @@ func TestCreateOrderResellerWritesSnapshotAndTenantFields(t *testing.T) {
 	}
 }
 
-func TestCreateOrderResellerRuntimePricesMatchPreviewAndSnapshotAcrossRuleSources(t *testing.T) {
+func TestCreateOrderResellerRuntimePricesMatchPreviewAndSnapshotAcrossSKURules(t *testing.T) {
 	f := newOrderResellerSnapshotFixture(t)
-	productWithProductRule, skuWithProductRule := f.addResellerSnapshotProduct(t, "reseller-order-product-rule", decimal.NewFromInt(80), decimal.NewFromInt(40), decimal.NewFromInt(25))
-	productWithProfileRule, skuWithProfileRule := f.addResellerSnapshotProduct(t, "reseller-order-profile-rule", decimal.NewFromInt(50), decimal.NewFromInt(25), decimal.NewFromInt(-1))
+	productWithMarkupRule, skuWithMarkupRule := f.addResellerSnapshotProduct(t, "reseller-order-markup-rule", decimal.NewFromInt(80), decimal.NewFromInt(40), decimal.NewFromInt(25))
+	productWithSKURule, skuWithSKURule := f.addResellerSnapshotProduct(t, "reseller-order-percentage-rule", decimal.NewFromInt(50), decimal.NewFromInt(25), decimal.NewFromInt(-1))
+	if err := f.db.Create(&resellerdomain.ProductSetting{ResellerID: f.profile.ID, ProductID: productWithSKURule.ID, SKUID: skuWithSKURule.ID, IsListed: true, PricingMode: resellerdomain.PricingModeMarkupPercent, MarkupPercent: money.FromDecimal(decimal.NewFromInt(20))}).Error; err != nil {
+		t.Fatal(err)
+	}
 
 	input := f.createInput(f.buyer.ID)
 	input.Items = []CreateOrderItem{
 		{ProductID: f.product.ID, SKUID: f.sku.ID, Quantity: 1},
-		{ProductID: productWithProductRule.ID, SKUID: skuWithProductRule.ID, Quantity: 2},
-		{ProductID: productWithProfileRule.ID, SKUID: skuWithProfileRule.ID, Quantity: 1},
+		{ProductID: productWithMarkupRule.ID, SKUID: skuWithMarkupRule.ID, Quantity: 2},
+		{ProductID: productWithSKURule.ID, SKUID: skuWithSKURule.ID, Quantity: 1},
 	}
 
 	preview, err := f.svc.PreviewOrder(input)
@@ -417,7 +420,7 @@ func TestCreateOrderResellerRuntimePricesMatchPreviewAndSnapshotAcrossRuleSource
 	if !ok || len(items) != 3 {
 		t.Fatalf("expected 3 pricing snapshot items, got %#v", snapshot.PricingSnapshotJSON["items"])
 	}
-	seenSources := map[string]bool{}
+	seenModes := map[string]bool{}
 	for _, raw := range items {
 		item, ok := raw.(map[string]interface{})
 		if !ok {
@@ -428,18 +431,18 @@ func TestCreateOrderResellerRuntimePricesMatchPreviewAndSnapshotAcrossRuleSource
 			}
 		}
 		source, _ := item["rule_source"].(string)
-		seenSources[source] = true
+		if source != resellermodule.RuleSourceSKU {
+			t.Fatalf("SKU inherited another rule: %+v", item)
+		}
+		mode, _ := item["pricing_mode"].(string)
+		seenModes[mode] = true
 		if fmt.Sprint(item["child_order_id"]) == "0" || fmt.Sprint(item["order_item_id"]) == "0" {
 			t.Fatalf("pricing snapshot item should contain child/order item ids: %+v", item)
 		}
 	}
-	for _, source := range []string{
-		resellermodule.RuleSourceSKU,
-		resellermodule.RuleSourceProduct,
-		resellermodule.RuleSourceProfile,
-	} {
-		if !seenSources[source] {
-			t.Fatalf("missing pricing snapshot source %q in %+v", source, seenSources)
+	for _, mode := range []string{resellerdomain.PricingModeFixedPrice, resellerdomain.PricingModeFixedMarkup, resellerdomain.PricingModeMarkupPercent} {
+		if !seenModes[mode] {
+			t.Fatalf("missing pricing mode %q in %+v", mode, seenModes)
 		}
 	}
 }
@@ -720,5 +723,31 @@ func TestInvoiceChildTaxUsesCombinedRounding(t *testing.T) {
 	}
 	if total.StringFixed(2) != "0.50" || tax.StringFixed(2) != "0.01" {
 		t.Fatalf("child allocation total=%s tax=%s", total, tax)
+	}
+}
+
+func TestUnpricedResellerProductCannotBePreviewedOrOrdered(t *testing.T) {
+	f := newOrderResellerSnapshotFixture(t)
+	if err := f.db.Where("reseller_id = ?", f.profile.ID).Delete(&resellerdomain.ProductSetting{}).Error; err != nil {
+		t.Fatal(err)
+	}
+	if _, err := f.svc.PreviewOrder(f.createInput(f.buyer.ID)); !errors.Is(err, ErrResellerProductNotListed) {
+		t.Fatalf("unpriced preview accepted: %v", err)
+	}
+	if _, err := f.svc.CreateOrder(f.createInput(f.buyer.ID)); !errors.Is(err, ErrResellerProductNotListed) {
+		t.Fatalf("unpriced order accepted: %v", err)
+	}
+	var count int64
+	if err := f.db.Model(&resellerdomain.OrderSnapshot{}).Count(&count).Error; err != nil {
+		t.Fatal(err)
+	}
+	if err := f.db.Create(&resellerdomain.ProductSetting{ResellerID: f.profile.ID, ProductID: f.product.ID, IsListed: true, PricingMode: resellerdomain.PricingModeFixedPrice, FixedPriceAmount: money.FromDecimal(decimal.NewFromInt(130))}).Error; err != nil {
+		t.Fatal(err)
+	}
+	if _, err := f.svc.CreateOrder(f.createInput(f.buyer.ID)); !errors.Is(err, ErrResellerProductNotListed) {
+		t.Fatalf("product rule incorrectly priced an unconfigured SKU: %v", err)
+	}
+	if count != 0 {
+		t.Fatal("unpriced product created a pricing snapshot")
 	}
 }

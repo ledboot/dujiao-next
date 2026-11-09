@@ -410,6 +410,12 @@ const navGroups = computed<NavGroup[]>(() => {
           permission: 'GET:/admin/resellers/balance-accounts',
         },
         {
+          label: t('admin.exchangeRate.title'),
+          to: '/settings/exchange-rate',
+          icon: SlidersHorizontal,
+          permission: 'GET:/admin/settings/exchange-rate',
+        },
+        {
           label: t('admin.navItems.resellerWithdraws'),
           to: '/resellers/withdraws',
           icon: WalletCards,

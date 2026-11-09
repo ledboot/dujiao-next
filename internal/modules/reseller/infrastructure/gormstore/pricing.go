@@ -34,6 +34,25 @@ func (r *Store) ListHiddenProductIDs(resellerID uint) ([]uint, error) {
 	}
 
 	hidden := map[uint]struct{}{}
+	// Each active SKU needs its own explicit sale rule; product rules apply only without SKUs.
+	// Exclude unpriced products before pagination so totals match storefront visibility.
+	var unpriced []uint
+	if err := r.db.Model(&productdomain.Product{}).
+		Where("products.deleted_at IS NULL").
+		Where(`NOT EXISTS (SELECT 1 FROM reseller_product_settings priced
+   WHERE priced.reseller_id = ? AND priced.product_id = products.id
+   AND priced.deleted_at IS NULL AND priced.is_listed = ?
+   AND priced.pricing_mode IN ?
+   AND ((priced.sku_id = 0 AND NOT EXISTS (SELECT 1 FROM product_skus any_sku WHERE any_sku.product_id = products.id AND any_sku.deleted_at IS NULL)) OR EXISTS (SELECT 1 FROM product_skus ps
+    WHERE ps.id = priced.sku_id AND ps.product_id = products.id AND ps.is_active = ? AND ps.deleted_at IS NULL)))`,
+			resellerID, true, []string{resellerdomain.PricingModeMarkupPercent, resellerdomain.PricingModeFixedMarkup, resellerdomain.PricingModeFixedPrice}, true).
+		Pluck("products.id", &unpriced).Error; err != nil {
+		return nil, err
+	}
+	for _, id := range unpriced {
+		hidden[id] = struct{}{}
+	}
+
 	var productHidden []uint
 	if err := r.db.Model(&resellerdomain.ProductSetting{}).
 		Where("reseller_id = ? AND sku_id = 0 AND is_listed = ? AND deleted_at IS NULL", resellerID, false).

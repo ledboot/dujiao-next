@@ -54,6 +54,7 @@ export const resellerAPI = {
     orderDetail: (orderNo: string) => userApi.get(`/reseller/orders/${encodeURIComponent(orderNo)}`),
     balanceAccounts: (params?: any) => userApi.get('/reseller/balance-accounts', { params }),
     ledgerEntries: (params?: any) => userApi.get('/reseller/ledger-entries', { params }),
+    withdrawExchangeRate: () => userApi.get('/reseller/withdraw-exchange-rate'),
     withdraws: (params?: any) => userApi.get('/reseller/withdraws', { params }),
     applyWithdraw: (data: ResellerWithdrawApplyPayload) =>
         userApi.post('/reseller/withdraws', data),

@@ -198,11 +198,12 @@ const schedulePreview = () => {
   previewTimer = setTimeout(runPreview, 350)
 }
 
-const previewEffectiveFor = (key: number, fallback: string) => previewByKey[key]?.effective || fallback
+const previewEffectiveFor = (key: number, fallback: string) => Number(previewByKey[key]?.effective) > 0 ? previewByKey[key]?.effective : fallback
 const previewInvalidFor = (key: number) => previewByKey[key]?.valid === false
 const previewHintFor = (key: number) => {
   const code = previewByKey[key]?.errorCode
   if (!code) return ''
+  if (code === 'price_not_set') return t('admin.resellerProductSettings.preview.priceNotSet')
   if (code === 'markup_exceeded') return t('admin.resellerProductSettings.preview.markupExceeded')
   return t('admin.resellerProductSettings.preview.priceInvalid')
 }

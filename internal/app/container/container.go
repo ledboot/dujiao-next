@@ -70,6 +70,7 @@ import (
 	reseller "github.com/dujiao-next/internal/modules/reseller/application"
 	resellergormstore "github.com/dujiao-next/internal/modules/reseller/infrastructure/gormstore"
 	settingsapp "github.com/dujiao-next/internal/modules/settings/application"
+	exchangeapp "github.com/dujiao-next/internal/modules/settings/application/exchangerate"
 	settingscontract "github.com/dujiao-next/internal/modules/settings/contract"
 	siteconnectionapp "github.com/dujiao-next/internal/modules/siteconnection/application"
 	siteconnectioncontract "github.com/dujiao-next/internal/modules/siteconnection/contract"
@@ -152,6 +153,7 @@ type Container struct {
 	ContentMediaService           *contentapp.MediaService
 	CategoryService               *categoryapp.Service
 	SettingService                *settingsapp.Service
+	ExchangeRateService           *exchangeapp.ExchangeRateService
 	SitemapService                *sitemapapp.Service
 	CartService                   *cartapp.Service
 	WalletService                 *walletapp.Service

@@ -27,6 +27,8 @@ import (
 	"github.com/dujiao-next/internal/modules/reseller/application/domainhosting"
 	resellercloudflare "github.com/dujiao-next/internal/modules/reseller/infrastructure/cloudflare"
 	settingsapp "github.com/dujiao-next/internal/modules/settings/application"
+	exchangeapp "github.com/dujiao-next/internal/modules/settings/application/exchangerate"
+	exchangerate "github.com/dujiao-next/internal/modules/settings/infrastructure/exchangerate"
 	settingsmessaging "github.com/dujiao-next/internal/modules/settings/schema/messaging"
 	settingssecurity "github.com/dujiao-next/internal/modules/settings/schema/security"
 	uploadapp "github.com/dujiao-next/internal/modules/upload/application"
@@ -49,6 +51,7 @@ func (c *Container) initPolicyAndSettingServices() {
 
 	c.SettingService = settingsapp.NewService(c.SettingRepo, c.Config.Order)
 	c.SettingService.ServerConfig = c.Config.Server
+	c.ExchangeRateService = exchangeapp.NewExchangeRateService(c.SettingService, exchangerate.NewClient())
 	c.EmailBrandResolver = mailbrandwiring.New(c.SettingService, c.ResellerStore)
 	c.ResellerDomainResolver = reseller.NewDomainResolver(c.ResellerStore, c.Config.Reseller)
 	c.ResellerPricingResolver = orderapp.NewResellerPricingResolver(c.ResellerStore)
@@ -58,6 +61,7 @@ func (c *Container) initPolicyAndSettingServices() {
 	c.ResellerProductSettingService = reseller.NewProductSettingService(c.ResellerStore, c.ProductRepo)
 	c.ResellerAccountingQuery = reseller.NewAccountingQueryService(c.ResellerStore)
 	c.ResellerAccountingWithdraw = reseller.NewAccountingWithdrawService(c.ResellerStore)
+	c.ResellerAccountingWithdraw.ExchangeRates = c.ExchangeRateService
 	c.ResellerAccountingLedger = reseller.NewAccountingLedgerService(
 		c.ResellerStore,
 		c.Config.Reseller.SettlementConfirmDays,

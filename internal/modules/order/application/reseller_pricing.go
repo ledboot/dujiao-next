@@ -246,7 +246,7 @@ func (r *ResellerPricingResolver) ResolveDisplayPrices(tenant resellercontract.T
 		}
 	}
 	if len(product.SKUs) == 0 {
-		price, _, err := resolveResellerUnitAmount(batch.Profile, productSetting, nil, resellerapplication.ResolveSupplyPrice(product.PriceAmount.Decimal, productSetting, nil, product.DefaultSupplyPriceAmount.Decimal))
+		price, _, err := resellerapplication.ResolveUnitAmount(batch.Profile, productSetting, nil, resellerapplication.ResolveSupplyPrice(product.PriceAmount.Decimal, productSetting, nil, product.DefaultSupplyPriceAmount.Decimal))
 		if err != nil {
 			logger.Warnw("reseller_display_price_product_hidden",
 				"reseller_id", batch.Profile.ID,
@@ -293,7 +293,7 @@ func buildSettingIndexes(settings []resellerdomain.ProductSetting) (map[uint]*re
 }
 
 func resolveResellerUnitAmount(profile *resellerdomain.Profile, productSetting *resellerdomain.ProductSetting, skuSetting *resellerdomain.ProductSetting, baseUnit decimal.Decimal) (decimal.Decimal, resellerapplication.PricingRule, error) {
-	return resellerapplication.ResolveUnitAmount(profile, productSetting, skuSetting, baseUnit)
+	return resellerapplication.ResolveSKUUnitAmount(skuSetting, baseUnit)
 }
 
 func validateResellerUnitAmount(profile *resellerdomain.Profile, sku *productdomain.ProductSKU, baseUnit decimal.Decimal, resellerUnit decimal.Decimal) error {

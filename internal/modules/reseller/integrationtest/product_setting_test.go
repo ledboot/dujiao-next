@@ -118,8 +118,8 @@ func TestResellerProductSettingServiceUserSaveValidatesAndReturnsEffectivePrices
 		t.Fatalf("sku override effective price want 130.00 got %s", effective.StringFixed(2))
 	}
 	fallback := detail.EffectiveBySKUID[skus[1].ID]
-	if fallback.StringFixed(2) != "240.00" {
-		t.Fatalf("product markup effective price want 240.00 got %s", fallback.StringFixed(2))
+	if fallback.IsPositive() {
+		t.Fatalf("unpriced SKU must not fall back to product rule: %s", fallback)
 	}
 }
 
@@ -236,8 +236,8 @@ func TestResellerProductSettingServicePreviewMatchesSaveSemantics(t *testing.T) 
 		t.Fatalf("sku A preview want valid 130.00, got %+v", skuA)
 	}
 	skuB := findPreviewItem(items, skus[1].ID)
-	if skuB == nil || !skuB.Valid || skuB.EffectivePrice.StringFixed(2) != "240.00" {
-		t.Fatalf("sku B inherit preview want valid 240.00, got %+v", skuB)
+	if skuB == nil || skuB.Valid || skuB.IsListed || skuB.EffectivePrice.IsPositive() || skuB.ErrorCode != "price_not_set" {
+		t.Fatalf("unpriced SKU must stay unavailable despite product rule: %+v", skuB)
 	}
 
 	// 预览不得落库。
@@ -332,8 +332,8 @@ func TestResellerSupplyPriceAdminOwnershipAndFallback(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if detail.Settings[0].SupplyPriceAmount.StringFixed(2) != "90.00" || detail.EffectiveBySKUID[skus[0].ID].StringFixed(2) != "99.00" {
-		t.Fatal("reset must retain supply price and restore default markup")
+	if detail.Settings[0].SupplyPriceAmount.StringFixed(2) != "90.00" || detail.EffectiveBySKUID[skus[0].ID].IsPositive() {
+		t.Fatal("reset must retain supply price and remove the sale price")
 	}
 	// Explicit zero clears the override; omitted values retain it.
 	zero := decimal.Zero
@@ -343,8 +343,8 @@ func TestResellerSupplyPriceAdminOwnershipAndFallback(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if detail.EffectiveBySKUID[skus[0].ID].StringFixed(2) != "110.00" {
-		t.Fatal("zero must restore retail base")
+	if detail.EffectiveBySKUID[skus[0].ID].IsPositive() {
+		t.Fatal("clearing the supply override must not configure a sale price")
 	}
 	for _, invalid := range []string{"-1", "0.001", "79.99"} {
 		value := decimal.RequireFromString(invalid)

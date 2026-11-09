@@ -39,6 +39,7 @@ func RegisterUserFinanceRoutes(console gin.IRoutes, handler *UserFinanceHandler)
 	console.GET("/balance-accounts", handler.ListBalanceAccounts)
 	console.GET("/ledger-entries", handler.ListLedgerEntries)
 	console.GET("/withdraws", handler.ListWithdraws)
+	console.GET("/withdraw-exchange-rate", handler.GetWithdrawExchangeRate)
 	console.POST("/withdraws", handler.ApplyWithdraw)
 }
 

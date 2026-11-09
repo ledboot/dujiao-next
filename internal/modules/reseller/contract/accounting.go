@@ -90,10 +90,12 @@ type UserWithdrawListFilter struct {
 
 // WithdrawApplyInput 分销提现申请输入。
 type WithdrawApplyInput struct {
-	Amount   decimal.Decimal
-	Currency string
-	Channel  string
-	Account  string
+	ExchangeRate        decimal.Decimal
+	EstimatedUSDTAmount decimal.Decimal
+	Amount              decimal.Decimal
+	Currency            string
+	Channel             string
+	Account             string
 }
 
 // LedgerListFilter 分销商账务流水持久化过滤条件。
@@ -182,4 +184,10 @@ type AccountingLedgerStore interface {
 	MarkDueLedgerEntriesAvailable(now time.Time) (int64, error)
 	SumLedgerAmountByOrderAndType(orderID uint, ledgerType string) (decimal.Decimal, error)
 	GetLedgerEntryByIdempotencyKey(key string) (*resellerdomain.LedgerEntry, error)
+}
+
+type WithdrawPayoutQuote struct {
+	Rate       decimal.Decimal `json:"rate"`
+	USDTAmount decimal.Decimal `json:"usdt_amount"`
+	Account    string          `json:"account"`
 }

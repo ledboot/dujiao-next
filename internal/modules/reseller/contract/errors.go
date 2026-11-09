@@ -51,3 +51,6 @@ var (
 	// ErrLedgerInvalidSnapshot 表示订单快照不足以生成账务流水。
 	ErrLedgerInvalidSnapshot = errors.New("reseller ledger invalid snapshot")
 )
+
+var ErrWithdrawAddressInvalid = errors.New("invalid BSC USDT address")
+var ErrWithdrawBelowMinimum = errors.New("withdrawal below 10 USDT")
