@@ -44,7 +44,7 @@ function setup(name: string | undefined = 'blog', fullPath = '/blog', delayRoute
   const execute = new Function('require', 'exports', 'window', 'Event', compiled + '\nreturn { allowed, entered, showContent, challenge, failed, verify }')
   const gate = scope.run(() => execute((name: string) => { assert.ok(name in mocks, name); return mocks[name] }, {}, window, Event))
   mount()
-  return { gate, route, calls, emitted, listeners, ready, fail: () => { fail = true }, flush: async () => { for (let i = 0; i < 4; i++) await nextTick() }, stop: () => { unmount(); scope.stop() } }
+  return { gate, route, calls, emitted, listeners, ready, fail: () => { fail = true }, expire: () => { required = true }, flush: async () => { for (let i = 0; i < 4; i++) await nextTick() }, stop: () => { unmount(); scope.stop() } }
 }
 
 test('all public reading routes render without requesting or solving a challenge', async (t) => {
@@ -93,6 +93,62 @@ test('a protected action from a public page still requires successful verificati
   assert.equal(s.calls.verify, 1)
   assert.equal(s.gate.allowed.value, true)
   assert.equal(s.gate.showContent.value, true)
+})
+
+test('verified visitors switch private tabs and query parameters without a verification flash', async (t) => {
+  const s = setup('checkout', '/checkout')
+  t.after(s.stop)
+  await s.flush()
+  await s.gate.verify('unit-token')
+  await s.flush()
+  const statusCalls = s.calls.status
+  const visibility: boolean[] = []
+  const stopWatching = watch(s.gate.showContent, value => visibility.push(value), { flush: 'sync' })
+  t.after(stopWatching)
+
+  for (const [name, fullPath] of [
+    ['personal-center-orders', '/me/orders'],
+    ['personal-center-wallet', '/me/wallet'],
+    ['personal-center-orders', '/me/orders?page=2'],
+    ['personal-center-orders', '/me/orders?page=3'],
+    ['blog', '/blog'],
+    ['cart', '/cart'],
+    ['checkout', '/checkout'],
+  ]) {
+    s.route.name = name
+    s.route.fullPath = fullPath
+    await s.flush()
+    assert.equal(s.gate.showContent.value, true, fullPath)
+    assert.equal(s.gate.challenge.value, null, fullPath)
+  }
+  assert.equal(s.calls.status, statusCalls)
+  assert.equal(s.calls.verify, 1)
+  assert.ok(!visibility.includes(false), 'verified content must never be hidden during tab switches')
+})
+
+test('a server verification rejection invalidates reused clearance and fails closed on status errors', async (t) => {
+  const s = setup('checkout', '/checkout')
+  t.after(s.stop)
+  await s.flush()
+  await s.gate.verify('unit-token')
+  await s.flush()
+
+  s.expire()
+  s.listeners.get('storefront-verification-required')!()
+  assert.equal(s.gate.showContent.value, false)
+  await s.flush()
+  assert.equal(s.gate.allowed.value, false)
+  assert.equal(s.gate.challenge.value?.siteKey, 'test-key')
+
+  await s.gate.verify('unit-token')
+  await s.flush()
+  assert.equal(s.gate.showContent.value, true)
+  s.fail()
+  s.listeners.get('storefront-verification-required')!()
+  await s.flush()
+  assert.equal(s.gate.allowed.value, false)
+  assert.equal(s.gate.showContent.value, false)
+  assert.equal(s.gate.failed.value, true)
 })
 
 test('initial route resolution does not trigger a challenge or leave home blank', async (t) => {

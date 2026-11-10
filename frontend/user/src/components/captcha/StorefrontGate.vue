@@ -80,7 +80,9 @@ watch(() => [routeReady.value, route.name, route.fullPath], () => {
   if (!routeReady.value) return
   verificationRequested.value = false
   if (publicReading.value) void contentReady()
-  else void check()
+  // The server checks the clearance cookie on every protected API request.
+  // Reuse its confirmed result across SPA tabs; a 428 requests a fresh check.
+  else if (!allowed.value) void check()
 }, { immediate: true })
 
 onMounted(() => {
