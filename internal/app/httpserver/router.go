@@ -23,6 +23,7 @@ import (
 	paymentwiring "github.com/dujiao-next/internal/bootstrap/payment"
 	publicconfigwiring "github.com/dujiao-next/internal/bootstrap/publicconfig"
 	resellerbootstrap "github.com/dujiao-next/internal/bootstrap/reseller"
+	"github.com/dujiao-next/internal/bootstrap/storefrontseo"
 	upstreamwiring "github.com/dujiao-next/internal/bootstrap/upstreamapi"
 	userauthwiring "github.com/dujiao-next/internal/bootstrap/userauth"
 	walletbootstrap "github.com/dujiao-next/internal/bootstrap/wallet"
@@ -248,6 +249,17 @@ func SetupRouter(cfg *config.Config, c *container.Container) *gin.Engine {
 	r.Use(middleware.RecoveryMiddleware())
 	r.Use(middleware.LoggerMiddleware(log))
 	r.Use(middleware.CORSMiddleware(cfg.CORS))
+	publicPageRule := guestReadRule
+	publicPageRule.Prefix += ":public_pages"
+	publicPageGuard := middleware.RateLimitGuard(redisClient, publicPageRule, middleware.KeyByIP)
+	r.Use(func(ctx *gin.Context) {
+		if ctx.Request.Method == http.MethodGet && publicReadingPath(ctx.Request.URL.Path) {
+			publicPageGuard(ctx)
+		}
+		if !ctx.IsAborted() {
+			ctx.Next()
+		}
+	})
 	r.Use(middleware.CallbackRouteMiddleware(c.SettingService, paymentCallbackHandler, paymentWebhookHandler, upstreamHandler, middleware.RateLimitGuard(redisClient, callbackRule, middleware.KeyByIP)))
 
 	// 静态文件服务（上传的图片）必须放在前面。
@@ -263,7 +275,8 @@ func SetupRouter(cfg *config.Config, c *container.Container) *gin.Engine {
 	}).Static("/", "./uploads")
 
 	// SEO 资源（动态生成）。
-	sitemaptransport.RegisterRoutes(r, sitemaptransport.NewHandler(c.SitemapService, sitemapbrand.New(c.SettingService)))
+	seoRoutes := r.Group("", middleware.ResellerTenantMiddleware(c.ResellerDomainResolver))
+	sitemaptransport.RegisterRoutes(seoRoutes, sitemaptransport.NewHandler(c.SitemapService, sitemapbrand.New(c.SettingService)))
 
 	apiV1 := r.Group("/api/v1")
 	// 允许爬虫抓取公开接口用于渲染，但 JSON 响应本身不应进入搜索索引
@@ -292,7 +305,7 @@ func SetupRouter(cfg *config.Config, c *container.Container) *gin.Engine {
 		if err := web.RegisterAdmin(r, cfg.Web.AdminPath, web.AdminFS()); err != nil {
 			log.Sugar().Fatalf("注册 admin SPA 失败: %v", err)
 		}
-		if err := web.RegisterUser(r, web.UserFS()); err != nil {
+		if err := web.RegisterUser(r, web.UserFS(), storefrontseo.New(c)); err != nil {
 			log.Sugar().Fatalf("注册 user SPA 失败: %v", err)
 		}
 	}

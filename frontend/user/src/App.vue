@@ -44,6 +44,7 @@ import { computed, defineAsyncComponent, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useHead } from '@unhead/vue'
 import { isIndexableStorefrontRoute } from './utils/seo'
+import { usePublicPage } from './composables/usePublicPage'
 import { useAppStore } from './stores/app'
 import { getActiveTemplate, hasTemplateHint, rememberTemplate } from './templates/registry'
 import Navbar from './components/Navbar.vue'
@@ -72,6 +73,7 @@ useHead({
       : 'noindex, nofollow',
   }],
 })
+usePublicPage()
 const isResellerConsole = computed(() => route.meta.resellerConsole === true)
 // getActiveTemplate 读取 appStore.config（响应式），config 加载后会重新计算
 const isVault = computed(() => getActiveTemplate() === 'vault')

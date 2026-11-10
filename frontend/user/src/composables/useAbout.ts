@@ -14,6 +14,7 @@ export function useAbout() {
   usePageSeo({
     title: () => t('nav.about'),
     canonicalPath: () => '/about',
+    noindex: () => !appStore.config?.about || Object.keys(appStore.config.about).length === 0,
   })
 
   const aboutConfig = computed(() => appStore.config?.about || null)

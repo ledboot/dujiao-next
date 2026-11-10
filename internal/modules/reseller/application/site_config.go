@@ -357,13 +357,26 @@ func (s *SiteConfigService) ResetAdminSiteConfig(ctx context.Context, resellerID
 }
 
 func (s *SiteConfigService) ApplyPublicConfigOverlay(ctx context.Context, tenant resellercontract.TenantContext, base map[string]interface{}) (map[string]interface{}, error) {
+	if tenant.Unavailable {
+		return nil, productcontract.ErrNotFound
+	}
 	out := clonePublicConfigMap(base)
-	if tenant.ResellerID == nil || tenant.IsMain || tenant.Unavailable {
+	if tenant.ResellerID == nil || tenant.IsMain {
 		out["tenant"] = map[string]interface{}{"mode": "main", "host": tenant.Host}
 		return out, nil
 	}
 	resellerID := *tenant.ResellerID
 	delete(out, "announcement")
+	// White-label content never falls back to the platform's identity, support
+	// channels or legal statements, including sites without a saved config.
+	for _, key := range []string{"brand", "seo", "contact", "about", "legal"} {
+		out[key] = map[string]interface{}{}
+	}
+	out["footer_links"] = []interface{}{}
+	out["nav_config"] = map[string]interface{}{
+		"builtin":      map[string]interface{}{"blog": true, "notice": true, "about": false},
+		"custom_items": []interface{}{},
+	}
 	out["tenant"] = map[string]interface{}{
 		"mode":           "reseller",
 		"host":           tenant.Host,
@@ -380,6 +393,7 @@ func (s *SiteConfigService) ApplyPublicConfigOverlay(ctx context.Context, tenant
 		brandHost = tenant.PrimaryDomain
 	}
 	brand["site_url"] = mailbrand.ResellerFallback(brandHost).SiteURL
+	brand["site_name"] = brandHost
 	out["brand"] = brand
 	if s == nil || s.repo == nil {
 		return out, nil
@@ -514,6 +528,13 @@ func applyResellerSiteConfigToPublicConfig(out map[string]interface{}, cfg *rese
 	if len(cfg.NavConfigJSON) > 0 {
 		out["nav_config"] = cfg.NavConfigJSON
 	}
+	// There is no reseller-owned About field yet. Do not advertise an empty
+	// page or substitute the platform's About text.
+	nav := clonePublicConfigMap(resellerAnnouncementLocalizedMap(out["nav_config"]))
+	builtin := resellerAnnouncementLocalizedMap(nav["builtin"])
+	builtin["about"] = false
+	nav["builtin"] = builtin
+	out["nav_config"] = nav
 }
 
 func parseOverlayBool(raw interface{}) bool {

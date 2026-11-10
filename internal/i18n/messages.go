@@ -16,6 +16,14 @@ const (
 
 var messages = map[string]map[string]string{
 	LocaleZH: {
+		"seo.continue_shopping": "查看商品与下单",
+		"seo.products":          "商品与服务",
+		"seo.guides":            "AI 订阅指南",
+		"seo.about":             "关于我们",
+		"seo.notices":           "服务公告",
+		"seo.terms":             "服务条款",
+		"seo.privacy":           "隐私政策",
+
 		"error.jwt_secret_missing":                       "JWT secret 未配置",
 		"error.auth_header_missing":                      "缺少 Authorization header",
 		"error.auth_header_invalid":                      "Authorization header 格式错误",
@@ -406,6 +414,14 @@ var messages = map[string]map[string]string{
 		"error.invalid_product_status":              "无效的商品状态参数",
 	},
 	LocaleTW: {
+		"seo.continue_shopping": "查看商品與下單",
+		"seo.products":          "商品與服務",
+		"seo.guides":            "AI 訂閱指南",
+		"seo.about":             "關於我們",
+		"seo.notices":           "服務公告",
+		"seo.terms":             "服務條款",
+		"seo.privacy":           "隱私政策",
+
 		"error.jwt_secret_missing":                       "JWT secret 未配置",
 		"error.auth_header_missing":                      "缺少 Authorization header",
 		"error.auth_header_invalid":                      "Authorization header 格式錯誤",
@@ -796,6 +812,14 @@ var messages = map[string]map[string]string{
 		"error.invalid_product_status":              "無效的商品狀態參數",
 	},
 	LocaleEN: {
+		"seo.continue_shopping": "View products and order",
+		"seo.products":          "Products and services",
+		"seo.guides":            "AI subscription guides",
+		"seo.about":             "About us",
+		"seo.notices":           "Service notices",
+		"seo.terms":             "Terms of service",
+		"seo.privacy":           "Privacy policy",
+
 		"error.jwt_secret_missing":                       "JWT secret is not configured",
 		"error.auth_header_missing":                      "Missing Authorization header",
 		"error.auth_header_invalid":                      "Invalid Authorization header format",

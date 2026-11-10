@@ -9,9 +9,9 @@ const PublicConfigCachePrefix = "public:config"
 
 func PublicConfigCacheKey(resellerID *uint) string {
 	if resellerID == nil {
-		return PublicConfigCachePrefix + ":main"
+		return PublicConfigCachePrefix + ":v2:main"
 	}
-	return fmt.Sprintf("%s:reseller:%d", PublicConfigCachePrefix, *resellerID)
+	return fmt.Sprintf("%s:v2:reseller:%d", PublicConfigCachePrefix, *resellerID)
 }
 
 func DelAllPublicConfig(ctx context.Context) error {

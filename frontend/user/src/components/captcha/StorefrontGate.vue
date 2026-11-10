@@ -1,11 +1,16 @@
 <script setup lang="ts">
-import { onBeforeUnmount, onMounted, ref } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
+import { useRoute, useRouter } from 'vue-router'
+import { isIndexableStorefrontRoute } from '../../utils/seo'
 import { captchaAPI } from '../../api/auth'
 import { STOREFRONT_VERIFICATION_REQUIRED } from '../../api/client'
 import TurnstileCaptcha from './TurnstileCaptcha.vue'
 
 const { t } = useI18n()
+const route = useRoute()
+const router = useRouter()
+const routeReady = ref(false)
 const hostname = window.location.hostname
 const allowed = ref(false)
 const entered = ref(false)
@@ -14,6 +19,15 @@ const verifying = ref(false)
 const failed = ref(false)
 const needsInteraction = ref(false)
 const challenge = ref<{ siteKey: string; action: string } | null>(null)
+const verificationRequested = ref(false)
+const publicReading = computed(() => isIndexableStorefrontRoute(route.name))
+const showContent = computed(() => allowed.value || (publicReading.value && !verificationRequested.value))
+
+const contentReady = async () => {
+  entered.value = true
+  await nextTick()
+  window.dispatchEvent(new Event('storefront-content-ready'))
+}
 
 const check = async (expectClearance = false) => {
   if (checking.value) return
@@ -26,8 +40,8 @@ const check = async (expectClearance = false) => {
     const { data } = await captchaAPI.storefrontStatus()
     const status = data.data
     if (status?.required === false) {
-      entered.value = true
       allowed.value = true
+      await contentReady()
     } else if (!expectClearance && status?.required === true && status.site_key && status.action) {
       challenge.value = { siteKey: status.site_key, action: status.action }
     } else {
@@ -58,21 +72,29 @@ const onChallengeError = () => {
 }
 
 const onClearanceRequired = () => {
-  if (allowed.value) void check()
+  verificationRequested.value = true
+  void check()
 }
+
+watch(() => [routeReady.value, route.name, route.fullPath], () => {
+  if (!routeReady.value) return
+  verificationRequested.value = false
+  if (publicReading.value) void contentReady()
+  else void check()
+}, { immediate: true })
 
 onMounted(() => {
   window.addEventListener(STOREFRONT_VERIFICATION_REQUIRED, onClearanceRequired)
-  void check()
+  void router.isReady().then(() => { routeReady.value = true })
 })
 onBeforeUnmount(() => window.removeEventListener(STOREFRONT_VERIFICATION_REQUIRED, onClearanceRequired))
 </script>
 
 <template>
-  <div v-if="entered" v-show="allowed" class="contents">
+  <div v-if="entered" v-show="showContent" class="contents">
     <slot />
   </div>
-  <div v-if="!allowed" class="flex min-h-dvh flex-col bg-white px-2 text-[#313131] [color-scheme:light] min-[348px]:px-6">
+  <div v-if="routeReady && !showContent" class="flex min-h-dvh flex-col bg-white px-2 text-[#313131] [color-scheme:light] min-[348px]:px-6">
     <main class="mx-auto w-full max-w-[56rem] flex-1 pb-12 pt-20 sm:pt-32">
       <h1 class="break-words text-3xl font-semibold leading-tight sm:text-[2.375rem]">{{ hostname }}</h1>
       <h2 class="mt-2 text-xl font-semibold leading-tight sm:text-2xl">{{ t('storefrontGate.title') }}</h2>

@@ -2,6 +2,8 @@ package application
 
 import (
 	"context"
+	reseller "github.com/dujiao-next/internal/modules/reseller/contract"
+	"strings"
 	"testing"
 	"time"
 
@@ -12,12 +14,34 @@ type catalogStub struct {
 	calls int
 }
 
-func (c *catalogStub) ListActiveCategories() ([]contract.Category, error) {
+func TestResellerSitemapCacheAndEmptyPagesAreIsolated(t *testing.T) {
+	cache := &cacheStub{}
+	svc, _ := NewService(&catalogStub{}, &postStub{}, cache)
+	ctx := reseller.WithTenantContext(context.Background(), reseller.ResellerTenantContext("own.example", 7, 1, "own.example"))
+	doc, err := svc.Generate(ctx, "https://own.example")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, path := range []string{"/about", "/terms", "/privacy"} {
+		if strings.Contains(doc, "https://own.example"+path) {
+			t.Fatalf("unconfigured page indexed: %s", path)
+		}
+	}
+	if cache.setKey != "sitemap:xml:v2:7:https://own.example" {
+		t.Fatal(cache.setKey)
+	}
+	ctx = reseller.WithTenantContext(context.Background(), reseller.UnavailableTenantContext("unknown.example", "unknown"))
+	if _, err := svc.Generate(ctx, "https://own.example"); err == nil {
+		t.Fatal("unavailable tenant read sitemap")
+	}
+}
+
+func (c *catalogStub) ListActiveCategories(context.Context) ([]contract.Category, error) {
 	c.calls++
 	return nil, nil
 }
 
-func (c *catalogStub) ListActiveProducts(int) ([]contract.Product, error) {
+func (c *catalogStub) ListActiveProducts(context.Context, int) ([]contract.Product, error) {
 	c.calls++
 	return nil, nil
 }
@@ -83,7 +107,7 @@ func TestGenerateCachesRenderedDocument(t *testing.T) {
 	if err != nil {
 		t.Fatalf("generate failed: %v", err)
 	}
-	if cache.setKey != "sitemap:xml:https://example.com" {
+	if cache.setKey != "sitemap:xml:v2:0:https://example.com" {
 		t.Fatalf("cache key got %q", cache.setKey)
 	}
 	if cache.setValue != document || cache.setValue == "" {

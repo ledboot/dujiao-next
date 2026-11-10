@@ -20,6 +20,9 @@ brandLog?.(
 brandLog?.('%cGitHub → https://github.com/dujiao-next', 'color:#6e6e73;')
 
 const app = createApp(App)
+// Remove server-owned head nodes before Unhead scans the DOM. Removing them
+// later leaves its hydration map pointing at detached canonical/meta elements.
+document.querySelectorAll('[data-storefront-seo]').forEach(node => node.remove())
 const head = createHead()
 const pinia = createPinia()
 

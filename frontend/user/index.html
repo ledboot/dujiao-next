@@ -3,6 +3,10 @@
 
 <head>
   <meta charset="UTF-8" />
+  <!-- Hide the static fallback before first paint when the interactive app is
+       enabled. Without JavaScript, the public HTML remains readable. -->
+  <script data-cfasync="false">document.documentElement.classList.add('storefront-js')</script>
+  <style>html.storefront-js #storefront-public-content { display: none; }</style>
   <!-- Google Tag Manager -->
   <script>(function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':
   new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],

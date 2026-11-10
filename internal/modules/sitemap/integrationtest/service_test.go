@@ -18,6 +18,7 @@ import (
 	contentcontract "github.com/dujiao-next/internal/modules/content/contract"
 	contentdomain "github.com/dujiao-next/internal/modules/content/domain"
 	"github.com/dujiao-next/internal/modules/content/infrastructure/gormstore"
+	reseller "github.com/dujiao-next/internal/modules/reseller/contract"
 	sitemapapp "github.com/dujiao-next/internal/modules/sitemap/application"
 	sitemapcontract "github.com/dujiao-next/internal/modules/sitemap/contract"
 	sitemapcatalog "github.com/dujiao-next/internal/modules/sitemap/infrastructure/catalogreader"
@@ -262,5 +263,62 @@ func TestSitemapServiceGenerateRejectsEmptyBaseURL(t *testing.T) {
 	svc, _ := newSitemapServiceForTest(t, nil)
 	if _, err := svc.Generate(context.Background(), ""); err == nil {
 		t.Fatalf("expected error for empty base url")
+	}
+}
+
+type hiddenForTenant struct{ productID uint }
+
+func (h hiddenForTenant) ListHiddenProductIDs(id uint) ([]uint, error) {
+	if id == 7 {
+		return []uint{h.productID}, nil
+	}
+	return nil, nil
+}
+func TestResellerSitemapHonorsProductVisibilityAndCategories(t *testing.T) {
+	_, db := newSitemapServiceForTest(t, nil)
+	parent := categorydomain.Category{Slug: "parent", NameJSON: jsonmap.JSON{"en-US": "Parent"}, IsActive: true}
+	hidden := categorydomain.Category{Slug: "hidden-only", NameJSON: jsonmap.JSON{"en-US": "Hidden"}, IsActive: true}
+	if err := db.Create(&parent).Error; err != nil {
+		t.Fatal(err)
+	}
+	if err := db.Create(&hidden).Error; err != nil {
+		t.Fatal(err)
+	}
+	child := categorydomain.Category{Slug: "visible-child", NameJSON: jsonmap.JSON{"en-US": "Child"}, ParentID: parent.ID, IsActive: true}
+	if err := db.Create(&child).Error; err != nil {
+		t.Fatal(err)
+	}
+	products := []productdomain.Product{{Slug: "own-visible", CategoryID: child.ID, IsActive: true}, {Slug: "own-hidden", CategoryID: hidden.ID, IsActive: true}}
+	for i := range products {
+		products[i].TitleJSON = jsonmap.JSON{"en-US": "Product"}
+		if err := db.Create(&products[i]).Error; err != nil {
+			t.Fatal(err)
+		}
+	}
+	reader := sitemapcatalog.New(productgormstore.NewProductStore(db), categorygormstore.NewCategoryStore(db), hiddenForTenant{products[1].ID})
+	svc, err := sitemapapp.NewService(reader, sitemapcontract.PublishedPostReaderFunc(func(context.Context, int) ([]sitemapcontract.PublishedPost, error) { return nil, nil }), noopCache{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, id := range []uint{7, 8} {
+		ctx := reseller.WithTenantContext(context.Background(), reseller.ResellerTenantContext("own.test", id, 1, "own.test"))
+		doc, err := svc.Generate(ctx, "https://own.test")
+		if err != nil {
+			t.Fatal(err)
+		}
+		for _, path := range []string{"/products/own-visible", "/categories/visible-child", "/categories/parent"} {
+			if !strings.Contains(doc, path) {
+				t.Fatalf("missing visible path %s", path)
+			}
+		}
+		for _, path := range []string{"/products/own-hidden", "/categories/hidden-only"} {
+			if strings.Contains(doc, path) != (id == 8) {
+				t.Fatalf("tenant %d visibility incorrect for %s", id, path)
+			}
+		}
+	}
+	doc, err := svc.Generate(context.Background(), "https://main.test")
+	if err != nil || !strings.Contains(doc, "/products/own-hidden") || !strings.Contains(doc, "/about") {
+		t.Fatalf("main catalog changed: %v", err)
 	}
 }

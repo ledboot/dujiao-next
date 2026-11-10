@@ -34,18 +34,23 @@ export function usePageSeo(options: PageSeoOptions = {}) {
 
   const baseUrl = computed(() => {
     return resolveSeoBaseUrl(
-      String(appStore.config?.brand?.site_url || ''),
+      // A reseller owns its origin even when stale configuration has a main-site URL.
+      appStore.config?.tenant?.mode === 'reseller' ? '' : String(appStore.config?.brand?.site_url || ''),
       typeof window !== 'undefined' ? window.location.origin : '',
     )
   })
 
-  const siteName = computed(() => {
+  const siteTitle = computed(() => {
     const lang = appStore.locale
     const seo = appStore.config?.seo
     const localized = getLocalizedText(seo?.title, lang)
     if (localized) return localized
     return String(appStore.config?.brand?.site_name || '').trim()
   })
+
+  const siteName = computed(() =>
+    String(appStore.config?.brand?.site_name || '').trim() || siteTitle.value,
+  )
 
   const siteDescription = computed(() => {
     const lang = appStore.locale
@@ -67,7 +72,7 @@ export function usePageSeo(options: PageSeoOptions = {}) {
     if (pageTitle.value && siteName.value && pageTitle.value !== siteName.value) {
       return `${pageTitle.value} - ${siteName.value}`
     }
-    return pageTitle.value || siteName.value || undefined
+    return pageTitle.value || siteTitle.value || siteName.value || undefined
   })
 
   const fullDescription = computed(() => {

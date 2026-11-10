@@ -161,6 +161,28 @@ placeholder, which the server rewrites on startup. Consequences for admin code:
 `src/templates/<name>/` and fall back to `src/views/` when a page has no template-specific
 version; see `src/templates/registry.ts`. Append `?template=vault` to preview one locally.
 
+**Public HTML.** Full-stack builds return a sanitized public content projection in the initial
+HTML for the main storefront's home, catalog, published posts, about and legal pages when
+`brand.site_url` is configured. Visitors and crawlers receive the same content, title,
+canonical and structured data. The static content remains readable without JavaScript.
+Interactive clients hide that fallback before first paint and let Vue take over.
+Home, catalog, published posts, About and legal pages are readable without CAPTCHA.
+An explicit GET allowlist opens only their public APIs, with per-host/IP read rate limits.
+Public HTML also has a separate per-IP rate limit;
+new endpoints and writes retain clearance by default. Login, registration, checkout and
+private routes still require verification; order/account data retains its existing authentication.
+Delivery instructions, private data and drafts are excluded, and API authentication and captcha checks remain in place. Reseller
+storefronts retain their existing rendering. Missing main-store content returns HTTP 404.
+
+Reseller public config starts with empty brand, SEO, contact, footer, About and legal fields,
+then applies only that reseller's saved settings (a missing name uses its own host). About and
+legal pages currently have no reseller editor: they are hidden from navigation/sitemaps and
+return 404/noindex rather than inheriting the platform text. Posts and product-related articles
+remain tenant scoped. Sitemap/robots resolve the tenant before generating URLs, filter hidden
+reseller products and empty categories, and use that storefront's host. Public config caches
+store inputs before the reseller overlay; the current host/settings are applied on every hit.
+Versioned cache keys prevent older responses containing inherited content from being reused.
+
 **i18n.** Both frontends and all API responses are localized — Simplified Chinese, Traditional
 Chinese, and English. Do not hard-code user-facing strings on either side.
 

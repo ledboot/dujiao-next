@@ -62,6 +62,9 @@ func NewPostService(posts contract.PostStore, relations contract.PostProductRela
 
 // ListPublic 获取公开文章列表。
 func (s *PostService) ListPublic(ctx context.Context, query PublicPostQuery) ([]domain.Post, int64, error) {
+	if reseller.TenantOrMain(ctx).Unavailable {
+		return nil, 0, contract.ErrNotFound
+	}
 	return s.posts.List(ctx, contract.PostQuery{
 		ResellerID:    reseller.RequestResellerID(ctx),
 		Page:          query.Page,
@@ -75,6 +78,9 @@ func (s *PostService) ListPublic(ctx context.Context, query PublicPostQuery) ([]
 
 // GetPublicBySlug 获取公开文章详情。
 func (s *PostService) GetPublicBySlug(ctx context.Context, slug string) (*domain.Post, error) {
+	if reseller.TenantOrMain(ctx).Unavailable {
+		return nil, contract.ErrNotFound
+	}
 	post, err := s.posts.GetBySlug(ctx, slug, true)
 	if err != nil {
 		return nil, err
@@ -227,6 +233,9 @@ func (s *PostService) ListRelatedProducts(ctx context.Context, postID uint) ([]c
 
 // ListPostsForProduct 获取与商品关联的已发布博客列表。
 func (s *PostService) ListPostsForProduct(ctx context.Context, productID uint, limit int) ([]contract.RelatedPost, error) {
+	if reseller.TenantOrMain(ctx).Unavailable {
+		return nil, contract.ErrNotFound
+	}
 	return s.relations.ListPostsForProduct(ctx, productID, constants.PostTypeBlog, true, limit)
 }
 

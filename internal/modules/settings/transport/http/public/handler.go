@@ -142,6 +142,15 @@ func (h *Handler) GetConfig(c *gin.Context) {
 
 	var cached map[string]interface{}
 	if hit, err := h.cache.GetJSON(c.Request.Context(), cacheKey, &cached); err == nil && hit {
+		// Cache the shared inputs, never a host-dependent tenant overlay. Apply
+		// current reseller settings on every response, including cache hits.
+		if h.overlay != nil {
+			cached, err = h.overlay.ApplyPublicConfigOverlay(c.Request.Context(), tenant, cached)
+			if err != nil {
+				ginutil.RespondError(c, response.CodeInternal, "error.config_fetch_failed", err)
+				return
+			}
+		}
 		cached["server_time"] = time.Now().UnixMilli()
 		cached["app_version"] = version.Version
 		response.Success(c, cached)
@@ -229,6 +238,7 @@ func (h *Handler) GetConfig(c *gin.Context) {
 		data["announcement"] = announcement
 	}
 
+	_ = h.cache.SetJSON(c.Request.Context(), cacheKey, data, publicConfigCacheTTL)
 	if h.overlay != nil {
 		overlaid, overlayErr := h.overlay.ApplyPublicConfigOverlay(c.Request.Context(), tenant, data)
 		if overlayErr != nil {
@@ -240,7 +250,6 @@ func (h *Handler) GetConfig(c *gin.Context) {
 		data["tenant"] = map[string]interface{}{"mode": "main", "host": tenant.Host}
 	}
 
-	_ = h.cache.SetJSON(c.Request.Context(), cacheKey, data, publicConfigCacheTTL)
 	data["server_time"] = time.Now().UnixMilli()
 	data["app_version"] = version.Version
 	response.Success(c, data)

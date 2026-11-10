@@ -2,6 +2,7 @@ package sitemaphttp
 
 import (
 	"context"
+	reseller "github.com/dujiao-next/internal/modules/reseller/contract"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -15,6 +16,26 @@ type fakeGenerator struct {
 	robots string
 	err    error
 	base   string
+}
+
+func TestResellerResourcesUseResolvedTenantHost(t *testing.T) {
+	for _, robots := range []bool{false, true} {
+		gen := &fakeGenerator{xml: "<urlset/>", robots: "User-agent: *"}
+		h := NewHandler(gen, fakeBrand{url: "https://main.example"})
+		w := httptest.NewRecorder()
+		c, _ := gin.CreateTestContext(w)
+		ctx := reseller.WithTenantContext(context.Background(), reseller.ResellerTenantContext("own.example", 7, 1, "own.example"))
+		c.Request = httptest.NewRequest("GET", "https://own.example/sitemap.xml", nil).WithContext(ctx)
+		c.Request.Header.Set("X-Forwarded-Host", "attacker.example")
+		if robots {
+			h.GetRobots(c)
+		} else {
+			h.GetSitemap(c)
+		}
+		if w.Code != 200 || gen.base != "https://own.example" {
+			t.Fatalf("robots=%v: %d %s", robots, w.Code, gen.base)
+		}
+	}
 }
 
 func (f *fakeGenerator) Generate(_ context.Context, baseURL string) (string, error) {

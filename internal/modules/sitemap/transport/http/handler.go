@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"github.com/dujiao-next/internal/logger"
+	reseller "github.com/dujiao-next/internal/modules/reseller/contract"
 
 	"github.com/gin-gonic/gin"
 )
@@ -64,6 +65,11 @@ func (h *Handler) GetRobots(c *gin.Context) {
 
 // resolveBaseURL 站点 URL 优先取后台 brand.site_url，否则回落到当前请求 Host。
 func (h *Handler) resolveBaseURL(c *gin.Context) string {
+	if tenant, ok := reseller.TenantFromContext(c.Request.Context()); ok && tenant.IsReseller() {
+		// The tenant resolver has already validated this host. Forwarded host
+		// headers and the platform's configured URL cannot override it.
+		return "https://" + tenant.Host
+	}
 	if h != nil && h.brand != nil {
 		if siteURL, err := h.brand.GetSiteURL(); err == nil {
 			if u := strings.TrimRight(strings.TrimSpace(siteURL), "/"); u != "" {

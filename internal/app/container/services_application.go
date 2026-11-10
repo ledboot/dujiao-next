@@ -48,7 +48,7 @@ func (c *Container) initApplicationServices() {
 	c.ContentPostCategoryService = contentapp.NewPostCategoryService(postCategoryStore)
 	c.CategoryService = categoryapp.NewService(c.CategoryRepo)
 	sitemapService, err := sitemapapp.NewService(
-		sitemapcatalog.New(c.ProductRepo, c.CategoryRepo),
+		sitemapcatalog.New(c.ProductRepo, c.CategoryRepo, c.ResellerStore),
 		sitemapcontract.PublishedPostReaderFunc(func(ctx context.Context, limit int) ([]sitemapcontract.PublishedPost, error) {
 			posts, _, listErr := c.ContentPostService.ListPublic(ctx, contentapp.PublicPostQuery{
 				Page:     1,

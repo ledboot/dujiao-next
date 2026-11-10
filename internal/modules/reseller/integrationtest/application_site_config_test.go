@@ -2,11 +2,14 @@ package integrationtest
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
+	"strings"
 	"testing"
 
 	resellergormstore "github.com/dujiao-next/internal/modules/reseller/infrastructure/gormstore"
 
+	resellercontract "github.com/dujiao-next/internal/modules/reseller/contract"
 	resellerdomain "github.com/dujiao-next/internal/modules/reseller/domain"
 
 	resellermodule "github.com/dujiao-next/internal/modules/reseller/application"
@@ -287,5 +290,54 @@ func TestResellerAnnouncementDoesNotInheritWithoutSiteConfig(t *testing.T) {
 	}
 	if _, ok := base["announcement"]; !ok {
 		t.Fatal("main config was mutated")
+	}
+}
+
+func TestWhiteLabelConfigNeverInheritsMainContent(t *testing.T) {
+	db := openResellerManagementServiceTestDB(t)
+	repo := resellergormstore.New(db)
+	user := seedResellerManagementUser(t, db, "isolated-config@example.test")
+	profile := resellerdomain.Profile{UserID: user.ID, Status: resellerdomain.ProfileStatusActive}
+	if err := db.Create(&profile).Error; err != nil {
+		t.Fatal(err)
+	}
+	svc := NewResellerSiteConfigService(repo)
+	base := map[string]interface{}{"currency": "CNY", "brand": map[string]interface{}{"site_name": "MAIN_ONLY", "site_logo": "/MAIN_ONLY.png", "site_description": "MAIN_ONLY"}}
+	for _, key := range []string{"seo", "about", "legal", "contact", "nav_config"} {
+		base[key] = map[string]interface{}{"text": "MAIN_ONLY"}
+	}
+	base["footer_links"] = []interface{}{map[string]interface{}{"url": "https://MAIN_ONLY.test"}}
+	before, _ := json.Marshal(base)
+	for _, saved := range []bool{false, true} {
+		if saved {
+			if _, err := svc.UpdateUserSiteConfig(context.Background(), user.ID, ResellerSiteConfigInput{SiteName: "Own Store"}); err != nil {
+				t.Fatal(err)
+			}
+		}
+		for _, host := range []string{"first.shop.test", "second.shop.test"} {
+			out, err := svc.ApplyPublicConfigOverlay(context.Background(), ResellerTenantContext(host, profile.ID, user.ID, "first.shop.test"), base)
+			if err != nil {
+				t.Fatal(err)
+			}
+			raw, _ := json.Marshal(out)
+			if strings.Contains(string(raw), "MAIN_ONLY") {
+				t.Fatalf("saved=%v leaked platform content: %s", saved, raw)
+			}
+			brand := resellerSiteConfigTestMap(out["brand"])
+			if brand["site_url"] != "https://"+host {
+				t.Fatalf("cross-host URL: %v", brand)
+			}
+			if out["currency"] != "CNY" {
+				t.Fatal("commerce defaults lost")
+			}
+		}
+	}
+	after, _ := json.Marshal(base)
+	if string(before) != string(after) {
+		t.Fatal("main config mutated")
+	}
+	main, err := svc.ApplyPublicConfigOverlay(context.Background(), resellercontract.MainTenantContext("main.test"), base)
+	if err != nil || resellerSiteConfigTestMap(main["brand"])["site_name"] != "MAIN_ONLY" {
+		t.Fatal("main branding changed")
 	}
 }

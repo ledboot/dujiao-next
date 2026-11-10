@@ -606,4 +606,21 @@ func TestResellerProductDoesNotExposeMainBlog(t *testing.T) {
 	if err != nil || len(rows) != 0 {
 		t.Fatalf("main blog exposed to reseller: %v %v", rows, err)
 	}
+	if _, err := svc.GetPublicBySlug(ctx, "main-related-blog"); !errors.Is(err, contentcontract.ErrNotFound) {
+		t.Fatalf("main article direct link: %v", err)
+	}
+	for _, tenant := range []reseller.TenantContext{reseller.ResellerTenantContext("second.test", 8, 2, "second.test"), reseller.UnavailableTenantContext("unknown.test", "unknown")} {
+		ctx := reseller.WithTenantContext(context.Background(), tenant)
+		if _, err := svc.GetPublicBySlug(ctx, "main-related-blog"); !errors.Is(err, contentcontract.ErrNotFound) {
+			t.Fatalf("unowned direct link: %v", err)
+		}
+		if tenant.Unavailable {
+			if _, _, err := svc.ListPublic(ctx, contentapp.PublicPostQuery{}); !errors.Is(err, contentcontract.ErrNotFound) {
+				t.Fatalf("unavailable list: %v", err)
+			}
+			if _, err := svc.ListPostsForProduct(ctx, 42, 10); !errors.Is(err, contentcontract.ErrNotFound) {
+				t.Fatalf("unavailable related posts: %v", err)
+			}
+		}
+	}
 }

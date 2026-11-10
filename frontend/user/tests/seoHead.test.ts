@@ -31,6 +31,7 @@ function setup() {
   const app = reactive({
     locale: 'en-US',
     config: {
+      tenant: { mode: 'main' },
       brand: { site_url: 'https://tenant.example.com/', site_name: 'Shop' },
       seo: { title: { 'zh-TW': '商店' }, description: { 'zh-TW': '預設介紹' }, default_og_image: '/uploads/default.png' },
     },
@@ -55,7 +56,8 @@ test('page head combines localized fallback, absolute sharing images and one can
   s.scope.run(() => s.usePageSeo({ title: () => title.value, canonicalPath: () => '/products/item?ref=test', noindex: () => hidden.value }))
   const tags = await s.head.resolveTags()
   const meta = (name: string) => tags.find(tag => tag.props.name === name || tag.props.property === name)?.props.content
-  assert.equal(tags.find(tag => tag.tag === 'title')?.textContent, 'Product - 商店')
+  assert.equal(tags.find(tag => tag.tag === 'title')?.textContent, 'Product - Shop')
+  assert.equal(meta('og:site_name'), 'Shop')
   assert.equal(meta('description'), '預設介紹')
   assert.equal(meta('og:image'), 'https://tenant.example.com/uploads/default.png')
   assert.equal(meta('og:locale'), 'en_US')
@@ -66,7 +68,7 @@ test('page head combines localized fallback, absolute sharing images and one can
   hidden.value = true
   await nextTick()
   const updated = await s.head.resolveTags()
-  assert.equal(updated.find(tag => tag.tag === 'title')?.textContent, 'Other product - 商店')
+  assert.equal(updated.find(tag => tag.tag === 'title')?.textContent, 'Other product - Shop')
   assert.equal(updated.find(tag => tag.props.name === 'robots')?.props.content, 'noindex, nofollow')
   assert.equal(updated.some(tag => tag.props.rel === 'canonical'), false)
 
@@ -108,7 +110,7 @@ test('article navigation ignores old responses and clears metadata on missing co
   assert.equal(detail.post.value.slug, 'new')
   let tags = await s.head.resolveTags()
   assert.equal(tags.find(tag => tag.props.rel === 'canonical')?.props.href, 'https://tenant.example.com/blog/new')
-  assert.equal(tags.find(tag => tag.tag === 'title')?.textContent, 'New article - 商店')
+  assert.equal(tags.find(tag => tag.tag === 'title')?.textContent, 'New article - Shop')
   assert.equal(tags.filter(tag => tag.props.type === 'application/ld+json').length, 1)
 
   route.params.slug = 'missing'
@@ -156,7 +158,7 @@ test('product head falls back to product description and site image, and removes
   const tags = await s.head.resolveTags()
   assert.equal(tags.find(tag => tag.props.name === 'description')?.props.content, 'Product description')
   assert.equal(tags.find(tag => tag.props.property === 'og:image')?.props.content, 'https://tenant.example.com/uploads/default.png')
-  assert.equal(tags.find(tag => tag.tag === 'title')?.textContent, 'Product - 商店')
+  assert.equal(tags.find(tag => tag.tag === 'title')?.textContent, 'Product - Shop')
   const schema = JSON.parse(tags.find(tag => tag.props.type === 'application/ld+json')!.innerHTML!)
   assert.equal(schema.description, 'Product description')
   assert.equal(schema.offers.price, '12.30')
@@ -171,4 +173,40 @@ test('product head falls back to product description and site image, and removes
   const cleared = await s.head.resolveTags()
   assert.equal(cleared.find(tag => tag.props.name === 'robots')?.props.content, 'noindex, nofollow')
   assert.equal(cleared.some(tag => tag.props.type === 'application/ld+json'), false)
+})
+
+
+test('reseller canonical and sharing URLs ignore stale main-site origin', async (t) => {
+  const s = setup()
+  t.after(() => s.scope.stop())
+  s.app.config.tenant.mode = 'reseller'
+  s.app.config.brand.site_url = 'https://main.example/'
+  s.app.config.brand.site_name = 'Own Store'
+  s.scope.run(() => s.usePageSeo({ title: () => 'Item' }))
+  const tags = await s.head.resolveTags()
+  assert.equal(tags.find(tag => tag.props.rel === 'canonical')?.props.href, 'https://tenant.example.com/products/item')
+  assert.equal(tags.find(tag => tag.props.property === 'og:url')?.props.content, 'https://tenant.example.com/products/item')
+  assert.equal(tags.find(tag => tag.props.property === 'og:site_name')?.props.content, 'Own Store')
+  assert.equal(tags.some(tag => String(tag.props.content || tag.props.href || '').includes('main.example')), false)
+})
+
+
+test('empty About and legal pages are noindex in both storefront templates', async (t) => {
+  for (const page of ['useAbout', 'useLegal']) {
+    const s = setup()
+    t.after(() => s.scope.stop())
+    Object.assign(s.app.config, { tenant: { mode: 'reseller' }, about: {}, legal: {} })
+    const mocks = {
+      ...s.mocks,
+      vue: { computed, onMounted() {} },
+      'vue-i18n': { useI18n: () => ({ t: (key: string) => key, locale: ref('en-US') }) },
+      './usePageSeo': { usePageSeo: s.usePageSeo },
+      '../utils/content': { processHtmlForDisplay: (value: string) => value },
+    }
+    const loaded = loadComposable(page, mocks)
+    s.scope.run(() => page === 'useAbout' ? loaded.useAbout() : loaded.useLegal(() => 'terms'))
+    const tags = await s.head.resolveTags()
+    assert.equal(tags.find(tag => tag.props.name === 'robots')?.props.content, 'noindex, nofollow')
+    assert.equal(tags.some(tag => tag.props.rel === 'canonical'), false)
+  }
 })

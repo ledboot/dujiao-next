@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	reseller "github.com/dujiao-next/internal/modules/reseller/contract"
 	"github.com/dujiao-next/internal/modules/sitemap/contract"
 	"github.com/dujiao-next/internal/modules/sitemap/domain"
 )
@@ -43,12 +44,15 @@ const (
 
 // Generate 生成 sitemap.xml 内容；baseURL 必须是不带尾斜杠的站点根（如 https://example.com）
 func (s *Service) Generate(ctx context.Context, baseURL string) (string, error) {
+	if reseller.TenantOrMain(ctx).Unavailable {
+		return "", fmt.Errorf("sitemap: unavailable tenant")
+	}
 	baseURL = strings.TrimRight(strings.TrimSpace(baseURL), "/")
 	if baseURL == "" {
 		return "", fmt.Errorf("sitemap: empty base url")
 	}
 
-	cacheKey := sitemapCachePrefix + baseURL
+	cacheKey := fmt.Sprintf("%sv2:%d:%s", sitemapCachePrefix, reseller.RequestResellerID(ctx), baseURL)
 	if cached, err := s.cache.GetString(ctx, cacheKey); err == nil && cached != "" {
 		return cached, nil
 	}
@@ -109,7 +113,6 @@ type urlSet struct {
 }
 
 func (s *Service) collectURLs(ctx context.Context, baseURL string) ([]domain.URL, error) {
-	now := time.Now().UTC().Format("2006-01-02")
 	entries := make([]domain.URL, 0, 64)
 
 	// 1. 静态页面
@@ -127,16 +130,18 @@ func (s *Service) collectURLs(ctx context.Context, baseURL string) ([]domain.URL
 		{"/privacy", "yearly", "0.2"},
 	}
 	for _, p := range staticPages {
+		if reseller.TenantOrMain(ctx).IsReseller() && (p.Path == "/about" || p.Path == "/terms" || p.Path == "/privacy") {
+			continue
+		}
 		entries = append(entries, domain.URL{
 			Location:        baseURL + p.Path,
-			LastModified:    now,
 			ChangeFrequency: p.ChangeFreq,
 			Priority:        p.Priority,
 		})
 	}
 
 	// 2. 启用的分类
-	categories, err := s.catalog.ListActiveCategories()
+	categories, err := s.catalog.ListActiveCategories(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("sitemap: list categories: %w", err)
 	}
@@ -150,7 +155,7 @@ func (s *Service) collectURLs(ctx context.Context, baseURL string) ([]domain.URL
 	}
 
 	// 3. 上架的商品（OnlyActive 已含分类启用过滤）
-	products, err := s.catalog.ListActiveProducts(sitemapMaxFetch)
+	products, err := s.catalog.ListActiveProducts(ctx, sitemapMaxFetch)
 	if err != nil {
 		return nil, fmt.Errorf("sitemap: list products: %w", err)
 	}

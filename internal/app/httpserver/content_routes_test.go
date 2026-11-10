@@ -16,6 +16,8 @@ import (
 
 	"github.com/dujiao-next/internal/app/httpserver/middleware"
 	"github.com/dujiao-next/internal/authz"
+	captchacontract "github.com/dujiao-next/internal/modules/captcha/contract"
+	captchahttp "github.com/dujiao-next/internal/modules/captcha/transport/http"
 	contenttransport "github.com/dujiao-next/internal/modules/content/transport/http"
 	admincontract "github.com/dujiao-next/internal/modules/identity/admin/contract"
 	admindomain "github.com/dujiao-next/internal/modules/identity/admin/domain"
@@ -272,4 +274,70 @@ func newContentRouteAccessRouter(adminRepo admincontract.Store, authzService *au
 	})
 	contenttransport.RegisterAdminRoutes(admin, contenttransport.NewAdminHandler(nil, nil, nil, nil))
 	return router
+}
+
+type readingVerifier struct{}
+
+func (readingVerifier) StorefrontSiteKey() (string, error) { return "test-site-key", nil }
+func (readingVerifier) VerifyStorefront(string, string, string) (string, error) {
+	return "", captchacontract.ErrInvalid
+}
+
+func TestPublicReadingAllowlistKeepsNewRoutesAndWritesProtected(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	gate := captchahttp.NewStorefrontGate(readingVerifier{}, "test-signing-key", func(*http.Request) bool { return true })
+	r := gin.New()
+	public := r.Group("/api/v1/public", publicReadingGate(gate.Require))
+	respond := func(c *gin.Context) { c.Status(http.StatusNoContent) }
+	for _, path := range []string{"/products", "/products/:slug", "/categories", "/posts", "/posts/:slug", "/banners", "/post-categories", "/member-levels", "/delivery"} {
+		public.GET(path, respond)
+	}
+	public.POST("/products", respond)
+	public.HEAD("/products", respond)
+	r.POST("/api/v1/auth/login", gate.Require, respond)
+	r.POST("/api/v1/guest/orders", gate.Require, respond)
+	for _, tc := range []struct {
+		method, path string
+		want         int
+	}{
+		{"GET", "/api/v1/public/products", 204}, {"GET", "/api/v1/public/products/item", 204},
+		{"GET", "/api/v1/public/posts", 204}, {"GET", "/api/v1/public/posts/guide", 204},
+		{"GET", "/api/v1/public/categories", 204}, {"GET", "/api/v1/public/banners", 204},
+		{"GET", "/api/v1/public/post-categories", 204}, {"GET", "/api/v1/public/member-levels", 204},
+		{"GET", "/api/v1/public/delivery", 428}, {"POST", "/api/v1/public/products", 428},
+		{"HEAD", "/api/v1/public/products", 428}, {"POST", "/api/v1/auth/login", 428},
+		{"POST", "/api/v1/guest/orders", 428},
+	} {
+		w := httptest.NewRecorder()
+		r.ServeHTTP(w, httptest.NewRequest(tc.method, "https://shop.test"+tc.path, nil))
+		if w.Code != tc.want {
+			t.Errorf("%s %s: got %d want %d", tc.method, tc.path, w.Code, tc.want)
+		}
+	}
+}
+
+func TestPublicReadingStillRunsRateLimiter(t *testing.T) {
+	r := gin.New()
+	limit := middleware.RateLimitMiddleware(nil, middleware.RateLimitRule{Prefix: "test:public-reading", WindowSeconds: 60, MaxRequests: 2, BlockSeconds: 60, MessageKey: "error.rate_limited"}, middleware.KeyByIP)
+	r.GET("/api/v1/public/posts", publicReadingGate(func(c *gin.Context) { c.AbortWithStatus(428) }), limit, func(c *gin.Context) { c.Status(204) })
+	for _, want := range []int{204, 204, 429} {
+		w := httptest.NewRecorder()
+		r.ServeHTTP(w, httptest.NewRequest("GET", "https://shop.test/api/v1/public/posts", nil))
+		if w.Code != want {
+			t.Fatalf("read rate limit: got %d want %d", w.Code, want)
+		}
+	}
+}
+
+func TestPublicReadingPagePathsExcludePrivateRoutesAndAssets(t *testing.T) {
+	for _, path := range []string{"/", "/products", "/products/item", "/categories/ai", "/blog", "/blog/guide", "/about", "/terms", "/privacy", "/sitemap.xml", "/robots.txt"} {
+		if !publicReadingPath(path) {
+			t.Errorf("public page missing read limit: %s", path)
+		}
+	}
+	for _, path := range []string{"/api/v1/auth/login", "/api/v1/public/products", "/uploads/image.png", "/assets/app.js", "/health", "/checkout", "/pay", "/me/orders", "/dj-admin/"} {
+		if publicReadingPath(path) {
+			t.Errorf("non-public page classified for read limit: %s", path)
+		}
+	}
 }

@@ -2,6 +2,7 @@ package httpserver
 
 import (
 	"net/http"
+	"strings"
 
 	"github.com/dujiao-next/internal/app/container"
 	"github.com/dujiao-next/internal/app/httpserver/middleware"
@@ -83,7 +84,13 @@ func registerStorefrontRoutes(
 
 	// 公开接口
 	bootstrap := storefront.Group("/public")
-	public := storefront.Group("/public", gate.Require)
+	publicReadRule := guestReadRule
+	publicReadRule.Prefix += ":public_read"
+	public := storefront.Group("/public", publicReadingGate(gate.Require),
+		middleware.RateLimitMiddleware(redisClient, publicReadRule, func(ctx *gin.Context) string {
+			tenant := resellercontract.TenantOrMain(ctx.Request.Context())
+			return tenant.Host + ":" + ctx.ClientIP()
+		}))
 	{
 		publicconfigtransport.RegisterPublicRoutes(bootstrap, publicConfigHandler)
 		producthttp.RegisterPublicRoutes(public, publicCatalogHandler)
@@ -190,6 +197,31 @@ func registerStorefrontRoutes(
 		// API 对接权限（用户中心）
 		apicredentialtransport.RegisterUserRoutes(user, userApiCredentialHandler)
 	}
+}
+
+// Public reading is an explicit GET allowlist. New endpoints and all writes
+// keep the clearance requirement until deliberately classified as public.
+func publicReadingGate(require gin.HandlerFunc) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		if c.Request.Method == http.MethodGet {
+			switch c.FullPath() {
+			case "/api/v1/public/products", "/api/v1/public/products/:slug",
+				"/api/v1/public/categories", "/api/v1/public/posts", "/api/v1/public/posts/:slug",
+				"/api/v1/public/banners", "/api/v1/public/post-categories", "/api/v1/public/member-levels":
+				c.Next()
+				return
+			}
+		}
+		require(c)
+	}
+}
+
+func publicReadingPath(path string) bool {
+	switch path {
+	case "/", "/products", "/blog", "/notice", "/about", "/terms", "/privacy", "/sitemap.xml", "/robots.txt":
+		return true
+	}
+	return strings.HasPrefix(path, "/products/") || strings.HasPrefix(path, "/categories/") || strings.HasPrefix(path, "/blog/")
 }
 
 func registerPaymentCallbackRoutes(apiV1 *gin.RouterGroup, callbackHandler *paymentcallbacktransport.Handler, webhookHandler *paymenttransport.WebhookHandler, epayRedirectHandler *paymenttransport.EpayRedirectHandler, redisClient *redis.Client, callbackRule middleware.RateLimitRule) {
