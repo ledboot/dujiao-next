@@ -1,0 +1,37 @@
+name: PR permission probe
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - name: REST createPullRequest
+        run: |
+          set +e
+          gh api -X POST "repos/${GITHUB_REPOSITORY}/pulls" \
+            -f head=sync/upstream-20261113 -f base=main \
+            -f title="probe: REST createPullRequest" \
+            -f body="temporary probe" 2>&1 | tail -5
+          echo "rest_exit=$?"
+
+      - name: GraphQL createPullRequest
+        run: |
+          set +e
+          gh api graphql -f query='
+            mutation($repo: String!, $owner: String!, $head: String!, $base: String!) {
+              createPullRequest(input: {repositoryId: $repo, baseRefName: $base, headRefName: $head, title: "probe: GraphQL createPullRequest", body: "temporary probe"}) {
+                pullRequest { number }
+              }
+            }' \
+            -f owner="${GITHUB_REPOSITORY_OWNER}" \
+            -f repo="$(gh api "repos/${GITHUB_REPOSITORY}" --jq .node_id)" \
+            -f head=sync/upstream-20261113 -f base=main 2>&1 | tail -5
+          echo "graphql_exit=$?"
