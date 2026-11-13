@@ -75,9 +75,11 @@ func TestWholesaleSyncSwitchAcrossSyncAndImport(t *testing.T) {
 					if err := db.First(&product, productID).Error; err != nil {
 						t.Fatal(err)
 					}
-					if !enabled && mode != "import" {
+					// 关闭同步开关，或上游根本没返回批发价时，都保留本地已有阶梯：
+					// 上游未返回很可能意味着该上游不支持批发价，按空列表覆盖会把运营配置清空。
+					if mode != "import" && (!enabled || empty) {
 						if len(product.WholesalePrices) != 1 || product.WholesalePrices[0].MinQuantity != 10 || product.WholesalePrices[0].UnitPrice.String() != "7.00" || product.WholesalePrices[0].SKUID != 0 {
-							t.Fatalf("local tiers changed while disabled: %+v", product.WholesalePrices)
+							t.Fatalf("local tiers changed while disabled or upstream returned none: %+v", product.WholesalePrices)
 						}
 					} else if empty || !enabled {
 						if len(product.WholesalePrices) != 0 {

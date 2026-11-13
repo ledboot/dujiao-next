@@ -123,7 +123,10 @@ export function useCheckout() {
         filtered = []
       }
     }
-    return filterInvoiceChannels(filtered, invoiceRequested.value)
+    return filterInvoiceChannels(
+      filtered.filter((ch: any) => !isChannelHiddenForAmount(ch)),
+      invoiceRequested.value
+    )
   })
 
   const walletOnlyPayment = computed(() => !!appStore.config?.wallet_only_payment)
@@ -161,6 +164,17 @@ export function useCheckout() {
       hasMax: maxCents !== null && maxCents > 0,
       hideAmountOutRange: Boolean(channel?.hide_amount_out_range),
     }
+  }
+
+  const isChannelHiddenForAmount = (channel?: any) => {
+    if (!channel?.hide_amount_out_range) return false
+    if (!requiresOnlineChannel.value) return false
+    const targetAmount = expectedOnlinePayCents.value
+    if (targetAmount <= 0) return false
+    const meta = channelLimitMeta(channel)
+    const lessThanMin = meta.hasMin && meta.minCents !== null && targetAmount < meta.minCents
+    const greaterThanMax = meta.hasMax && meta.maxCents !== null && targetAmount > meta.maxCents
+    return lessThanMin || greaterThanMax
   }
 
   const isChannelDisabledForAmount = (channel?: any) => {

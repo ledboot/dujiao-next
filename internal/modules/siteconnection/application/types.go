@@ -15,6 +15,8 @@ type CreateInput struct {
 	PriceRoundingMode  string  `json:"price_rounding_mode"`
 	AutoSyncPrice      bool    `json:"auto_sync_price"`
 	SyncWholesalePrice *bool   `json:"sync_wholesale_price"`
+	// CategoryMarkups 按上游分类设置的加价百分比 {上游分类ID: 百分比}
+	CategoryMarkups map[string]float64 `json:"category_markups"`
 }
 
 // UpdateInput 更新对接连接输入。
@@ -32,6 +34,8 @@ type UpdateInput struct {
 	PriceRoundingMode  *string  `json:"price_rounding_mode"`
 	AutoSyncPrice      *bool    `json:"auto_sync_price"`
 	SyncWholesalePrice *bool    `json:"sync_wholesale_price"`
+	// CategoryMarkups 为 nil（字段未传）时不修改；传 {} 表示清空所有分类加价。
+	CategoryMarkups map[string]float64 `json:"category_markups"`
 }
 
 // PingResult 连接测试结果。
