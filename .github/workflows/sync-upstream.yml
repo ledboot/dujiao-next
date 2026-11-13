@@ -4,20 +4,26 @@ on:
   schedule:
     - cron: "23 */2 * * *"
   workflow_dispatch:
+    inputs:
+      upstream:
+        description: "调试用：上游仓库 owner/repo（默认 dujiao-next/dujiao-next）"
+        required: false
+        default: dujiao-next/dujiao-next
 
 permissions:
   contents: write
+  pull-requests: write
 
 concurrency:
   group: sync-upstream
   cancel-in-progress: false
 
-env:
-  UPSTREAM: dujiao-next/dujiao-next
-
 jobs:
   sync:
     runs-on: ubuntu-latest
+    env:
+      UPSTREAM: ${{ github.event.inputs.upstream || 'dujiao-next/dujiao-next' }}
+      GH_TOKEN: ${{ secrets.UPSTREAM_SYNC_TOKEN || github.token }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -41,6 +47,8 @@ jobs:
           git config user.name "upstream-sync[bot]"
           git config user.email "upstream-sync@users.noreply.github.com"
           if ! git merge --no-ff --no-commit upstream/main; then
+            # 冲突文件清单给 PR 描述用；随后恢复工作区，冲突留到 PR 上解决。
+            git diff --name-only --diff-filter=U | tr '\n' ' ' > /tmp/conflicts.txt
             git merge --abort
             echo "status=conflict" >> "$GITHUB_OUTPUT"
             exit 0
@@ -54,8 +62,42 @@ jobs:
         if: steps.sync.outputs.status == 'merged'
         run: git push origin HEAD:main
 
-      - name: Report conflict
+      # 有冲突时开 PR：分支内容就是上游最新提交，GitHub 会在 PR 上给出
+      # 「Resolve conflicts」网页编辑器，解完直接合并即可，不用本地操作。
+      - name: Open conflict PR
         if: steps.sync.outputs.status == 'conflict'
         run: |
-          echo "::error::upstream/main conflicts with main. Locally: git fetch upstream && git merge upstream/main, resolve, then push. Conflicts are listed in the job log above."
-          exit 1
+          set -euo pipefail
+          existing=$(gh pr list --state open --json headRefName \
+            --jq '[.[] | select(.headRefName | startswith("sync/upstream-"))] | length')
+          if [ "$existing" != "0" ]; then
+            echo "::warning::upstream/main 与 main 存在冲突，已有未关闭的同步 PR，本次不再重复创建"
+            exit 0
+          fi
+          branch="sync/upstream-$(date -u +%Y%m%d)"
+          git push --force origin "upstream/main:refs/heads/${branch}"
+          echo "::warning::upstream/main 与 main 冲突，已推送 ${branch} 并创建 PR 等待人工解决"
+
+          conflicts="$(cat /tmp/conflicts.txt 2>/dev/null || true)"
+          {
+            echo "自动同步 \`${UPSTREAM}/main\` 时与 \`main\` 发生冲突。本 PR 的分支内容就是上游最新提交。"
+            echo
+            echo "**冲突文件**"
+            echo
+            for f in $conflicts; do echo "- \`$f\`"; done
+            echo
+            echo "**怎么解决**"
+            echo
+            echo "1. 在本页点「Resolve conflicts」，用网页编辑器解决冲突并提交（只需处理上面这些文件）。"
+            echo "2. 冲突解决后 PR 变成可合并，直接 merge 即可。"
+            echo
+            echo "也可以本地解决：\`git fetch origin ${branch} && git checkout ${branch} && git merge origin/main\`，解完再把本分支 push 上来。"
+            echo
+            echo "合并前建议本地跑一遍 \`go vet ./...\`、\`go test ./...\` 和两个前端的 \`pnpm run test\`；合并进 main 后 CI 也会再跑一遍。"
+          } > /tmp/pr-body.md
+
+          gh pr create \
+            --base main \
+            --head "$branch" \
+            --title "chore: 同步 upstream/main（需人工解决冲突）" \
+            --body-file /tmp/pr-body.md
