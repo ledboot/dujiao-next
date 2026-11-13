@@ -15,8 +15,7 @@ SERVER_PORT=8080 \
 SERVER_MODE=debug \
 SERVER_DEV_DISABLE_EMAIL_VERIFICATION=true \
 DATABASE_DRIVER=sqlite \
-#DATABASE_DSN=./db/dujiao-dev.db \
-DATABASE_DSN=./db/prod/dujiao.db \
+DATABASE_DSN=./db/dujiao-dev.db \
 REDIS_ENABLED=true \
 QUEUE_ENABLED=true \
 exec go run ./cmd/server -mode api
