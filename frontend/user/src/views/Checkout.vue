@@ -230,7 +230,7 @@
               <span>{{ t('payment.feeAmountLabel') }}</span><span>{{ formatPrice(checkoutFee, previewCurrency) }}</span>
             </div>
             <div v-if="invoiceRequested" class="flex items-center justify-between">
-              <span>{{ t('checkout.taxAmount') }}</span><span>{{ formatPrice(checkoutTax, previewCurrency) }}</span>
+              <span>{{ t('checkout.invoiceFeeAmount') }}</span><span>{{ formatPrice(checkoutTax, previewCurrency) }}</span>
             </div>
             <div class="flex items-center justify-between border-t pt-3 text-foreground">
               <span class="font-semibold">{{ t('checkout.previewTotal') }}</span>

@@ -1192,9 +1192,9 @@
   "checkout": {
     "invoiceRequested": "Invoice",
     "invoiceNone": "No invoice",
-    "invoiceGeneral": "General invoice (3% tax)",
-    "invoiceSpecial": "Special invoice (5% tax)",
-    "taxAmount": "Tax",
+    "invoiceGeneral": "General invoice (3% service fee)",
+    "invoiceSpecial": "Special invoice (5% service fee)",
+    "invoiceFeeAmount": "Invoice service fee",
     "title": "Checkout",
     "subtitle": "Review order and submit",
     "empty": "Your cart is empty",

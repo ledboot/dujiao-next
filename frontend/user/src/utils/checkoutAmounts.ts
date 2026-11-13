@@ -1,6 +1,6 @@
 import { amountToCents, calculateFeeCents, rateToBasisPoints } from './money.ts'
 
-// 开票类型对应的税率（基点）：普票 3%，专票 5%，空值不开票。
+// 开票类型对应的手续费比例（基点）：普票 3%，专票 5%，空值不开票。
 export const invoiceTaxBasisPoints = (invoiceType?: string) =>
   invoiceType === 'special' ? 500 : invoiceType === 'general' ? 300 : 0
 

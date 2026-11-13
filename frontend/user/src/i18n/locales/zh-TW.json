@@ -1192,9 +1192,9 @@
   "checkout": {
     "invoiceRequested": "需要發票",
     "invoiceNone": "不開票",
-    "invoiceGeneral": "普票（稅率 3%）",
-    "invoiceSpecial": "專票（稅率 5%）",
-    "taxAmount": "稅額",
+    "invoiceGeneral": "普票（手續費 3%）",
+    "invoiceSpecial": "專票（手續費 5%）",
+    "invoiceFeeAmount": "開票手續費",
     "title": "訂單結算",
     "subtitle": "確認訂單資訊並提交",
     "empty": "購物車為空",

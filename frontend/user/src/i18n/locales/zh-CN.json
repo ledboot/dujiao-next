@@ -1144,9 +1144,9 @@
   "checkout": {
     "invoiceRequested": "需要发票",
     "invoiceNone": "不开票",
-    "invoiceGeneral": "普票（税率 3%）",
-    "invoiceSpecial": "专票（税率 5%）",
-    "taxAmount": "税额",
+    "invoiceGeneral": "普票（手续费 3%）",
+    "invoiceSpecial": "专票（手续费 5%）",
+    "invoiceFeeAmount": "开票手续费",
     "title": "订单结算",
     "subtitle": "确认订单信息并提交",
     "empty": "购物车为空",

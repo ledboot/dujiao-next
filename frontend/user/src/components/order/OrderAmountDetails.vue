@@ -42,7 +42,7 @@ const rows = computed<AmountRow[]>(() => {
   result.push(
     { key: 'subtotal', label: t('orderDetail.amountSubtotal'), amount: orderSubtotalAmount(order), discount: false },
     { key: 'fee', label: t('payment.feeAmountLabel'), amount: order.fee_amount || '0', discount: false },
-    { key: 'tax', label: t('checkout.taxAmount'), amount: order.invoice_tax_amount ?? order.tax_amount ?? '0', discount: false },
+    { key: 'tax', label: t('checkout.invoiceFeeAmount'), amount: order.invoice_tax_amount ?? order.tax_amount ?? '0', discount: false },
     { key: 'payable', label: t('orderDetail.amountPayable'), amount: orderPayableAmount(order), discount: false },
     { key: 'paid', label: t('orderDetail.amountTotal'), amount: orderPaidAmount(order), discount: false },
   )

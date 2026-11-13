@@ -436,7 +436,7 @@ const orderBillingRows = (order: AdminOrder): Array<{ key: string; label: string
   ] as const).filter(([key]) => hasPositiveAmount(order[key])).map(([key, label]) => ({ key, label: t(label), amount: parseMoneyValue(order[key]), discount: true })),
   { key: 'subtotal', label: t('orderDetail.amountSubtotal'), amount: fromCents(toCents(parseMoneyValue(order.total_amount)) - toCents(parseMoneyValue(order.tax_amount))) },
   { key: 'fee', label: t('orderDetail.amountFee'), amount: parseMoneyValue(order.fee_amount) },
-  { key: 'tax', label: t('orderDetail.amountTax'), amount: invoiceTax(order) },
+  { key: 'tax', label: t('orderDetail.amountInvoiceFee'), amount: invoiceTax(order) },
   { key: 'payable', label: t('orderDetail.amountPayable'), amount: customerPayable(order) },
   { key: 'paid', label: t('orderDetail.amountTotal'), amount: order.paid_at ? customerPayable(order) : 0 },
   ...[
