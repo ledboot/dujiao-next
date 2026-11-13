@@ -228,8 +228,8 @@ func (s *Service) SyncProduct(mappingID uint) error {
 		_ = s.skuMappings.Create(newMapping)
 	}
 
-	// ── 2c. 如果启用了自动同步价格，更新 Product.PriceAmount 为最低 SKU 价格 ──
-	if conn.AutoSyncPrice && markupReady && localProduct != nil {
+	// ── 2c. sim：模拟上游对同一段代码的改动（用于验证同步工作流的冲突分支）──
+	if localProduct != nil && conn.AutoSyncPrice {
 		s.recalcProductPrice(localProduct)
 	}
 
