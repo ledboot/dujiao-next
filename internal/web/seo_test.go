@@ -48,6 +48,27 @@ func TestRenderedPublicPageAndScriptEscaping(t *testing.T) {
 	}
 }
 
+func TestRenderedAboutPageLinksBrandEntity(t *testing.T) {
+	index := []byte(`<!doctype html><html lang="zh-CN"><head><title></title></head><body><div id="app"></div></body></html>`)
+	page := PublicPage{Path: "/about", Locale: "zh-CN", SiteName: "云柚AI", Title: "关于云柚AI", Heading: "关于云柚AI", Description: "官方站点说明", Canonical: "https://shop.example/about", Type: "WebPage"}
+	result, err := renderPublicPage(index, page)
+	if err != nil {
+		t.Fatal(err)
+	}
+	body := string(result)
+	for _, want := range []string{
+		`"@type":"Organization"`,
+		`"alternateName":"云柚 AI"`,
+		`"@type":"AboutPage"`,
+		`"mainEntity":{"@id":"https://shop.example/#organization"}`,
+		`"contactPoint"`,
+	} {
+		if !strings.Contains(body, want) {
+			t.Errorf("missing %s: %s", want, body)
+		}
+	}
+}
+
 func TestPublicPageHTTPStatusAndStaticAssets(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	fsys := fstest.MapFS{"index.html": {Data: []byte(`<html lang="en"><head><title></title></head><body><div id="app"></div></body></html>`)}, "assets/main.js": {Data: []byte("asset")}}

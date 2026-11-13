@@ -60,31 +60,104 @@ func returnRenderError(c *gin.Context) {
 	c.Status(http.StatusServiceUnavailable)
 }
 
+func siteOrigin(canonical string) string {
+	parsed, err := url.Parse(canonical)
+	if err != nil || parsed.Host == "" {
+		return strings.TrimRight(canonical, "/")
+	}
+	parsed.Path = ""
+	parsed.RawPath = ""
+	parsed.RawQuery = ""
+	parsed.Fragment = ""
+	return strings.TrimRight(parsed.String(), "/")
+}
+
+func alternateSiteName(name string) string {
+	name = strings.TrimSpace(name)
+	if len(name) <= len("AI") || !strings.HasSuffix(name, "AI") {
+		return ""
+	}
+	prefix := strings.TrimSpace(strings.TrimSuffix(name, "AI"))
+	if prefix == "" {
+		return ""
+	}
+	return prefix + " AI"
+}
+
 func renderPublicPage(index []byte, page PublicPage) ([]byte, error) {
 	hidden := page.Status >= 400
-	entity := map[string]any{"@type": page.Type, "name": page.Heading, "url": page.Canonical, "description": page.Description}
+	origin := siteOrigin(page.Canonical)
+	organizationID := origin + "/#organization"
+	websiteID := origin + "/#website"
+	pageID := page.Canonical + "#webpage"
+
+	organization := map[string]any{
+		"@type":       "Organization",
+		"@id":         organizationID,
+		"name":        page.SiteName,
+		"url":         origin + "/",
+		"description": page.Description,
+		"contactPoint": map[string]any{
+			"@type":             "ContactPoint",
+			"contactType":       "customer service",
+			"url":               origin + "/about",
+			"availableLanguage": []string{"zh-CN", "zh-TW", "en"},
+		},
+	}
+	if alias := alternateSiteName(page.SiteName); alias != "" {
+		organization["alternateName"] = alias
+	}
 	if page.Image != "" {
-		entity["image"] = page.Image
+		organization["logo"] = page.Image
 	}
-	if page.Type == "Article" {
-		entity["headline"] = page.Heading
-		entity["inLanguage"] = page.Locale
-		entity["mainEntityOfPage"] = page.Canonical
-		entity["publisher"] = map[string]any{"@type": "Organization", "name": page.SiteName}
-		if page.PublishedAt != "" {
-			entity["datePublished"] = page.PublishedAt
+
+	website := map[string]any{
+		"@type":       "WebSite",
+		"@id":         websiteID,
+		"name":        page.SiteName,
+		"url":         origin + "/",
+		"description": page.Description,
+		"inLanguage":  page.Locale,
+		"publisher":   map[string]any{"@id": organizationID},
+	}
+	if alias := alternateSiteName(page.SiteName); alias != "" {
+		website["alternateName"] = alias
+	}
+
+	graph := []any{organization, website}
+	if page.Path != "/" {
+		entityType := page.Type
+		if entityType == "" || entityType == "WebSite" {
+			entityType = "WebPage"
 		}
-	}
-	if page.Path == "/" {
-		entity = map[string]any{"@type": "WebSite", "@id": page.Canonical + "#website", "name": page.SiteName, "url": page.Canonical, "description": page.Description, "publisher": map[string]any{"@id": page.Canonical + "#organization"}}
-	}
-	graph := []any{entity}
-	if page.Path == "/" {
-		organization := map[string]any{"@type": "Organization", "@id": page.Canonical + "#organization", "name": page.SiteName, "url": page.Canonical}
+		if page.Path == "/about" {
+			entityType = "AboutPage"
+		}
+		entity := map[string]any{
+			"@type":       entityType,
+			"@id":         pageID,
+			"name":        page.Heading,
+			"url":         page.Canonical,
+			"description": page.Description,
+			"inLanguage":  page.Locale,
+			"isPartOf":    map[string]any{"@id": websiteID},
+			"publisher":   map[string]any{"@id": organizationID},
+		}
+		if page.Path == "/about" {
+			entity["about"] = map[string]any{"@id": organizationID}
+			entity["mainEntity"] = map[string]any{"@id": organizationID}
+		}
 		if page.Image != "" {
-			organization["logo"] = page.Image
+			entity["image"] = page.Image
 		}
-		graph = append(graph, organization)
+		if entityType == "Article" {
+			entity["headline"] = page.Heading
+			entity["mainEntityOfPage"] = page.Canonical
+			if page.PublishedAt != "" {
+				entity["datePublished"] = page.PublishedAt
+			}
+		}
+		graph = append(graph, entity)
 	}
 	schema, err := json.Marshal(map[string]any{"@context": "https://schema.org", "@graph": graph})
 	if err != nil {
