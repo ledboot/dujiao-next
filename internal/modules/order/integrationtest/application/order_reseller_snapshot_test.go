@@ -651,44 +651,58 @@ func TestOrderServiceTenantScopedGuestQueries(t *testing.T) {
 }
 
 func TestInvoiceOrderPersistsTaxAndAllocatesChildren(t *testing.T) {
-	for _, guest := range []bool{false, true} {
-		t.Run(fmt.Sprintf("guest_%t", guest), func(t *testing.T) {
-			f := newOrderResellerSnapshotFixture(t)
-			input := f.createInput(f.buyer.ID)
-			preview, err := f.svc.PreviewOrder(input)
-			if err != nil {
-				t.Fatal(err)
-			}
-			input.InvoiceRequested = true
-			var order *orderdomain.Order
-			if guest {
-				order, err = f.svc.CreateGuestOrder(CreateGuestOrderInput{Email: "invoice@example.com", OrderPassword: "invoice-pass", Tenant: input.Tenant, Items: input.Items, InvoiceRequested: true})
-			} else {
-				order, err = f.svc.CreateOrder(input)
-			}
-			if err != nil {
-				t.Fatal(err)
-			}
-			wantTax := preview.TotalAmount.Decimal.Mul(decimal.RequireFromString("0.03")).Round(2)
-			var stored orderdomain.Order
-			if err := f.db.Preload("Children").First(&stored, order.ID).Error; err != nil {
-				t.Fatal(err)
-			}
-			if !stored.InvoiceRequested || !stored.TaxAmount.Decimal.Equal(wantTax) || !stored.TotalAmount.Decimal.Equal(preview.TotalAmount.Decimal.Add(wantTax)) {
-				t.Fatalf("invoice totals mismatch: %+v", stored)
-			}
-			total, tax := decimal.Zero, decimal.Zero
-			for _, child := range stored.Children {
-				if !child.InvoiceRequested {
-					t.Fatal("child lost invoice flag")
+	cases := []struct {
+		name         string
+		invoiceType  string
+		requested    bool
+		rate         string
+		wantStoredAs string
+	}{
+		{name: "general", invoiceType: "general", rate: "0.03", wantStoredAs: "general"},
+		{name: "special", invoiceType: "special", rate: "0.05", wantStoredAs: "special"},
+		{name: "legacy_boolean", requested: true, rate: "0.03", wantStoredAs: "general"},
+	}
+	for _, tc := range cases {
+		for _, guest := range []bool{false, true} {
+			t.Run(fmt.Sprintf("%s_guest_%t", tc.name, guest), func(t *testing.T) {
+				f := newOrderResellerSnapshotFixture(t)
+				input := f.createInput(f.buyer.ID)
+				preview, err := f.svc.PreviewOrder(input)
+				if err != nil {
+					t.Fatal(err)
 				}
-				total = total.Add(child.TotalAmount.Decimal)
-				tax = tax.Add(child.TaxAmount.Decimal)
-			}
-			if !total.Equal(stored.TotalAmount.Decimal) || !tax.Equal(wantTax) {
-				t.Fatalf("children amounts mismatch: total=%s tax=%s", total, tax)
-			}
-		})
+				input.InvoiceRequested = tc.requested
+				input.InvoiceType = tc.invoiceType
+				var order *orderdomain.Order
+				if guest {
+					order, err = f.svc.CreateGuestOrder(CreateGuestOrderInput{Email: "invoice@example.com", OrderPassword: "invoice-pass", Tenant: input.Tenant, Items: input.Items, InvoiceRequested: tc.requested, InvoiceType: tc.invoiceType})
+				} else {
+					order, err = f.svc.CreateOrder(input)
+				}
+				if err != nil {
+					t.Fatal(err)
+				}
+				wantTax := preview.TotalAmount.Decimal.Mul(decimal.RequireFromString(tc.rate)).Round(2)
+				var stored orderdomain.Order
+				if err := f.db.Preload("Children").First(&stored, order.ID).Error; err != nil {
+					t.Fatal(err)
+				}
+				if !stored.InvoiceRequested || stored.InvoiceType != tc.wantStoredAs || !stored.TaxAmount.Decimal.Equal(wantTax) || !stored.TotalAmount.Decimal.Equal(preview.TotalAmount.Decimal.Add(wantTax)) {
+					t.Fatalf("invoice totals mismatch: %+v", stored)
+				}
+				total, tax := decimal.Zero, decimal.Zero
+				for _, child := range stored.Children {
+					if !child.InvoiceRequested || child.InvoiceType != tc.wantStoredAs {
+						t.Fatalf("child lost invoice snapshot: %+v", child)
+					}
+					total = total.Add(child.TotalAmount.Decimal)
+					tax = tax.Add(child.TaxAmount.Decimal)
+				}
+				if !total.Equal(stored.TotalAmount.Decimal) || !tax.Equal(wantTax) {
+					t.Fatalf("children amounts mismatch: total=%s tax=%s", total, tax)
+				}
+			})
+		}
 	}
 }
 

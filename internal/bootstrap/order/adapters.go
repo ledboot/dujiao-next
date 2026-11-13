@@ -353,6 +353,7 @@ type orderCreateAdapter struct {
 func (a orderCreateAdapter) CreateOrder(input ordertransport.CreateOrderInput) (*orderdomain.Order, error) {
 	order, err := a.orders.CreateOrder(orderapp.CreateOrderInput{
 		InvoiceRequested:    input.InvoiceRequested,
+		InvoiceType:         input.InvoiceType,
 		UserID:              input.UserID,
 		Tenant:              input.Tenant,
 		Items:               mapServiceOrderItems(input.Items),
@@ -368,6 +369,7 @@ func (a orderCreateAdapter) CreateOrder(input ordertransport.CreateOrderInput) (
 func (a orderCreateAdapter) CreateGuestOrder(input ordertransport.CreateGuestOrderInput) (*orderdomain.Order, error) {
 	order, err := a.orders.CreateGuestOrder(orderapp.CreateGuestOrderInput{
 		InvoiceRequested:    input.InvoiceRequested,
+		InvoiceType:         input.InvoiceType,
 		Email:               input.Email,
 		OrderPassword:       input.OrderPassword,
 		Locale:              input.Locale,
@@ -430,6 +432,7 @@ func (a orderPaymentCreatorAdapter) CreatePayment(input ordertransport.CreatePay
 func (a orderPreviewAdapter) PreviewOrder(input ordertransport.CreateOrderInput) (*ordertransport.OrderPreview, error) {
 	preview, err := a.orders.PreviewOrder(orderapp.CreateOrderInput{
 		InvoiceRequested:    input.InvoiceRequested,
+		InvoiceType:         input.InvoiceType,
 		UserID:              input.UserID,
 		Tenant:              input.Tenant,
 		Items:               mapServiceOrderItems(input.Items),
@@ -448,6 +451,7 @@ func (a orderPreviewAdapter) PreviewOrder(input ordertransport.CreateOrderInput)
 func (a orderPreviewAdapter) PreviewGuestOrder(input ordertransport.CreateGuestOrderInput) (*ordertransport.OrderPreview, error) {
 	preview, err := a.orders.PreviewGuestOrder(orderapp.CreateGuestOrderInput{
 		InvoiceRequested:    input.InvoiceRequested,
+		InvoiceType:         input.InvoiceType,
 		Email:               input.Email,
 		OrderPassword:       input.OrderPassword,
 		Locale:              input.Locale,
@@ -504,6 +508,7 @@ func mapOrderPreview(preview *orderapp.OrderPreview) *ordertransport.OrderPrevie
 	}
 	return &ordertransport.OrderPreview{
 		InvoiceRequested:        preview.InvoiceRequested,
+		InvoiceType:             preview.InvoiceType,
 		TaxAmount:               preview.TaxAmount,
 		Currency:                preview.Currency,
 		OriginalAmount:          preview.OriginalAmount,

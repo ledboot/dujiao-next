@@ -1,10 +1,13 @@
 package domain
 
 import (
+	"strings"
 	"time"
 
 	fulfillmentdomain "github.com/dujiao-next/internal/modules/fulfillment/domain"
 	"github.com/dujiao-next/internal/shared/money"
+
+	"github.com/shopspring/decimal"
 )
 
 // Order 订单表
@@ -25,7 +28,8 @@ type Order struct {
 	MemberDiscountAmount    money.Amount `gorm:"type:decimal(20,2);not null;default:0" json:"member_discount_amount"`              // 会员优惠金额
 	PromotionDiscountAmount money.Amount `gorm:"type:decimal(20,2);not null;default:0" json:"promotion_discount_amount"`           // 活动价优惠金额
 	WholesaleDiscountAmount money.Amount `gorm:"type:decimal(20,2);not null;default:0" json:"wholesale_discount_amount"`           // 批发价优惠金额
-	InvoiceRequested        bool         `gorm:"not null;default:false" json:"invoice_requested"`
+	InvoiceRequested        bool         `gorm:"not null;default:false" json:"invoice_requested"`                                  // 是否开票（兼容字段，与 InvoiceType 同步）
+	InvoiceType             string       `gorm:"type:varchar(16);not null;default:''" json:"invoice_type,omitempty"`               // 开票类型：general 普票 3% / special 专票 5%，空表示不开票
 	TaxAmount               money.Amount `gorm:"type:decimal(20,2);not null;default:0" json:"tax_amount"`
 	TotalAmount             money.Amount `gorm:"type:decimal(20,2);not null;default:0" json:"total_amount"`                // 实付金额
 	WalletPaidAmount        money.Amount `gorm:"type:decimal(20,2);not null;default:0" json:"wallet_paid_amount"`          // 钱包支付金额
@@ -96,4 +100,63 @@ func (o *Order) TruncateFulfillmentPayload() {
 	for i := range o.Children {
 		o.Children[i].TruncateFulfillmentPayload()
 	}
+}
+
+// 开票类型：普票与专票互斥，空值表示不开票。
+const (
+	InvoiceTypeNone    = ""
+	InvoiceTypeGeneral = "general" // 普票，税率 3%
+	InvoiceTypeSpecial = "special" // 专票，税率 5%
+)
+
+var invoiceTaxRates = map[string]decimal.Decimal{
+	InvoiceTypeGeneral: decimal.RequireFromString("0.03"),
+	InvoiceTypeSpecial: decimal.RequireFromString("0.05"),
+}
+
+// NormalizeInvoiceType 归一化开票类型，未知值按不开票处理。
+func NormalizeInvoiceType(invoiceType string) string {
+	switch strings.ToLower(strings.TrimSpace(invoiceType)) {
+	case InvoiceTypeGeneral:
+		return InvoiceTypeGeneral
+	case InvoiceTypeSpecial:
+		return InvoiceTypeSpecial
+	default:
+		return InvoiceTypeNone
+	}
+}
+
+// ResolveInvoiceType 兼容旧的布尔开票开关：未指定类型但要求开票时按普票处理。
+func ResolveInvoiceType(invoiceType string, invoiceRequested bool) string {
+	if normalized := NormalizeInvoiceType(invoiceType); normalized != InvoiceTypeNone {
+		return normalized
+	}
+	if invoiceRequested {
+		return InvoiceTypeGeneral
+	}
+	return InvoiceTypeNone
+}
+
+// InvoiceTaxRate 返回开票类型对应的税率，不开票时为 0。
+func InvoiceTaxRate(invoiceType string) decimal.Decimal {
+	if rate, ok := invoiceTaxRates[NormalizeInvoiceType(invoiceType)]; ok {
+		return rate
+	}
+	return decimal.Zero
+}
+
+// ResolvedInvoiceType 返回订单实际生效的开票类型（兼容历史订单只有布尔标记的情况）。
+func (o *Order) ResolvedInvoiceType() string {
+	if o == nil {
+		return InvoiceTypeNone
+	}
+	if !o.InvoiceRequested && NormalizeInvoiceType(o.InvoiceType) == InvoiceTypeNone {
+		return InvoiceTypeNone
+	}
+	return ResolveInvoiceType(o.InvoiceType, o.InvoiceRequested)
+}
+
+// InvoiceTaxRate 返回订单生效的开票税率。
+func (o *Order) InvoiceTaxRate() decimal.Decimal {
+	return InvoiceTaxRate(o.ResolvedInvoiceType())
 }

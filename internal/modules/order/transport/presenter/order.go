@@ -20,6 +20,7 @@ type OrderSummary struct {
 	PaidAmount              money.Amount    `json:"paid_amount"`
 	PaidAt                  *time.Time      `json:"paid_at"`
 	InvoiceRequested        bool            `json:"invoice_requested"`
+	InvoiceType             string          `json:"invoice_type,omitempty"`
 	TaxAmount               money.Amount    `json:"tax_amount"`
 	OrderNo                 string          `json:"order_no"`
 	Status                  string          `json:"status"`
@@ -39,6 +40,7 @@ func NewOrderSummary(o *orderdomain.Order) OrderSummary {
 	s := OrderSummary{
 		OrderNo:                 o.OrderNo,
 		InvoiceRequested:        o.InvoiceRequested,
+		InvoiceType:             o.InvoiceType,
 		TaxAmount:               o.TaxAmount,
 		Status:                  o.Status,
 		Currency:                o.Currency,
@@ -80,6 +82,7 @@ type OrderDetail struct {
 	PaidAmount               money.Amount      `json:"paid_amount"`
 	OnlinePayableAmount      money.Amount      `json:"online_payable_amount"`
 	InvoiceRequested         bool              `json:"invoice_requested"`
+	InvoiceType              string            `json:"invoice_type,omitempty"`
 	TaxAmount                money.Amount      `json:"tax_amount"`
 	OrderNo                  string            `json:"order_no"`
 	GuestEmail               string            `json:"guest_email,omitempty"`
@@ -121,6 +124,7 @@ func NewOrderDetail(o *orderdomain.Order) OrderDetail {
 	d := OrderDetail{
 		OrderNo:                 o.OrderNo,
 		InvoiceRequested:        o.InvoiceRequested,
+		InvoiceType:             o.InvoiceType,
 		TaxAmount:               o.TaxAmount,
 		GuestEmail:              o.GuestEmail,
 		GuestLocale:             o.GuestLocale,

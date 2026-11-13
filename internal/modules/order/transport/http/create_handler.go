@@ -62,6 +62,7 @@ type OrderPaymentCreator interface {
 // CreateOrderAndPayRequest 创建订单并发起支付请求
 type CreateOrderAndPayRequest struct {
 	InvoiceRequested    bool                    `json:"invoice_requested"`
+	InvoiceType         string                  `json:"invoice_type"`
 	Items               []OrderItemRequest      `json:"items" binding:"required"`
 	CouponCode          string                  `json:"coupon_code"`
 	AffiliateCode       string                  `json:"affiliate_code"`
@@ -74,6 +75,7 @@ type CreateOrderAndPayRequest struct {
 // CreateGuestOrderAndPayRequest 游客创建订单并发起支付请求
 type CreateGuestOrderAndPayRequest struct {
 	InvoiceRequested    bool                              `json:"invoice_requested"`
+	InvoiceType         string                            `json:"invoice_type"`
 	Email               string                            `json:"email" binding:"required"`
 	OrderPassword       string                            `json:"order_password" binding:"required"`
 	Items               []OrderItemRequest                `json:"items" binding:"required"`
@@ -115,6 +117,7 @@ func (h *CreateHandler) CreateOrder(c *gin.Context) {
 
 	order, err := h.orders.CreateOrder(CreateOrderInput{
 		InvoiceRequested:    req.InvoiceRequested,
+		InvoiceType:         req.InvoiceType,
 		UserID:              uid,
 		Tenant:              tenantFromRequest(c),
 		Items:               mapOrderItems(req.Items),
@@ -147,6 +150,7 @@ func (h *CreateHandler) CreateGuestOrder(c *gin.Context) {
 
 	order, err := h.orders.CreateGuestOrder(CreateGuestOrderInput{
 		InvoiceRequested:    req.InvoiceRequested,
+		InvoiceType:         req.InvoiceType,
 		Email:               req.Email,
 		OrderPassword:       req.OrderPassword,
 		Locale:              i18n.ResolveLocale(c),
@@ -182,6 +186,7 @@ func (h *CreateHandler) CreateOrderAndPay(c *gin.Context) {
 
 	order, err := h.orders.CreateOrder(CreateOrderInput{
 		InvoiceRequested:    req.InvoiceRequested,
+		InvoiceType:         req.InvoiceType,
 		UserID:              uid,
 		Tenant:              tenantFromRequest(c),
 		Items:               mapOrderItems(req.Items),
@@ -223,6 +228,7 @@ func (h *CreateHandler) CreateGuestOrderAndPay(c *gin.Context) {
 
 	order, err := h.orders.CreateGuestOrder(CreateGuestOrderInput{
 		InvoiceRequested:    req.InvoiceRequested,
+		InvoiceType:         req.InvoiceType,
 		Email:               req.Email,
 		OrderPassword:       req.OrderPassword,
 		Locale:              i18n.ResolveLocale(c),

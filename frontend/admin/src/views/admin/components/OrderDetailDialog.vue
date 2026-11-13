@@ -792,6 +792,16 @@ watch(
                 <div class="break-all text-sm text-foreground">{{ selectedOrder.client_ip || '-' }}</div>
               </CardContent>
             </Card>
+            <Card class="min-w-0 rounded-lg border-border bg-background shadow-none">
+              <CardContent class="p-3">
+                <div class="text-xs text-muted-foreground">{{ t('admin.orders.detailInvoice') }}</div>
+                <div class="text-sm text-foreground">
+                  {{ selectedOrder.invoice_requested
+                    ? (selectedOrder.invoice_type === 'special' ? t('admin.orders.detailInvoiceSpecial') : t('admin.orders.detailInvoiceGeneral'))
+                    : t('admin.orders.detailInvoiceNone') }}
+                </div>
+              </CardContent>
+            </Card>
           </div>
 
           <div class="rounded-xl border border-border bg-muted/20 p-4">

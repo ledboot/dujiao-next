@@ -16,7 +16,7 @@ import { amountToCents, calculateFeeCents, basisPointsToPercent, centsToAmount, 
 import { buildSkuDisplayText, normalizeSkuId } from '../utils/sku'
 import { refreshCartStockSnapshots, cartItemPurchaseLimit as itemPurchaseLimit, cartItemPurchaseMin as itemPurchaseMin } from '../utils/cartStock'
 import { getImageUrl } from '../utils/image'
-import { checkoutSurcharges } from '../utils/checkoutAmounts'
+import { checkoutSurcharges, invoiceTaxBasisPoints } from '../utils/checkoutAmounts'
 import { getAffiliateCode, getAffiliateVisitorKey } from '../utils/affiliate'
 import { saveGuestOrderAuth } from '../utils/guestOrderAuth'
 import ImageCaptcha from '../components/captcha/ImageCaptcha.vue'
@@ -84,7 +84,9 @@ export function useCheckout() {
   // Payment state
   const selectedChannelId = ref<number | null>(null)
   const useBalance = ref(false)
-  const invoiceRequested = ref(false)
+  // 开票类型：'' 不开票 / 'general' 普票 3% / 'special' 专票 5%，二者互斥
+  const invoiceType = ref('')
+  const invoiceRequested = computed(() => invoiceType.value !== '')
   const walletLoading = ref(false)
   const walletBalance = ref('0')
 
@@ -259,12 +261,15 @@ export function useCheckout() {
   const previewWholesale = computed(() => preview.value?.wholesale_discount_amount ?? '0')
   const previewMemberDiscount = computed(() => preview.value?.member_discount_amount ?? '0')
   const previewBaseTotal = computed(() => centsToAmount((amountToCents(preview.value?.total_amount ?? totalAmount.value) || 0) - (amountToCents(preview.value?.tax_amount) || 0)))
-  const productTaxCents = computed(() => invoiceRequested.value ? calculateFeeCents(amountToCents(previewBaseTotal.value) || 0, 300) || 0 : 0)
+  const productTaxCents = computed(() => {
+    const basisPoints = invoiceTaxBasisPoints(invoiceType.value)
+    return basisPoints > 0 ? calculateFeeCents(amountToCents(previewBaseTotal.value) || 0, basisPoints) || 0 : 0
+  })
   const previewTotal = computed(() => centsToAmount((amountToCents(previewBaseTotal.value) || 0) + productTaxCents.value))
   const checkoutAmounts = computed(() => checkoutSurcharges(
     amountToCents(previewBaseTotal.value) || 0,
     expectedOnlinePayCents.value,
-    invoiceRequested.value,
+    invoiceType.value,
     requiresOnlineChannel.value
       ? paymentChannels.value.find((item: any) => Number(item.id) === selectedChannelId.value)
       : undefined,
@@ -691,6 +696,7 @@ export function useCheckout() {
 
   const buildOrderPayload = () => ({
     invoice_requested: invoiceRequested.value,
+    invoice_type: invoiceType.value || undefined,
     coupon_code: normalizedCouponCode.value || undefined,
     affiliate_code: getAffiliateCode() || undefined,
     affiliate_visitor_key: getAffiliateVisitorKey() || undefined,
@@ -1213,6 +1219,7 @@ export function useCheckout() {
     guestImageCaptchaRef,
     guestTurnstileRef,
     handleGuestCaptchaConfigStale,
+    invoiceType,
     invoiceRequested,
     checkoutFee,
     checkoutTax,

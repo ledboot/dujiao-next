@@ -130,10 +130,15 @@
             <div class="flex items-center justify-between text-[13.5px]"><span class="text-muted-foreground">{{ t('checkout.previewWholesale') }}</span><span class="font-semibold" :class="hasPositiveAmount(previewWholesale) ? 'text-[color:var(--teal-strong)]' : 'text-foreground'">{{ formatDiscountPrice(previewWholesale, previewCurrency) }}</span></div>
           </template>
           <div v-if="Number(previewMemberDiscount) > 0" class="flex items-center justify-between text-[13.5px]"><span class="text-muted-foreground">{{ t('checkout.previewMemberDiscount') }}</span><span class="font-semibold text-[color:var(--gold-strong)]">-{{ formatPrice(previewMemberDiscount, previewCurrency) }}</span></div>
-          <label class="flex cursor-pointer items-center gap-2 py-2 text-foreground">
-              <input v-model="invoiceRequested" type="checkbox" class="accent-primary" />
-              <span>{{ t('checkout.invoiceRequested') }}</span>
-            </label>
+          <div class="py-2 text-foreground">
+            <div class="mb-1">{{ t('checkout.invoiceRequested') }}</div>
+            <div class="flex flex-wrap gap-x-4 gap-y-1">
+              <label v-for="option in invoiceOptions" :key="option.value" class="flex cursor-pointer items-center gap-2">
+                <input v-model="invoiceType" type="radio" :value="option.value" class="accent-primary" />
+                <span>{{ t(option.label) }}</span>
+              </label>
+            </div>
+          </div>
             <div v-if="hasPositiveAmount(checkoutFee)" class="flex items-center justify-between">
               <span>{{ t('payment.feeAmountLabel') }}</span><span>{{ formatPrice(checkoutFee, previewCurrency) }}</span>
             </div>
@@ -231,7 +236,7 @@ const {
   checkoutMode, guestEmail, guestPassword, guestEmailValid,
   guestCaptchaEnabled, captchaProvider, guestCaptchaPayload, guestTurnstileToken, guestTurnstileSiteKey,
   guestImageCaptchaRef, guestTurnstileRef, handleGuestCaptchaConfigStale,
-  invoiceRequested, checkoutFee, checkoutTax, checkoutPayableTotal,
+  invoiceType, invoiceRequested, checkoutFee, checkoutTax, checkoutPayableTotal,
   previewCurrency, previewOriginal, previewCoupon, previewPromotion, previewWholesale, previewMemberDiscount,
   previewLoading, couponRefreshing, previewStatusText, hasPositiveAmount, formatDiscountPrice, checkoutAlert,
   showBalanceOption, walletLoading, walletBalance, useBalance, walletOnlyPayment,
@@ -240,6 +245,12 @@ const {
   handleSelectChannel, formatChannelFeeRate, formatChannelFixedFee,
   submitting, canSubmit, handleSubmit,
 } = useCheckout()
+
+const invoiceOptions = [
+  { value: '', label: 'checkout.invoiceNone' },
+  { value: 'general', label: 'checkout.invoiceGeneral' },
+  { value: 'special', label: 'checkout.invoiceSpecial' },
+]
 
 // 字符串模板 ref，逻辑在 composable 内，显式标记避免 noUnusedLocals 误报。
 void guestImageCaptchaRef

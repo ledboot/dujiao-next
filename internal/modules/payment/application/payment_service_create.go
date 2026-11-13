@@ -271,9 +271,10 @@ func (s *PaymentService) CreatePayment(input CreatePaymentInput) (*CreatePayment
 		}
 
 		feeBase := onlineAmount
-		if lockedOrder.InvoiceRequested {
+		invoiceTaxRate := lockedOrder.InvoiceTaxRate()
+		if !invoiceTaxRate.IsZero() {
 			// Balance covers a proportional part of the tax-inclusive order amount.
-			feeBase = onlineAmount.Div(decimal.RequireFromString("1.03")).Round(2)
+			feeBase = onlineAmount.Div(decimal.NewFromInt(1).Add(invoiceTaxRate)).Round(2)
 			if lockedOrder.WalletPaidAmount.Decimal.IsZero() {
 				feeBase = lockedOrder.TotalAmount.Decimal.Sub(lockedOrder.TaxAmount.Decimal)
 			}
@@ -283,9 +284,9 @@ func (s *PaymentService) CreatePayment(input CreatePaymentInput) (*CreatePayment
 		taxAmount := decimal.Zero
 		if feePolicy == constants.PaymentFeePolicyCustomerSurcharge {
 			paymentAmount = paymentAmount.Add(feeAmount)
-			if lockedOrder.InvoiceRequested {
+			if !invoiceTaxRate.IsZero() {
 				base := lockedOrder.TotalAmount.Decimal.Sub(lockedOrder.TaxAmount.Decimal)
-				taxAmount = base.Add(feeAmount).Mul(decimal.RequireFromString("0.03")).Round(2).Sub(lockedOrder.TaxAmount.Decimal)
+				taxAmount = base.Add(feeAmount).Mul(invoiceTaxRate).Round(2).Sub(lockedOrder.TaxAmount.Decimal)
 				paymentAmount = paymentAmount.Add(taxAmount)
 			}
 		}
