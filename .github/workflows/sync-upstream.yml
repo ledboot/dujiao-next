@@ -96,8 +96,15 @@ jobs:
             echo "合并前建议本地跑一遍 \`go vet ./...\`、\`go test ./...\` 和两个前端的 \`pnpm run test\`；合并进 main 后 CI 也会再跑一遍。"
           } > /tmp/pr-body.md
 
-          gh pr create \
-            --base main \
-            --head "$branch" \
-            --title "chore: 同步 upstream/main（需人工解决冲突）" \
-            --body-file /tmp/pr-body.md
+          # 用 REST 建 PR：GITHUB_TOKEN 能调 REST 的 createPullRequest，
+          # 但 gh pr create 走的 GraphQL mutation 会被拒（Resource not accessible by integration）。
+          if ! pr_url=$(gh api -X POST "repos/${GITHUB_REPOSITORY}/pulls" \
+              -f head="$branch" \
+              -f base=main \
+              -f title="chore: 同步 upstream/main（需人工解决冲突）" \
+              -f body="$(cat /tmp/pr-body.md)" \
+              --jq .html_url); then
+            echo "::error::创建 PR 失败，请手动打开 https://github.com/${GITHUB_REPOSITORY}/compare/main...${branch}?expand=1"
+            exit 1
+          fi
+          echo "::notice::上游冲突 PR 已创建：${pr_url}"
