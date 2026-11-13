@@ -68,7 +68,8 @@ jobs:
         if: steps.sync.outputs.status == 'conflict'
         run: |
           set -euo pipefail
-          existing=$(gh pr list --state open --json headRefName \
+          # 必须显式指定 -R：runner 里加了 upstream remote，gh 会把它当成当前仓库。
+          existing=$(gh pr list -R "${GITHUB_REPOSITORY}" --state open --json headRefName \
             --jq '[.[] | select(.headRefName | startswith("sync/upstream-"))] | length')
           if [ "$existing" != "0" ]; then
             echo "::warning::upstream/main 与 main 存在冲突，已有未关闭的同步 PR，本次不再重复创建"
