@@ -18,7 +18,7 @@ import (
 type pay502v2Adapter struct{ epayAdapter }
 
 const (
-	pay502v2DefaultGatewayURL = "https://pay.502k.cn/xpay/epay"
+	pay502v2DefaultGatewayURL = "https://pay.502k.cn/xpay/epayn"
 	pay502v2MethodJump        = "jump"
 	pay502v2MethodScan        = "scan"
 )
@@ -193,7 +193,9 @@ func pay502v2VerifyResponse(raw map[string]interface{}, platformPublicKey string
 			sign = strings.TrimSpace(text)
 			continue
 		}
-		if key == "sign_type" || strings.TrimSpace(text) == "" {
+		// The platform signs the business fields only: the envelope "code" and
+		// sign metadata are excluded (verified against a live V2 response).
+		if key == "code" || key == "sign_type" || strings.TrimSpace(text) == "" {
 			continue
 		}
 		params[key] = text

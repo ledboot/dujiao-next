@@ -489,7 +489,15 @@ const resetAllConfigs = () => {
 const applyEpayConfig = (raw: Record<string, unknown>) => {
   const version = String(raw.epay_version || '').toLowerCase()
   epayConfig.epay_version = form.provider_type === '502v2' ? 'v2' : form.provider_type === 'mola' || form.provider_type === '502' || version === 'v1' ? 'v1' : 'v2'
-  epayConfig.gateway_url = String(raw.gateway_url || (form.provider_type === 'mola' ? 'https://pay.mygptlife.com' : form.provider_type === '502' || form.provider_type === '502v2' ? 'https://pay.502k.cn/xpay/epay' : ''))
+  const defaultGatewayUrl =
+    form.provider_type === 'mola'
+      ? 'https://pay.mygptlife.com'
+      : form.provider_type === '502v2'
+        ? 'https://pay.502k.cn/xpay/epayn'
+        : form.provider_type === '502'
+          ? 'https://pay.502k.cn/xpay/epay'
+          : ''
+  epayConfig.gateway_url = String(raw.gateway_url || defaultGatewayUrl)
   epayConfig.merchant_id = String(raw.merchant_id || '')
   epayConfig.merchant_key = String(raw.merchant_key || '')
   epayConfig.private_key = String(raw.private_key || '')
@@ -878,7 +886,7 @@ watch(
     }
     if (value === '502v2') {
       epayConfig.epay_version = 'v2'
-      epayConfig.gateway_url = 'https://pay.502k.cn/xpay/epay'
+      epayConfig.gateway_url = 'https://pay.502k.cn/xpay/epayn'
     }
     if (value === 'mola') {
       epayConfig.epay_version = 'v1'

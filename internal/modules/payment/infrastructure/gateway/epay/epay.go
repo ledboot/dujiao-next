@@ -379,6 +379,7 @@ func createV2(ctx context.Context, cfg *Config, input CreateInput, payType strin
 	var resp struct {
 		Code    int    `json:"code"`
 		Msg     string `json:"msg"`
+		Message string `json:"message"`
 		TradeNo string `json:"trade_no"`
 		PayType string `json:"pay_type"`
 		PayInfo string `json:"pay_info"`
@@ -387,7 +388,11 @@ func createV2(ctx context.Context, cfg *Config, input CreateInput, payType strin
 		return nil, ErrResponseInvalid
 	}
 	if resp.Code != 0 {
-		return nil, fmt.Errorf("%w: %s", ErrResponseInvalid, resp.Msg)
+		msg := strings.TrimSpace(resp.Msg)
+		if msg == "" {
+			msg = strings.TrimSpace(resp.Message)
+		}
+		return nil, fmt.Errorf("%w: %s", ErrResponseInvalid, msg)
 	}
 	result := &CreateResult{
 		TradeNo: strings.TrimSpace(resp.TradeNo),

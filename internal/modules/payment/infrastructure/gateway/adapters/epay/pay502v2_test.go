@@ -54,7 +54,7 @@ func TestPay502V2CreatePayment(t *testing.T) {
 	} {
 		t.Run(tc.mode, func(t *testing.T) {
 			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-				if r.Method != http.MethodPost || r.URL.Path != "/xpay/epay/api/pay/create" {
+				if r.Method != http.MethodPost || r.URL.Path != "/xpay/epayn/api/pay/create" {
 					t.Errorf("unexpected endpoint %s %s", r.Method, r.URL.Path)
 				}
 				if err := r.ParseForm(); err != nil {
@@ -70,15 +70,16 @@ func TestPay502V2CreatePayment(t *testing.T) {
 				if !verifyTestRSASignature(buildEpayAdapterSignContent(params), params["sign"], merchantPublic) {
 					t.Error("invalid request signature")
 				}
+				// The platform signs business fields only, excluding the envelope "code" and sign metadata.
 				respSign := signTestRSA(buildEpayAdapterSignContent(map[string]string{
-					"code": "0", "msg": "success", "trade_no": "502V2-001", "pay_type": tc.payType, "pay_info": tc.payInfo,
+					"msg": "success", "trade_no": "502V2-001", "pay_type": tc.payType, "pay_info": tc.payInfo,
 				}), platformPrivate)
 				fmt.Fprintf(w, `{"code":0,"msg":"success","trade_no":"502V2-001","pay_type":%q,"pay_info":%q,"sign_type":"RSA","sign":%q}`, tc.payType, tc.payInfo, respSign)
 			}))
 			defer server.Close()
 
 			cfg := pay502v2TestConfig(merchantPrivate, platformPublic)
-			cfg["gateway_url"] = server.URL + "/xpay/epay"
+			cfg["gateway_url"] = server.URL + "/xpay/epayn"
 			cfg["target_currency"] = "CNY"
 			cfg["exchange_rate"] = "7"
 			result, err := NewPay502V2Adapter().CreatePayment(context.Background(), cfg, paymentcontract.GatewayCreateInput{
@@ -114,14 +115,14 @@ func TestPay502V2RejectsInvalidResponseSignature(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		// Signed by a key that does not match the configured platform public key.
 		sign := signTestRSA(buildEpayAdapterSignContent(map[string]string{
-			"code": "0", "msg": "success", "trade_no": "502V2-002", "pay_type": "qrcode", "pay_info": "https://pay.example/qr",
+			"msg": "success", "trade_no": "502V2-002", "pay_type": "qrcode", "pay_info": "https://pay.example/qr",
 		}), otherPrivate)
 		fmt.Fprintf(w, `{"code":0,"msg":"success","trade_no":"502V2-002","pay_type":"qrcode","pay_info":"https://pay.example/qr","sign_type":"RSA","sign":%q}`, sign)
 	}))
 	defer server.Close()
 
 	cfg := pay502v2TestConfig(merchantPrivate, platformPublic)
-	cfg["gateway_url"] = server.URL + "/xpay/epay"
+	cfg["gateway_url"] = server.URL + "/xpay/epayn"
 	_, err := NewPay502V2Adapter().CreatePayment(context.Background(), cfg, paymentcontract.GatewayCreateInput{
 		OrderNo: "DJP502V2", Subject: "x", Amount: money.FromDecimal(decimal.NewFromInt(1)),
 		Currency: "CNY", ChannelType: "alipay", ClientIP: "127.0.0.1",
