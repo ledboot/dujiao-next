@@ -64,6 +64,7 @@ const (
 	PaymentProviderEpay      = "epay"
 	PaymentProviderMola      = "mola"
 	PaymentProvider502       = "502"
+	PaymentProvider502V2     = "502v2"
 	Payment502ExpireMinutes  = 5
 	PaymentProviderEpusdt    = "epusdt"
 	PaymentProviderBepusdt   = "bepusdt"

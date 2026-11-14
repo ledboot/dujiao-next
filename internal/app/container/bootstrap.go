@@ -63,6 +63,7 @@ func newPaymentProviderRegistry() *paymentprovider.Registry {
 	registry.Register(constants.PaymentProviderEpay, "", epayadapter.NewEpayAdapter())
 	registry.Register(constants.PaymentProviderMola, "", epayadapter.NewMolaAdapter())
 	registry.Register(constants.PaymentProvider502, "", epayadapter.NewPay502Adapter())
+	registry.Register(constants.PaymentProvider502V2, "", epayadapter.NewPay502V2Adapter())
 	registry.Register(constants.PaymentProviderEpusdt, "", epusdtadapter.NewEpusdtAdapter())
 	registry.Register(constants.PaymentProviderBepusdt, "", bepusdtadapter.NewBepusdtAdapter())
 	registry.Register(constants.PaymentProviderDujiaoPay, "", dujiaopayadapter.NewDujiaoPayAdapter())

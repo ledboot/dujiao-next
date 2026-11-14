@@ -117,6 +117,7 @@ const providerTypeLabel = (value?: string) => {
     epay: t('admin.paymentChannels.providerTypes.epay'),
     mola: t('admin.paymentChannels.providerTypes.mola'),
     '502': t('admin.paymentChannels.providerTypes.pay502'),
+    '502v2': t('admin.paymentChannels.providerTypes.pay502v2'),
     bepusdt: t('admin.paymentChannels.providerTypes.bepusdt'),
     epusdt: t('admin.paymentChannels.providerTypes.epusdt'),
     okpay: t('admin.paymentChannels.providerTypes.okpay'),
@@ -339,6 +340,7 @@ watch(
                 </span>
               </SelectItem>
               <SelectItem value="502">{{ t('admin.paymentChannels.providerTypes.pay502') }}</SelectItem>
+              <SelectItem value="502v2">{{ t('admin.paymentChannels.providerTypes.pay502v2') }}</SelectItem>
               <SelectItem value="mola">{{ t('admin.paymentChannels.providerTypes.mola') }}</SelectItem>
               <SelectItem value="epay">{{ t('admin.paymentChannels.providerTypes.epay') }}</SelectItem>
               <SelectItem value="bepusdt">{{ t('admin.paymentChannels.providerTypes.bepusdt') }}</SelectItem>

@@ -599,6 +599,16 @@ func verifyRSA(content, signature, publicKey string) error {
 	return nil
 }
 
+// BuildSignContent 导出 V2 待签名串拼接规则：排除 sign、sign_type 与空值，按键名升序。
+func BuildSignContent(params map[string]string) string {
+	return buildSignContent(params)
+}
+
+// VerifyRSASignature 使用平台公钥校验 RSA-SHA256 签名，供 V2 回包验签使用。
+func VerifyRSASignature(content, signature, publicKey string) error {
+	return verifyRSA(content, signature, publicKey)
+}
+
 func parseRSAPrivateKey(raw string) (*rsa.PrivateKey, error) {
 	normalized := strings.ReplaceAll(strings.TrimSpace(raw), "\\n", "\n")
 	normalized = strings.ReplaceAll(normalized, "\r\n", "\n")
