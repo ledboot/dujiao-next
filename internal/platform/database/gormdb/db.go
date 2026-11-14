@@ -63,15 +63,18 @@ func InitDB(driver, dsn string, pool DBPoolConfig, mode string) error {
 }
 
 func newGORMLogger(mode string, writer gormlogger.Writer) gormlogger.Interface {
-	if !strings.EqualFold(strings.TrimSpace(mode), "release") {
-		return gormlogger.Default.LogMode(gormlogger.Info)
-	}
 	if writer == nil {
 		writer = log.New(os.Stdout, "\r\n", log.LstdFlags)
 	}
+	logLevel := gormlogger.Warn
+	if !strings.EqualFold(strings.TrimSpace(mode), "release") {
+		logLevel = gormlogger.Info
+	}
+	// ParameterizedQueries 始终开启：任何模式下都不能把 SQL 参数（含支付密钥、
+	// 密码等敏感值）写进日志，调试时用 ? 占位符 + 上下文定位即可。
 	return gormlogger.New(writer, gormlogger.Config{
 		SlowThreshold:             2 * time.Second,
-		LogLevel:                  gormlogger.Warn,
+		LogLevel:                  logLevel,
 		IgnoreRecordNotFoundError: true,
 		ParameterizedQueries:      true,
 		Colorful:                  false,
