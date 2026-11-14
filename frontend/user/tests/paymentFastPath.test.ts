@@ -104,43 +104,48 @@ test('creating payment on payment page opens cashier while wallet refresh is pen
   assert.equal(s.form.walletLoading.value, true)
 })
 
-test('502 amount notice uses the actual payable amount including fees', () => {
-  const { form } = setup()
-  form.order.value = { total_amount: '1.00', currency: 'CNY' }
-  form.paymentResult.value = { provider_type: '502', interaction_mode: 'qr', qr_code: 'code', payable_amount: '1.02', currency: 'CNY', fee_amount: '0.02' }
-  assert.equal(form.showPay502AmountNotice.value, true)
-  assert.equal(form.payableAmountDisplay.value, '1.02 CNY')
-  form.paymentResult.value.provider_type = 'epay'
-  assert.equal(form.showPay502AmountNotice.value, false)
-})
+for (const provider of ['502', '502v2']) {
+  test(`${provider} amount notice uses the actual payable amount including fees`, () => {
+    const { form } = setup()
+    form.order.value = { total_amount: '1.00', currency: 'CNY' }
+    form.paymentResult.value = { provider_type: provider, interaction_mode: 'qr', qr_code: 'code', payable_amount: '1.02', currency: 'CNY', fee_amount: '0.02' }
+    assert.equal(form.showPay502AmountNotice.value, true)
+    assert.equal(form.payableAmountDisplay.value, '1.02 CNY')
+    form.paymentResult.value.provider_type = 'epay'
+    assert.equal(form.showPay502AmountNotice.value, false)
+  })
+}
 
-for (const provider of ['502', 'epay']) {
+for (const provider of ['502', '502v2', 'epay']) {
   test(`${provider} payment follows its order expiry without offering a payment restart`, () => {
     const s = setup()
     s.form.order.value = { order_no: 'TEST', status: 'pending_payment', total_amount: '1.00', expires_at: '2026-10-19T00:15:00Z' }
     s.form.cachedPayment.value = {
       provider_type: provider, channel_id: 4, interaction_mode: 'qr', qr_code: 'code',
-      expires_at: provider === '502' ? '2026-10-19T00:05:00Z' : undefined,
+      expires_at: ['502', '502v2'].includes(provider) ? '2026-10-19T00:05:00Z' : undefined,
     }
     s.form.restoreCachedPayment()
     assert.equal(s.form.showResultView.value, true)
-    assert.equal(s.form.countdownText.value, provider === '502' ? '05:00' : '15:00')
+    assert.equal(s.form.countdownText.value, ['502', '502v2'].includes(provider) ? '05:00' : '15:00')
     s.advanceClock(5 * 60 * 1000)
-    assert.equal(s.form.orderExpired.value, provider === '502')
-    assert.equal(s.form.showResultView.value, provider !== '502')
-    assert.equal(s.form.canSubmitPayment.value, provider !== '502')
-    assert.equal(s.form.payLinkDisabled.value, provider === '502')
+    const shortExpiry = ['502', '502v2'].includes(provider)
+    assert.equal(s.form.orderExpired.value, shortExpiry)
+    assert.equal(s.form.showResultView.value, !shortExpiry)
+    assert.equal(s.form.canSubmitPayment.value, !shortExpiry)
+    assert.equal(s.form.payLinkDisabled.value, shortExpiry)
     assert.ok(!s.calls.includes('create'), 'expiry must not generate a new payment')
   })
 }
 
-test('shorter order validity still takes precedence over the 502 five-minute limit', () => {
-  const s = setup()
-  s.form.order.value = { order_no: 'TEST', status: 'pending_payment', total_amount: '1.00', expires_at: '2026-10-19T00:02:00Z' }
-  s.form.cachedPayment.value = { provider_type: '502', channel_id: 4, interaction_mode: 'qr', qr_code: 'code', expires_at: '2026-10-19T00:05:00Z' }
-  s.form.restoreCachedPayment()
-  assert.equal(s.form.countdownText.value, '02:00')
-  s.advanceClock(2 * 60 * 1000)
-  assert.equal(s.form.orderExpired.value, true)
-  assert.equal(s.form.showResultView.value, false)
-})
+for (const provider of ['502', '502v2']) {
+  test(`shorter order validity still takes precedence over the ${provider} five-minute limit`, () => {
+    const s = setup()
+    s.form.order.value = { order_no: 'TEST', status: 'pending_payment', total_amount: '1.00', expires_at: '2026-10-19T00:02:00Z' }
+    s.form.cachedPayment.value = { provider_type: provider, channel_id: 4, interaction_mode: 'qr', qr_code: 'code', expires_at: '2026-10-19T00:05:00Z' }
+    s.form.restoreCachedPayment()
+    assert.equal(s.form.countdownText.value, '02:00')
+    s.advanceClock(2 * 60 * 1000)
+    assert.equal(s.form.orderExpired.value, true)
+    assert.equal(s.form.showResultView.value, false)
+  })
+}

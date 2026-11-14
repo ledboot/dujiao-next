@@ -74,6 +74,11 @@ const (
 	PaymentProviderWallet    = "wallet"
 )
 
+// IsPaymentProvider502Family 判断是否为 502 系列渠道（V1/V2 共用 5 分钟支付有效期）。
+func IsPaymentProvider502Family(providerType string) bool {
+	return providerType == PaymentProvider502 || providerType == PaymentProvider502V2
+}
+
 // 支付渠道类型常量
 const (
 	PaymentChannelTypeWechat    = "wechat"

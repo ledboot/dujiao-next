@@ -294,7 +294,7 @@ export function usePayment() {
   const qrDisplayContent = computed(() => qrCodeContent.value || qrFallbackContent.value)
   const qrUsingPayLinkFallback = computed(() => Boolean(!qrCodeContent.value && qrFallbackContent.value))
   const showQRCode = computed(() => paymentPresentationMode.value === 'qr' && Boolean(qrDisplayContent.value))
-  const showPay502AmountNotice = computed(() => paymentProviderType.value === '502' && showQRCode.value)
+  const showPay502AmountNotice = computed(() => ['502', '502v2'].includes(paymentProviderType.value) && showQRCode.value)
 
   const qrImageUrl = ref('')
   const qrRenderVersion = ref(0)
@@ -349,7 +349,7 @@ export function usePayment() {
   })
 
   const orderExpired = computed(() => {
-    const raw = paymentProviderType.value === '502' ? expiresAtMs.value : order.value?.expires_at
+    const raw = ['502', '502v2'].includes(paymentProviderType.value) ? expiresAtMs.value : order.value?.expires_at
     if (!raw) return false
     const ts = typeof raw === 'number' ? raw : new Date(raw).getTime()
     return Number.isFinite(ts) && ts <= now.value

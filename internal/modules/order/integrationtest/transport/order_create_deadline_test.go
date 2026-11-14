@@ -36,7 +36,7 @@ func (p deadlineOrderCreator) CreateGuestOrder(orderhttp.CreateGuestOrderInput) 
 
 func TestCreateAndPay502ReturnsShortenedOrderDeadline(t *testing.T) {
 	gin.SetMode(gin.TestMode)
-	for _, provider := range []string{constants.PaymentProvider502, constants.PaymentProviderEpay} {
+	for _, provider := range []string{constants.PaymentProvider502, constants.PaymentProvider502V2, constants.PaymentProviderEpay} {
 		for _, guest := range []bool{false, true} {
 			name := provider + "_member"
 			if guest {
@@ -67,7 +67,7 @@ func TestCreateAndPay502ReturnsShortenedOrderDeadline(t *testing.T) {
 					t.Fatal(err)
 				}
 				want := original
-				if provider == constants.PaymentProvider502 {
+				if constants.IsPaymentProvider502Family(provider) {
 					want = shortened
 				}
 				if body.Data.Order.ExpiresAt == nil || !body.Data.Order.ExpiresAt.Equal(want) || len(body.Data.Order.Children) != 1 || !body.Data.Order.Children[0].ExpiresAt.Equal(want) {

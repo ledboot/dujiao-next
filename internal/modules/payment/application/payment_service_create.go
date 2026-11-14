@@ -141,7 +141,7 @@ func (s *PaymentService) CreatePayment(input CreatePaymentInput) (*CreatePayment
 			if err != nil {
 				return ErrPaymentCreateFailed
 			}
-			if channel.ProviderType == constants.PaymentProvider502 {
+			if constants.IsPaymentProvider502Family(channel.ProviderType) {
 				deadline := now.Add(time.Duration(constants.Payment502ExpireMinutes) * time.Minute)
 				if existing != nil {
 					deadline = existing.CreatedAt.Add(time.Duration(constants.Payment502ExpireMinutes) * time.Minute)
@@ -307,7 +307,7 @@ func (s *PaymentService) CreatePayment(input CreatePaymentInput) (*CreatePayment
 			CreatedAt:       now,
 			UpdatedAt:       now,
 		}
-		if channel.ProviderType == constants.PaymentProvider502 {
+		if constants.IsPaymentProvider502Family(channel.ProviderType) {
 			payment.ExpiredAt = lockedOrder.ExpiresAt
 		}
 		if shouldUseCNYPaymentCurrency(channel) {
@@ -339,7 +339,7 @@ func (s *PaymentService) CreatePayment(input CreatePaymentInput) (*CreatePayment
 	}
 
 	var paymentStartErr error
-	if !orderPaidByWallet && channel != nil && channel.ProviderType == constants.PaymentProvider502 && order.ExpiresAt != nil && s.queue != nil && s.queue.Enabled() {
+	if !orderPaidByWallet && channel != nil && constants.IsPaymentProvider502Family(channel.ProviderType) && order.ExpiresAt != nil && s.queue != nil && s.queue.Enabled() {
 		// The original order task may still be scheduled for a longer timeout.
 		// Enqueue at the shortened deadline; the existing consumer is idempotent.
 		if err := s.queue.EnqueueTimeoutCancel(order.ID, time.Until(*order.ExpiresAt)); err != nil {

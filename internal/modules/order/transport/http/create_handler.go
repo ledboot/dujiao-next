@@ -312,7 +312,7 @@ func (h *CreateHandler) respondCreateAndPay(c *gin.Context, order *orderdomain.O
 		"online_pay_amount":  result.OnlinePayAmount,
 	}
 	if result.Payment != nil {
-		if result.Payment.ProviderType == constants.PaymentProvider502 && result.Payment.ExpiredAt != nil {
+		if constants.IsPaymentProvider502Family(result.Payment.ProviderType) && result.Payment.ExpiredAt != nil {
 			orderResp.ExpiresAt = result.Payment.ExpiredAt
 			for i := range orderResp.Children {
 				orderResp.Children[i].ExpiresAt = result.Payment.ExpiredAt
