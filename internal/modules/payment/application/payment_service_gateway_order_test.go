@@ -1961,3 +1961,48 @@ func TestValidateCallbackPaymentFacts502RejectsProviderRefMismatch(t *testing.T)
 		t.Fatalf("non-502 provider should not enforce ref equality: %v", err)
 	}
 }
+
+func TestVerifyCallbackParamBinding502V2(t *testing.T) {
+	channel := &paymentdomain.PaymentChannel{ProviderType: constants.PaymentProvider502V2, ConfigJSON: jsonmap.JSON{}}
+	payment := &paymentdomain.Payment{
+		ProviderType: constants.PaymentProvider502V2,
+		ProviderPayload: jsonmap.JSON{
+			paymentcontract.GatewayPayloadCallbackParam: "djpv2_token",
+		},
+	}
+	newResult := func(param string) *paymentcontract.GatewayCallbackResult {
+		payload := jsonmap.JSON{}
+		if param != "" {
+			payload["param"] = param
+		}
+		return &paymentcontract.GatewayCallbackResult{Status: constants.PaymentStatusSuccess, Payload: payload}
+	}
+
+	if err := verifyCallbackParamBinding(channel, payment, newResult("djpv2_token")); err != nil {
+		t.Fatalf("matching param rejected: %v", err)
+	}
+	if err := verifyCallbackParamBinding(channel, payment, newResult("djpv2_other")); !errors.Is(err, ErrPaymentInvalid) {
+		t.Fatalf("mismatched param err = %v, want ErrPaymentInvalid", err)
+	}
+
+	missing := newResult("")
+	if err := verifyCallbackParamBinding(channel, payment, missing); err != nil {
+		t.Fatalf("missing param should be tolerated by default: %v", err)
+	}
+	if marked, _ := missing.Payload["callback_param_missing"].(bool); !marked {
+		t.Fatal("missing param should be marked")
+	}
+
+	strictChannel := &paymentdomain.PaymentChannel{
+		ProviderType: constants.PaymentProvider502V2,
+		ConfigJSON:   jsonmap.JSON{"require_callback_param": "true"},
+	}
+	if err := verifyCallbackParamBinding(strictChannel, payment, newResult("")); !errors.Is(err, ErrPaymentInvalid) {
+		t.Fatalf("strict mode err = %v, want ErrPaymentInvalid", err)
+	}
+
+	// 没有写入令牌的历史支付不做校验。
+	if err := verifyCallbackParamBinding(channel, &paymentdomain.Payment{ProviderType: constants.PaymentProvider502V2}, newResult("anything")); err != nil {
+		t.Fatalf("payment without stored token should skip: %v", err)
+	}
+}

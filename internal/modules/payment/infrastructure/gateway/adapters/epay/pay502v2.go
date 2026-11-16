@@ -2,6 +2,8 @@ package epayadapter
 
 import (
 	"context"
+	"crypto/rand"
+	"encoding/hex"
 	"fmt"
 	"strconv"
 	"strings"
@@ -136,6 +138,13 @@ func (a *pay502v2Adapter) CreatePayment(ctx context.Context, raw jsonmap.JSON, i
 		converted = true
 	}
 
+	// param 会随通知原样回传：放下每次支付随机的令牌，回调时与本地记录比对，
+	// 即便平台签名密钥泄露，伪造通知也缺少这笔支付特有的令牌。
+	callbackParam, err := newPay502V2CallbackParam()
+	if err != nil {
+		return nil, fmt.Errorf("%w: 502v2 callback param generate failed", paymentcontract.ErrGatewayConfigInvalid)
+	}
+
 	native := epay.CreateInput{
 		OrderNo:     input.OrderNo,
 		Amount:      payAmount,
@@ -144,6 +153,7 @@ func (a *pay502v2Adapter) CreatePayment(ctx context.Context, raw jsonmap.JSON, i
 		ClientIP:    input.ClientIP,
 		NotifyURL:   notifyURL,
 		ReturnURL:   returnURL,
+		Param:       callbackParam,
 	}
 	result, err := epay.CreatePayment(ctx, parsed, native)
 	if err != nil {
@@ -174,6 +184,7 @@ func (a *pay502v2Adapter) CreatePayment(ctx context.Context, raw jsonmap.JSON, i
 		payload["original_amount"] = originalAmount
 		payload["original_currency"] = originalCurrency
 	}
+	payload[paymentcontract.GatewayPayloadCallbackParam] = callbackParam
 
 	return &paymentcontract.GatewayCreateResult{
 		ProviderRef:  result.TradeNo,
@@ -277,4 +288,12 @@ func pay502v2ValidateCallbackTimestamp(form map[string][]string, now time.Time) 
 		return false, fmt.Errorf("%w: 502v2 callback timestamp in the future", paymentcontract.ErrGatewaySignatureInvalid)
 	}
 	return at.Before(now.Add(-pay502v2CallbackMaxSkew)), nil
+}
+
+func newPay502V2CallbackParam() (string, error) {
+	buf := make([]byte, 24)
+	if _, err := rand.Read(buf); err != nil {
+		return "", err
+	}
+	return "djpv2_" + hex.EncodeToString(buf), nil
 }

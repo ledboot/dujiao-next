@@ -14,6 +14,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"strconv"
+	"strings"
 	"testing"
 	"time"
 
@@ -55,6 +56,7 @@ func TestPay502V2CreatePayment(t *testing.T) {
 		{mode: "redirect", method: "jump", payType: "jump", payInfo: "https://pay.example/502v2-jump", channelTyp: "wxpay"},
 	} {
 		t.Run(tc.mode, func(t *testing.T) {
+			sentParam := ""
 			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				if r.Method != http.MethodPost || r.URL.Path != "/xpay/epayn/api/pay/create" {
 					t.Errorf("unexpected endpoint %s %s", r.Method, r.URL.Path)
@@ -66,6 +68,7 @@ func TestPay502V2CreatePayment(t *testing.T) {
 				for key := range r.PostForm {
 					params[key] = r.PostForm.Get(key)
 				}
+				sentParam = params["param"]
 				if params["sign_type"] != "RSA" || params["method"] != tc.method || params["pid"] != "2002" || params["type"] != tc.channelTyp || params["money"] != "70" {
 					t.Errorf("unexpected request: %v", params)
 				}
@@ -98,6 +101,12 @@ func TestPay502V2CreatePayment(t *testing.T) {
 			}
 			if result.ProviderRef != "502V2-001" || result.AmountSent != "70" || result.CurrencySent != "CNY" {
 				t.Fatalf("unexpected result: %+v", result)
+			}
+			if sentParam == "" || !strings.HasPrefix(sentParam, "djpv2_") {
+				t.Fatalf("callback param not sent: %q", sentParam)
+			}
+			if stored, _ := result.Payload[paymentcontract.GatewayPayloadCallbackParam].(string); stored != sentParam {
+				t.Fatalf("stored callback param %q != sent %q", stored, sentParam)
 			}
 			if tc.wantQR {
 				if result.QRCodeURL != tc.payInfo || result.RedirectURL != "" {

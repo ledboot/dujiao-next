@@ -2,7 +2,9 @@ package application
 
 import (
 	"context"
+	"crypto/subtle"
 	"errors"
+	"fmt"
 	"strings"
 	"time"
 
@@ -56,6 +58,10 @@ func (s *PaymentService) HandleSyncCallback(
 	// WebhookResult = CallbackResult（类型别名），findWebhookPayment 直接复用。
 	payment, err := s.findWebhookPayment(channel.ID, result)
 	if err != nil {
+		return nil, err
+	}
+
+	if err := verifyCallbackParamBinding(channel, payment, result); err != nil {
 		return nil, err
 	}
 
@@ -432,4 +438,51 @@ func (s *PaymentService) HandleStripeWebhook(input WebhookCallbackInput) (*payme
 		constants.PaymentProviderOfficial,
 		constants.PaymentChannelTypeStripe,
 	)
+}
+
+// verifyCallbackParamBinding 用下单时写入 502 V2 `param` 的随机令牌校验回调。
+// 平台通知会原样回传 param：令牌不一致直接拒绝；通知未携带 param 时默认放行
+// 并打标，渠道配置 require_callback_param=true 后改为强制要求。
+func verifyCallbackParamBinding(channel *paymentdomain.PaymentChannel, payment *paymentdomain.Payment, result *paymentcontract.GatewayCallbackResult) error {
+	if channel == nil || payment == nil || result == nil || !strings.EqualFold(strings.TrimSpace(channel.ProviderType), constants.PaymentProvider502V2) {
+		return nil
+	}
+	expected := strings.TrimSpace(jsonValueText(payment.ProviderPayload[paymentcontract.GatewayPayloadCallbackParam]))
+	if expected == "" {
+		return nil
+	}
+	actual := strings.TrimSpace(jsonValueText(result.Payload["param"]))
+	if actual == "" {
+		if requireCallbackParam(channel.ConfigJSON) {
+			return fmt.Errorf("%w: 502v2 callback param missing", ErrPaymentInvalid)
+		}
+		if result.Payload == nil {
+			result.Payload = jsonmap.JSON{}
+		}
+		result.Payload["callback_param_missing"] = true
+		return nil
+	}
+	if subtle.ConstantTimeCompare([]byte(expected), []byte(actual)) != 1 {
+		return fmt.Errorf("%w: 502v2 callback param mismatch", ErrPaymentInvalid)
+	}
+	return nil
+}
+
+func requireCallbackParam(cfg jsonmap.JSON) bool {
+	raw, ok := cfg["require_callback_param"]
+	if !ok || raw == nil {
+		return false
+	}
+	return strings.EqualFold(strings.TrimSpace(fmt.Sprint(raw)), "true")
+}
+
+func jsonValueText(value interface{}) string {
+	switch v := value.(type) {
+	case nil:
+		return ""
+	case string:
+		return v
+	default:
+		return fmt.Sprint(v)
+	}
 }

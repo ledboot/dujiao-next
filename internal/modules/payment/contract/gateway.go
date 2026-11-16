@@ -12,6 +12,10 @@ import (
 // 回调兼容逻辑用它区分具备新版事实快照的支付与升级前创建的在途支付。
 const GatewayPayloadFiatCurrencySent = "_dujiao_next_fiat_currency_sent"
 
+// GatewayPayloadCallbackParam 保存下单时放进 502 V2 `param` 字段的随机令牌，
+// 回调时用平台原样回传的 param 与之比对，作为签名之外的第二重绑定。
+const GatewayPayloadCallbackParam = "callback_param"
+
 // GatewayCreateInput 是统一支付网关创建输入。
 type GatewayCreateInput struct {
 	PaymentID      uint

@@ -81,6 +81,7 @@ type CreateInput struct {
 	ClientIP    string
 	NotifyURL   string
 	ReturnURL   string
+	Param       string
 }
 
 // CreateResult 易支付下单结果
@@ -356,6 +357,9 @@ func createV2(ctx context.Context, cfg *Config, input CreateInput, payType strin
 		"clientip":     input.ClientIP,
 		"timestamp":    timestamp,
 	}
+	if input.Param != "" {
+		params["param"] = input.Param
+	}
 	signContent := buildSignContent(params)
 	sign, err := signRSA(signContent, cfg.PrivateKey)
 	if err != nil {
@@ -421,6 +425,9 @@ func buildRedirectV2(cfg *Config, input CreateInput, payType string) (*CreateRes
 		"name":         input.Subject,
 		"money":        input.Amount,
 		"timestamp":    timestamp,
+	}
+	if input.Param != "" {
+		params["param"] = input.Param
 	}
 	signContent := buildSignContent(params)
 	sign, err := signRSA(signContent, cfg.PrivateKey)
