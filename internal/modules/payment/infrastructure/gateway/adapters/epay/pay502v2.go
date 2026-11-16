@@ -237,8 +237,17 @@ func (a *pay502v2Adapter) VerifyCallback(raw jsonmap.JSON, form map[string][]str
 	if err != nil {
 		return nil, err
 	}
-	if err := pay502v2ValidateCallbackTimestamp(form, time.Now()); err != nil {
+	stale, err := pay502v2ValidateCallbackTimestamp(form, time.Now())
+	if err != nil {
 		return nil, err
+	}
+	if stale {
+		// 502 后台人工补单/平台重试的旧通知仍然有效，只打标记不拒收，
+		// 避免超过 10 分钟的真实到账无法自动入账。
+		if result.Payload == nil {
+			result.Payload = jsonmap.JSON{}
+		}
+		result.Payload["callback_timestamp_stale"] = true
 	}
 	// Only TRADE_SUCCESS is documented as a successful 502 payment.
 	if values := form["trade_status"]; len(values) == 0 || values[0] != constants.EpayTradeStatusSuccess {
@@ -247,24 +256,25 @@ func (a *pay502v2Adapter) VerifyCallback(raw jsonmap.JSON, form map[string][]str
 	return result, nil
 }
 
-// pay502v2ValidateCallbackTimestamp 校验回调时间戳新鲜度。
-// 平台回调未携带 timestamp 时跳过（签名已校验）；带 timestamp 但无法解析或
-// 超出 ±10 分钟窗口时拒绝，平台会重试，必要时由后台人工补单。
-func pay502v2ValidateCallbackTimestamp(form map[string][]string, now time.Time) error {
+// pay502v2ValidateCallbackTimestamp 校验回调时间戳。
+// 平台回调未携带 timestamp 时跳过（签名已校验）；无法解析或时间在未来超过
+// 窗口时拒绝；早于窗口的旧通知返回 stale=true，由调用方标记但不拒收——
+// 502 后台人工补单、平台延迟重试都会产生旧通知，不能因此丢掉真实到账。
+func pay502v2ValidateCallbackTimestamp(form map[string][]string, now time.Time) (stale bool, err error) {
 	raw := strings.TrimSpace(gatewaycommon.FormValue(form, "timestamp"))
 	if raw == "" {
-		return nil
+		return false, nil
 	}
-	seconds, err := strconv.ParseInt(raw, 10, 64)
-	if err != nil {
-		return fmt.Errorf("%w: 502v2 callback timestamp invalid", paymentcontract.ErrGatewaySignatureInvalid)
+	seconds, parseErr := strconv.ParseInt(raw, 10, 64)
+	if parseErr != nil {
+		return false, fmt.Errorf("%w: 502v2 callback timestamp invalid", paymentcontract.ErrGatewaySignatureInvalid)
 	}
 	if seconds > 1_000_000_000_000 { // 兼容毫秒时间戳
 		seconds /= 1000
 	}
 	at := time.Unix(seconds, 0)
-	if at.Before(now.Add(-pay502v2CallbackMaxSkew)) || at.After(now.Add(pay502v2CallbackMaxSkew)) {
-		return fmt.Errorf("%w: 502v2 callback timestamp expired", paymentcontract.ErrGatewaySignatureInvalid)
+	if at.After(now.Add(pay502v2CallbackMaxSkew)) {
+		return false, fmt.Errorf("%w: 502v2 callback timestamp in the future", paymentcontract.ErrGatewaySignatureInvalid)
 	}
-	return nil
+	return at.Before(now.Add(-pay502v2CallbackMaxSkew)), nil
 }

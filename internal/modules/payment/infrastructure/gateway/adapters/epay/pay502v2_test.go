@@ -275,18 +275,27 @@ func TestPay502V2CallbackTimestampFreshness(t *testing.T) {
 		name      string
 		timestamp string
 		wantErr   bool
+		wantStale bool
 	}{
-		{"fresh", now, false},
-		{"milliseconds", strconv.FormatInt(time.Now().UnixMilli(), 10), false},
-		{"missing", "", false},
-		{"stale", stale, true},
-		{"future", future, true},
-		{"malformed", "not-a-timestamp", true},
+		{"fresh", now, false, false},
+		{"milliseconds", strconv.FormatInt(time.Now().UnixMilli(), 10), false, false},
+		{"missing", "", false, false},
+		// 502 后台人工补单/平台延迟重试会带来旧时间戳，必须照常入账，只打标记。
+		{"stale", stale, false, true},
+		{"future", future, true, false},
+		{"malformed", "not-a-timestamp", true, false},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			_, err := a.VerifyCallback(cfg, callback(tc.timestamp), nil)
+			result, err := a.VerifyCallback(cfg, callback(tc.timestamp), nil)
 			if tc.wantErr != errors.Is(err, paymentcontract.ErrGatewaySignatureInvalid) {
 				t.Fatalf("err = %v, wantErr %v", err, tc.wantErr)
+			}
+			if tc.wantErr {
+				return
+			}
+			staleMarked, _ := result.Payload["callback_timestamp_stale"].(bool)
+			if staleMarked != tc.wantStale {
+				t.Fatalf("stale marker = %v, want %v", staleMarked, tc.wantStale)
 			}
 		})
 	}
