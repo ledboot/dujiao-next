@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/dujiao-next/internal/constants"
 	paymentcontract "github.com/dujiao-next/internal/modules/payment/contract"
@@ -21,6 +22,9 @@ const (
 	pay502v2DefaultGatewayURL = "https://pay.502k.cn/xpay/epayn"
 	pay502v2MethodJump        = "jump"
 	pay502v2MethodScan        = "scan"
+
+	// pay502v2CallbackMaxSkew 限制回调 timestamp 与当前时间的偏差，避免重放旧回调。
+	pay502v2CallbackMaxSkew = 10 * time.Minute
 )
 
 func NewPay502V2Adapter() paymentcontract.GatewayProvider { return &pay502v2Adapter{} }
@@ -233,9 +237,34 @@ func (a *pay502v2Adapter) VerifyCallback(raw jsonmap.JSON, form map[string][]str
 	if err != nil {
 		return nil, err
 	}
+	if err := pay502v2ValidateCallbackTimestamp(form, time.Now()); err != nil {
+		return nil, err
+	}
 	// Only TRADE_SUCCESS is documented as a successful 502 payment.
 	if values := form["trade_status"]; len(values) == 0 || values[0] != constants.EpayTradeStatusSuccess {
 		result.Status = constants.PaymentStatusPending
 	}
 	return result, nil
+}
+
+// pay502v2ValidateCallbackTimestamp 校验回调时间戳新鲜度。
+// 平台回调未携带 timestamp 时跳过（签名已校验）；带 timestamp 但无法解析或
+// 超出 ±10 分钟窗口时拒绝，平台会重试，必要时由后台人工补单。
+func pay502v2ValidateCallbackTimestamp(form map[string][]string, now time.Time) error {
+	raw := strings.TrimSpace(gatewaycommon.FormValue(form, "timestamp"))
+	if raw == "" {
+		return nil
+	}
+	seconds, err := strconv.ParseInt(raw, 10, 64)
+	if err != nil {
+		return fmt.Errorf("%w: 502v2 callback timestamp invalid", paymentcontract.ErrGatewaySignatureInvalid)
+	}
+	if seconds > 1_000_000_000_000 { // 兼容毫秒时间戳
+		seconds /= 1000
+	}
+	at := time.Unix(seconds, 0)
+	if at.Before(now.Add(-pay502v2CallbackMaxSkew)) || at.After(now.Add(pay502v2CallbackMaxSkew)) {
+		return fmt.Errorf("%w: 502v2 callback timestamp expired", paymentcontract.ErrGatewaySignatureInvalid)
+	}
+	return nil
 }

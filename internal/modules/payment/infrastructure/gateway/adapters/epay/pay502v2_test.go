@@ -13,7 +13,9 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"strconv"
 	"testing"
+	"time"
 
 	"github.com/dujiao-next/internal/constants"
 	paymentcontract "github.com/dujiao-next/internal/modules/payment/contract"
@@ -247,4 +249,45 @@ func verifyTestRSASignature(content, signature, publicKeyPEM string) bool {
 	}
 	hashed := sha256.Sum256([]byte(content))
 	return rsa.VerifyPKCS1v15(rsaPub, crypto.SHA256, hashed[:], raw) == nil
+}
+
+func TestPay502V2CallbackTimestampFreshness(t *testing.T) {
+	merchantPrivate, _ := generateAdapterRSAKeyPair(t)
+	platformPrivate, platformPublic := generateAdapterRSAKeyPair(t)
+	cfg := pay502v2TestConfig(merchantPrivate, platformPublic)
+	a := NewPay502V2Adapter().(paymentcontract.GatewayCallbackVerifier)
+
+	callback := func(timestamp string) map[string][]string {
+		params := map[string]string{
+			"pid": "2002", "out_trade_no": "DJP502V2", "trade_no": "502V2-001",
+			"trade_status": constants.EpayTradeStatusSuccess, "money": "10.00",
+		}
+		if timestamp != "" {
+			params["timestamp"] = timestamp
+		}
+		return signEpayV2AdapterCallbackForm(params, platformPrivate)
+	}
+	now := strconv.FormatInt(time.Now().Unix(), 10)
+	stale := strconv.FormatInt(time.Now().Add(-11*time.Minute).Unix(), 10)
+	future := strconv.FormatInt(time.Now().Add(11*time.Minute).Unix(), 10)
+
+	for _, tc := range []struct {
+		name      string
+		timestamp string
+		wantErr   bool
+	}{
+		{"fresh", now, false},
+		{"milliseconds", strconv.FormatInt(time.Now().UnixMilli(), 10), false},
+		{"missing", "", false},
+		{"stale", stale, true},
+		{"future", future, true},
+		{"malformed", "not-a-timestamp", true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			_, err := a.VerifyCallback(cfg, callback(tc.timestamp), nil)
+			if tc.wantErr != errors.Is(err, paymentcontract.ErrGatewaySignatureInvalid) {
+				t.Fatalf("err = %v, wantErr %v", err, tc.wantErr)
+			}
+		})
+	}
 }

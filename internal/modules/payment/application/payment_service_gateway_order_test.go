@@ -1931,3 +1931,33 @@ func TestCreateWalletRechargeGatewayFailureAfterEarlyCallbackKeepsSuccess(t *tes
 		t.Fatalf("credited recharge was overwritten: payment=%s recharge=%s", payment.Status, recharge.Status)
 	}
 }
+
+func TestValidateCallbackPaymentFacts502RejectsProviderRefMismatch(t *testing.T) {
+	payment := &paymentdomain.Payment{
+		ProviderType:   constants.PaymentProvider502V2,
+		Currency:       "CNY",
+		Amount:         money.FromDecimal(decimal.NewFromInt(10)),
+		ProviderRef:    "PLATFORM-TRADE-A",
+		GatewayOrderNo: "DJP-REF-1",
+		Status:         constants.PaymentStatusInitiated,
+	}
+	input := PaymentCallbackInput{
+		OrderNo:     "DJP-REF-1",
+		Status:      constants.PaymentStatusSuccess,
+		ProviderRef: "PLATFORM-TRADE-A",
+		Amount:      payment.Amount,
+		Currency:    "CNY",
+	}
+	if err := validateCallbackPaymentFacts(payment, "DJ-ORDER-1", input.Status, input); err != nil {
+		t.Fatalf("matching provider ref rejected: %v", err)
+	}
+	input.ProviderRef = "PLATFORM-TRADE-B"
+	if err := validateCallbackPaymentFacts(payment, "DJ-ORDER-1", input.Status, input); !errors.Is(err, ErrPaymentInvalid) {
+		t.Fatalf("mismatched provider ref err = %v, want ErrPaymentInvalid", err)
+	}
+	// 非 502 渠道保持原有行为，避免影响其它网关的单号更新场景。
+	payment.ProviderType = constants.PaymentProviderEpay
+	if err := validateCallbackPaymentFacts(payment, "DJ-ORDER-1", input.Status, input); err != nil {
+		t.Fatalf("non-502 provider should not enforce ref equality: %v", err)
+	}
+}

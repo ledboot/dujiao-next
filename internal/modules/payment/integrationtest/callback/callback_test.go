@@ -173,6 +173,8 @@ func newCallbackFixture(t *testing.T, provider string) *okpayCallbackFixture {
 	if provider == constants.PaymentProviderMola || provider == constants.PaymentProvider502 {
 		payment.Currency = "CNY"
 		payment.Amount = money.FromDecimal(decimal.NewFromInt(88))
+		// 回调 trade_no 必须与已记录的平台单号一致。
+		payment.ProviderRef = "MOLA001"
 	}
 	if err := db.Create(payment).Error; err != nil {
 		t.Fatalf("create payment failed: %v", err)

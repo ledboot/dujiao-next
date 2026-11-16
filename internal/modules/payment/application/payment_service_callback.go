@@ -160,6 +160,15 @@ func validateCallbackPaymentFacts(payment *paymentdomain.Payment, businessOrderN
 	if !input.Amount.Decimal.IsZero() && input.Amount.Decimal.Cmp(payment.Amount.Decimal) != 0 {
 		return ErrPaymentAmountMismatch
 	}
+	// 502 系列回调携带平台单号 trade_no：已记录过平台单号的支付不接受另一个单号，
+	// 避免同一支付被不同订单的回调覆盖。
+	if constants.IsPaymentProvider502Family(payment.ProviderType) {
+		storedRef := strings.TrimSpace(payment.ProviderRef)
+		callbackRef := strings.TrimSpace(input.ProviderRef)
+		if storedRef != "" && callbackRef != "" && storedRef != callbackRef {
+			return ErrPaymentInvalid
+		}
+	}
 	return nil
 }
 
