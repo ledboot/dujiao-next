@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	paymentapp "github.com/dujiao-next/internal/modules/payment/application"
+	paymentdomain "github.com/dujiao-next/internal/modules/payment/domain"
 
 	fulfillmentapp "github.com/dujiao-next/internal/modules/fulfillment/application"
 	fulfillmentdomain "github.com/dujiao-next/internal/modules/fulfillment/domain"
@@ -23,6 +24,7 @@ import (
 	"github.com/dujiao-next/internal/queue"
 	"github.com/dujiao-next/internal/shared/jsonmap"
 	"github.com/dujiao-next/internal/shared/mailbrand"
+	"github.com/dujiao-next/internal/shared/money"
 	"github.com/dujiao-next/internal/telegramidentity"
 
 	"github.com/hibiken/asynq"
@@ -144,7 +146,7 @@ func (c *Consumer) handleOrderStatusEmail(ctx context.Context, task *asynq.Task)
 	input := notificationcontract.OrderStatusEmailInput{
 		OrderNo:      order.OrderNo,
 		Status:       status,
-		Amount:       order.TotalAmount,
+		Amount:       c.resolveOrderStatusEmailAmount(order, status),
 		RefundAmount: refundDetails.Amount,
 		RefundReason: refundDetails.Reason,
 		Currency:     order.Currency,
@@ -430,4 +432,55 @@ func buildOrderFulfillmentEmailPayload(order *orderdomain.Order) string {
 		parts = append(parts, fmt.Sprintf("[%s]\n%s", strings.TrimSpace(child.OrderNo), content))
 	}
 	return strings.Join(parts, "\n\n")
+}
+
+// orderStatusEmailPaidStatuses 是需要展示「实付金额」的订单状态。
+var orderStatusEmailPaidStatuses = map[string]struct{}{
+	constants.OrderStatusPaid:               {},
+	constants.OrderStatusFulfilling:         {},
+	constants.OrderStatusPartiallyDelivered: {},
+	constants.OrderStatusDelivered:          {},
+	constants.OrderStatusCompleted:          {},
+}
+
+// resolveOrderStatusEmailAmount 已支付类邮件使用实际支付金额（钱包支付 + 成功支付单金额），
+// 其它状态沿用订单金额；查询失败时回退订单金额，避免邮件因附加查询失败而中断。
+func (c *Consumer) resolveOrderStatusEmailAmount(order *orderdomain.Order, status string) money.Amount {
+	if order == nil {
+		return money.Amount{}
+	}
+	if _, ok := orderStatusEmailPaidStatuses[strings.ToLower(strings.TrimSpace(status))]; !ok {
+		return order.TotalAmount
+	}
+	if c == nil || c.Container == nil || c.PaymentStore == nil {
+		return order.TotalAmount
+	}
+	payments, err := c.PaymentStore.ListByOrderID(order.ID)
+	if err != nil {
+		logger.Warnw("worker_order_status_email_load_payments_failed", "order_id", order.ID, "error", err)
+		return order.TotalAmount
+	}
+	return orderStatusEmailAmount(order, payments)
+}
+
+// orderStatusEmailAmount 汇总实际支付金额：钱包实付 + 未标记异常的成功支付单金额。
+func orderStatusEmailAmount(order *orderdomain.Order, payments []paymentdomain.Payment) money.Amount {
+	if order == nil {
+		return money.Amount{}
+	}
+	paid := order.WalletPaidAmount.Decimal
+	for i := range payments {
+		payment := &payments[i]
+		if payment.OrderID != 0 && payment.OrderID != order.ID {
+			continue
+		}
+		if payment.Status != constants.PaymentStatusSuccess || payment.ExceptionCode != "" {
+			continue
+		}
+		paid = paid.Add(payment.Amount.Decimal)
+	}
+	if !paid.IsPositive() {
+		return order.TotalAmount
+	}
+	return money.FromDecimal(paid)
 }
