@@ -21,6 +21,9 @@ type OrderSummary struct {
 	PaidAt                  *time.Time      `json:"paid_at"`
 	InvoiceRequested        bool            `json:"invoice_requested"`
 	InvoiceType             string          `json:"invoice_type,omitempty"`
+	InvoiceTitle            string          `json:"invoice_title,omitempty"`
+	InvoiceTaxNo            string          `json:"invoice_tax_no,omitempty"`
+	InvoiceEmail            string          `json:"invoice_email,omitempty"`
 	TaxAmount               money.Amount    `json:"tax_amount"`
 	OrderNo                 string          `json:"order_no"`
 	Status                  string          `json:"status"`
@@ -41,6 +44,9 @@ func NewOrderSummary(o *orderdomain.Order) OrderSummary {
 		OrderNo:                 o.OrderNo,
 		InvoiceRequested:        o.InvoiceRequested,
 		InvoiceType:             o.InvoiceType,
+		InvoiceTitle:            o.InvoiceTitle,
+		InvoiceTaxNo:            o.InvoiceTaxNo,
+		InvoiceEmail:            o.InvoiceEmail,
 		TaxAmount:               o.TaxAmount,
 		Status:                  o.Status,
 		Currency:                o.Currency,
@@ -83,6 +89,9 @@ type OrderDetail struct {
 	OnlinePayableAmount      money.Amount      `json:"online_payable_amount"`
 	InvoiceRequested         bool              `json:"invoice_requested"`
 	InvoiceType              string            `json:"invoice_type,omitempty"`
+	InvoiceTitle             string            `json:"invoice_title,omitempty"`
+	InvoiceTaxNo             string            `json:"invoice_tax_no,omitempty"`
+	InvoiceEmail             string            `json:"invoice_email,omitempty"`
 	TaxAmount                money.Amount      `json:"tax_amount"`
 	OrderNo                  string            `json:"order_no"`
 	GuestEmail               string            `json:"guest_email,omitempty"`
@@ -125,6 +134,9 @@ func NewOrderDetail(o *orderdomain.Order) OrderDetail {
 		OrderNo:                 o.OrderNo,
 		InvoiceRequested:        o.InvoiceRequested,
 		InvoiceType:             o.InvoiceType,
+		InvoiceTitle:            o.InvoiceTitle,
+		InvoiceTaxNo:            o.InvoiceTaxNo,
+		InvoiceEmail:            o.InvoiceEmail,
 		TaxAmount:               o.TaxAmount,
 		GuestEmail:              o.GuestEmail,
 		GuestLocale:             o.GuestLocale,

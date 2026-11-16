@@ -583,3 +583,32 @@ func FillOrdersItemsFromChildren(orders []orderdomain.Order) {
 		FillOrderItemsFromChildren(&orders[i])
 	}
 }
+
+// invoiceSubmission 是创建订单时的开票信息快照。
+type invoiceSubmission struct {
+	Type  string
+	Title string
+	TaxNo string
+	Email string
+}
+
+// normalizeInvoiceSubmission 校验开票信息：开启开票时单位名称、税号、接收邮箱均必填。
+func normalizeInvoiceSubmission(invoiceType, title, taxNo, email string) (invoiceSubmission, error) {
+	result := invoiceSubmission{Type: invoiceType}
+	if invoiceType == orderdomain.InvoiceTypeNone {
+		return result, nil
+	}
+	result.Title = strings.TrimSpace(title)
+	result.TaxNo = strings.ToUpper(strings.TrimSpace(taxNo))
+	result.Email = strings.ToLower(strings.TrimSpace(email))
+	if result.Title == "" || result.TaxNo == "" || result.Email == "" {
+		return invoiceSubmission{}, ErrInvoiceInfoRequired
+	}
+	if len([]rune(result.Title)) > 200 || len([]rune(result.TaxNo)) > 64 || len([]rune(result.Email)) > 200 {
+		return invoiceSubmission{}, ErrInvoiceInfoRequired
+	}
+	if _, err := mail.ParseAddress(result.Email); err != nil {
+		return invoiceSubmission{}, ErrInvalidEmail
+	}
+	return result, nil
+}

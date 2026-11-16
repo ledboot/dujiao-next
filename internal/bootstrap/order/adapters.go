@@ -354,6 +354,9 @@ func (a orderCreateAdapter) CreateOrder(input ordertransport.CreateOrderInput) (
 	order, err := a.orders.CreateOrder(orderapp.CreateOrderInput{
 		InvoiceRequested:    input.InvoiceRequested,
 		InvoiceType:         input.InvoiceType,
+		InvoiceTitle:        input.InvoiceTitle,
+		InvoiceTaxNo:        input.InvoiceTaxNo,
+		InvoiceEmail:        input.InvoiceEmail,
 		UserID:              input.UserID,
 		Tenant:              input.Tenant,
 		Items:               mapServiceOrderItems(input.Items),
@@ -370,6 +373,9 @@ func (a orderCreateAdapter) CreateGuestOrder(input ordertransport.CreateGuestOrd
 	order, err := a.orders.CreateGuestOrder(orderapp.CreateGuestOrderInput{
 		InvoiceRequested:    input.InvoiceRequested,
 		InvoiceType:         input.InvoiceType,
+		InvoiceTitle:        input.InvoiceTitle,
+		InvoiceTaxNo:        input.InvoiceTaxNo,
+		InvoiceEmail:        input.InvoiceEmail,
 		Email:               input.Email,
 		OrderPassword:       input.OrderPassword,
 		Locale:              input.Locale,
@@ -550,6 +556,7 @@ func mapOrderTransportError(err error) error {
 		{orderapp.ErrGuestPasswordRequired, ordertransport.ErrGuestPasswordRequired},
 		{orderapp.ErrGuestPasswordTooShort, ordertransport.ErrGuestPasswordTooShort},
 		{orderapp.ErrInvalidEmail, ordertransport.ErrInvalidEmail},
+		{orderapp.ErrInvoiceInfoRequired, ordertransport.ErrInvoiceInfoRequired},
 		{orderapp.ErrProductPurchaseNotAllowed, ordertransport.ErrProductPurchaseNotAllowed},
 		{orderapp.ErrManualStockInsufficient, ordertransport.ErrManualStockInsufficient},
 		{orderapp.ErrOrderCurrencyMismatch, ordertransport.ErrOrderCurrencyMismatch},

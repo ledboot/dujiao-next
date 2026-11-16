@@ -86,7 +86,15 @@ export function useCheckout() {
   const useBalance = ref(false)
   // 开票类型：'' 不开票 / 'general' 普票 3% / 'special' 专票 5%，二者互斥
   const invoiceType = ref('')
+  const invoiceTitle = ref('')
+  const invoiceTaxNo = ref('')
+  const invoiceEmail = ref('')
   const invoiceRequested = computed(() => invoiceType.value !== '')
+  const invoiceEmailValid = computed(() => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(invoiceEmail.value.trim()))
+  const invoiceInfoValid = computed(() => {
+    if (!invoiceRequested.value) return true
+    return invoiceTitle.value.trim() !== '' && invoiceTaxNo.value.trim() !== '' && invoiceEmailValid.value
+  })
   const walletLoading = ref(false)
   const walletBalance = ref('0')
 
@@ -621,6 +629,7 @@ export function useCheckout() {
     if (!manualFormValidation.value.valid) return false
     if (cartItems.value.some((item) => itemStockExceeded(item))) return false
     if (cartItems.value.some((item) => itemMinNotMet(item))) return false
+    if (!invoiceInfoValid.value) return false
     if (walletOnlyPayment.value && expectedOnlinePayCents.value > 0) return false
     if (!walletOnlyPayment.value && requiresOnlineChannel.value && !selectedChannelId.value) return false
     if (requiresOnlineChannel.value && selectedChannelAmountHint.value) return false
@@ -650,6 +659,12 @@ export function useCheckout() {
     const minBlockedItem = cartItems.value.find((item) => itemMinNotMet(item))
     if (minBlockedItem) {
       return t('cart.minPurchaseNotMet', { count: itemPurchaseMin(minBlockedItem) })
+    }
+    if (invoiceRequested.value) {
+      if (!invoiceTitle.value.trim()) return t('checkout.invoiceCompanyRequired')
+      if (!invoiceTaxNo.value.trim()) return t('checkout.invoiceTaxNoRequired')
+      if (!invoiceEmail.value.trim()) return t('checkout.invoiceEmailRequired')
+      if (!invoiceEmailValid.value) return t('checkout.invoiceEmailInvalid')
     }
     if (walletOnlyPayment.value && expectedOnlinePayCents.value > 0) return t('payment.walletInsufficientHint')
     if (!walletOnlyPayment.value && requiresOnlineChannel.value && !selectedChannelId.value) return t('checkout.errors.selectPayment')
@@ -697,6 +712,9 @@ export function useCheckout() {
   const buildOrderPayload = () => ({
     invoice_requested: invoiceRequested.value,
     invoice_type: invoiceType.value || undefined,
+    invoice_title: invoiceRequested.value ? invoiceTitle.value.trim() : undefined,
+    invoice_tax_no: invoiceRequested.value ? invoiceTaxNo.value.trim() : undefined,
+    invoice_email: invoiceRequested.value ? invoiceEmail.value.trim() : undefined,
     coupon_code: normalizedCouponCode.value || undefined,
     affiliate_code: getAffiliateCode() || undefined,
     affiliate_visitor_key: getAffiliateVisitorKey() || undefined,
@@ -1220,7 +1238,11 @@ export function useCheckout() {
     guestTurnstileRef,
     handleGuestCaptchaConfigStale,
     invoiceType,
+    invoiceTitle,
+    invoiceTaxNo,
+    invoiceEmail,
     invoiceRequested,
+    invoiceInfoValid,
     checkoutFee,
     checkoutTax,
     checkoutPayableTotal,

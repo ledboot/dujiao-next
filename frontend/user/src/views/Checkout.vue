@@ -105,6 +105,49 @@
             />
           </div>
 
+          <div class="rounded-2xl border bg-card text-card-foreground p-6">
+            <h2 class="mb-2 text-lg font-bold text-foreground">{{ t('checkout.invoiceCardTitle') }}</h2>
+            <p class="mb-3 text-xs text-muted-foreground">{{ t('checkout.invoiceCardHint') }}</p>
+            <div class="flex flex-wrap gap-x-4 gap-y-2">
+              <label v-for="option in invoiceOptions" :key="option.value" class="flex cursor-pointer items-center gap-2">
+                <input v-model="invoiceType" type="radio" :value="option.value" class="accent-primary" />
+                <span>{{ t(option.label) }}</span>
+              </label>
+            </div>
+            <div v-if="invoiceRequested" class="mt-4 grid grid-cols-1 gap-4 md:grid-cols-2">
+              <div class="min-w-0">
+                <label class="mb-1.5 block text-xs font-medium text-muted-foreground">{{ t('checkout.invoiceCompanyLabel') }} *</label>
+                <Input
+                  v-model="invoiceTitle"
+                  type="text"
+                  class="h-11"
+                  maxlength="200"
+                  :placeholder="t('checkout.invoiceCompanyPlaceholder')"
+                />
+              </div>
+              <div class="min-w-0">
+                <label class="mb-1.5 block text-xs font-medium text-muted-foreground">{{ t('checkout.invoiceTaxNoLabel') }} *</label>
+                <Input
+                  v-model="invoiceTaxNo"
+                  type="text"
+                  class="h-11"
+                  maxlength="64"
+                  :placeholder="t('checkout.invoiceTaxNoPlaceholder')"
+                />
+              </div>
+              <div class="min-w-0 md:col-span-2">
+                <label class="mb-1.5 block text-xs font-medium text-muted-foreground">{{ t('checkout.invoiceEmailLabel') }} *</label>
+                <Input
+                  v-model="invoiceEmail"
+                  type="email"
+                  class="h-11"
+                  maxlength="200"
+                  :placeholder="t('checkout.invoiceEmailPlaceholder')"
+                />
+              </div>
+            </div>
+          </div>
+
           <div
             v-if="!userAuthStore.isAuthenticated"
             class="space-y-4 rounded-2xl border bg-card text-card-foreground p-6"
@@ -216,15 +259,6 @@
             <div v-if="Number(previewMemberDiscount) > 0" class="flex items-center justify-between">
               <span>{{ t('checkout.previewMemberDiscount') }}</span>
               <span class="font-mono text-amber-600 dark:text-amber-300">-{{ formatPrice(previewMemberDiscount, previewCurrency) }}</span>
-            </div>
-            <div class="py-2 text-foreground">
-              <div class="mb-1">{{ t('checkout.invoiceRequested') }}</div>
-              <div class="flex flex-wrap gap-x-4 gap-y-1">
-                <label v-for="option in invoiceOptions" :key="option.value" class="flex cursor-pointer items-center gap-2">
-                  <input v-model="invoiceType" type="radio" :value="option.value" class="accent-primary" />
-                  <span>{{ t(option.label) }}</span>
-                </label>
-              </div>
             </div>
             <div v-if="hasPositiveAmount(checkoutFee)" class="flex items-center justify-between">
               <span>{{ t('payment.feeAmountLabel') }}</span><span>{{ formatPrice(checkoutFee, previewCurrency) }}</span>
@@ -351,7 +385,7 @@ const {
   checkoutMode, guestEmail, guestPassword, guestEmailValid,
   guestCaptchaEnabled, captchaProvider, guestCaptchaPayload, guestTurnstileToken, guestTurnstileSiteKey,
   guestImageCaptchaRef, guestTurnstileRef, handleGuestCaptchaConfigStale,
-  invoiceType, invoiceRequested, checkoutFee, checkoutTax, checkoutPayableTotal,
+  invoiceType, invoiceTitle, invoiceTaxNo, invoiceEmail, invoiceRequested, checkoutFee, checkoutTax, checkoutPayableTotal,
   previewCurrency, previewOriginal, previewCoupon, previewPromotion, previewWholesale, previewMemberDiscount,
   previewLoading, couponRefreshing, previewStatusText, hasPositiveAmount, formatDiscountPrice, checkoutAlert,
   showBalanceOption, walletLoading, walletBalance, useBalance, walletOnlyPayment,

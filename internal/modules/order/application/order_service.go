@@ -142,6 +142,9 @@ func NewOrderService(opts OrderServiceOptions) *OrderService {
 type CreateOrderInput struct {
 	InvoiceRequested    bool
 	InvoiceType         string
+	InvoiceTitle        string
+	InvoiceTaxNo        string
+	InvoiceEmail        string
 	UserID              uint
 	Tenant              resellercontract.TenantContext
 	Items               []CreateOrderItem
@@ -158,6 +161,9 @@ type CreateOrderInput struct {
 type CreateGuestOrderInput struct {
 	InvoiceRequested    bool
 	InvoiceType         string
+	InvoiceTitle        string
+	InvoiceTaxNo        string
+	InvoiceEmail        string
 	Email               string
 	OrderPassword       string
 	Locale              string
@@ -234,8 +240,15 @@ func (s *OrderService) CreateOrder(input CreateOrderInput) (*orderdomain.Order, 
 	if input.UserID == 0 {
 		return nil, ErrInvalidOrderItem
 	}
+	invoice, err := normalizeInvoiceSubmission(orderdomain.ResolveInvoiceType(input.InvoiceType, input.InvoiceRequested), input.InvoiceTitle, input.InvoiceTaxNo, input.InvoiceEmail)
+	if err != nil {
+		return nil, err
+	}
 	return s.createOrder(orderCreateParams{
-		InvoiceType:         orderdomain.ResolveInvoiceType(input.InvoiceType, input.InvoiceRequested),
+		InvoiceType:         invoice.Type,
+		InvoiceTitle:        invoice.Title,
+		InvoiceTaxNo:        invoice.TaxNo,
+		InvoiceEmail:        invoice.Email,
 		UserID:              input.UserID,
 		Tenant:              input.Tenant,
 		Items:               input.Items,
@@ -260,8 +273,15 @@ func (s *OrderService) CreateGuestOrder(input CreateGuestOrderInput) (*orderdoma
 		return nil, err
 	}
 	locale := strings.TrimSpace(input.Locale)
+	invoice, err := normalizeInvoiceSubmission(orderdomain.ResolveInvoiceType(input.InvoiceType, input.InvoiceRequested), input.InvoiceTitle, input.InvoiceTaxNo, input.InvoiceEmail)
+	if err != nil {
+		return nil, err
+	}
 	return s.createOrder(orderCreateParams{
-		InvoiceType:         orderdomain.ResolveInvoiceType(input.InvoiceType, input.InvoiceRequested),
+		InvoiceType:         invoice.Type,
+		InvoiceTitle:        invoice.Title,
+		InvoiceTaxNo:        invoice.TaxNo,
+		InvoiceEmail:        invoice.Email,
 		UserID:              0,
 		GuestEmail:          email,
 		GuestPassword:       password,
@@ -279,6 +299,9 @@ func (s *OrderService) CreateGuestOrder(input CreateGuestOrderInput) (*orderdoma
 
 type orderCreateParams struct {
 	InvoiceType              string
+	InvoiceTitle             string
+	InvoiceTaxNo             string
+	InvoiceEmail             string
 	UserID                   uint
 	GuestEmail               string
 	GuestPassword            string
@@ -553,6 +576,9 @@ func (s *OrderService) createOrder(input orderCreateParams) (*orderdomain.Order,
 	}
 	order.InvoiceType = input.InvoiceType
 	order.InvoiceRequested = input.InvoiceType != orderdomain.InvoiceTypeNone
+	order.InvoiceTitle = input.InvoiceTitle
+	order.InvoiceTaxNo = input.InvoiceTaxNo
+	order.InvoiceEmail = input.InvoiceEmail
 	invoiceTaxRate := orderdomain.InvoiceTaxRate(input.InvoiceType)
 	if order.InvoiceRequested {
 		order.TaxAmount = money.FromDecimal(result.TotalAmount.Mul(invoiceTaxRate).Round(2))

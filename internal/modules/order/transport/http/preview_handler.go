@@ -31,6 +31,7 @@ var (
 	ErrGuestPasswordRequired     = errors.New("guest password required")
 	ErrGuestPasswordTooShort     = errors.New("guest password too short")
 	ErrInvalidEmail              = errors.New("invalid email")
+	ErrInvoiceInfoRequired       = errors.New("invoice info required")
 	ErrProductPurchaseNotAllowed = errors.New("product purchase not allowed")
 	ErrGuestCouponNotAllowed     = errors.New("guest coupon not allowed")
 	ErrManualStockInsufficient   = errors.New("manual stock insufficient")
@@ -94,6 +95,9 @@ type OrderItemRequest struct {
 type CreateOrderRequest struct {
 	InvoiceRequested    bool                    `json:"invoice_requested"`
 	InvoiceType         string                  `json:"invoice_type"`
+	InvoiceTitle        string                  `json:"invoice_title"`
+	InvoiceTaxNo        string                  `json:"invoice_tax_no"`
+	InvoiceEmail        string                  `json:"invoice_email"`
 	Items               []OrderItemRequest      `json:"items" binding:"required"`
 	CouponCode          string                  `json:"coupon_code"`
 	AffiliateCode       string                  `json:"affiliate_code"`
@@ -105,6 +109,9 @@ type CreateOrderRequest struct {
 type CreateGuestOrderRequest struct {
 	InvoiceRequested    bool                              `json:"invoice_requested"`
 	InvoiceType         string                            `json:"invoice_type"`
+	InvoiceTitle        string                            `json:"invoice_title"`
+	InvoiceTaxNo        string                            `json:"invoice_tax_no"`
+	InvoiceEmail        string                            `json:"invoice_email"`
 	Email               string                            `json:"email" binding:"required"`
 	OrderPassword       string                            `json:"order_password" binding:"required"`
 	Items               []OrderItemRequest                `json:"items" binding:"required"`
@@ -127,6 +134,9 @@ type CreateOrderItem struct {
 type CreateOrderInput struct {
 	InvoiceRequested    bool
 	InvoiceType         string
+	InvoiceTitle        string
+	InvoiceTaxNo        string
+	InvoiceEmail        string
 	UserID              uint
 	Tenant              resellermodule.TenantContext
 	Items               []CreateOrderItem
@@ -141,6 +151,9 @@ type CreateOrderInput struct {
 type CreateGuestOrderInput struct {
 	InvoiceRequested    bool
 	InvoiceType         string
+	InvoiceTitle        string
+	InvoiceTaxNo        string
+	InvoiceEmail        string
 	Email               string
 	OrderPassword       string
 	Locale              string
@@ -355,6 +368,7 @@ var guestOrderCreateExtraErrorRules = []mappedError{
 }
 
 var userOrderCommonErrorRules = []mappedError{
+	{target: ErrInvoiceInfoRequired, code: response.CodeBadRequest, key: "error.invoice_info_required"},
 	{target: ErrProductSKURequired, code: response.CodeBadRequest, key: "error.order_item_invalid"},
 	{target: productcontract.ErrProductSKUInvalid, code: response.CodeBadRequest, key: "error.order_item_invalid"},
 	{target: productdomain.ErrPurchaseQuantityInvalid, code: response.CodeBadRequest, key: "error.order_item_invalid"},
@@ -399,6 +413,7 @@ var userOrderPreviewExtraErrorRules = []mappedError{
 }
 
 var guestOrderCommonErrorRules = []mappedError{
+	{target: ErrInvoiceInfoRequired, code: response.CodeBadRequest, key: "error.invoice_info_required"},
 	{target: ErrProductSKURequired, code: response.CodeBadRequest, key: "error.order_item_invalid"},
 	{target: productcontract.ErrProductSKUInvalid, code: response.CodeBadRequest, key: "error.order_item_invalid"},
 	{target: ErrGuestEmailRequired, code: response.CodeBadRequest, key: "error.guest_email_required"},

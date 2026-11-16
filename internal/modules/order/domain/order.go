@@ -30,6 +30,9 @@ type Order struct {
 	WholesaleDiscountAmount money.Amount `gorm:"type:decimal(20,2);not null;default:0" json:"wholesale_discount_amount"`           // 批发价优惠金额
 	InvoiceRequested        bool         `gorm:"not null;default:false" json:"invoice_requested"`                                  // 是否开票（兼容字段，与 InvoiceType 同步）
 	InvoiceType             string       `gorm:"type:varchar(16);not null;default:''" json:"invoice_type,omitempty"`               // 开票类型：general 普票 3% / special 专票 5%，空表示不开票
+	InvoiceTitle            string       `gorm:"type:varchar(200);not null;default:''" json:"invoice_title,omitempty"`             // 开票单位名称
+	InvoiceTaxNo            string       `gorm:"type:varchar(64);not null;default:''" json:"invoice_tax_no,omitempty"`             // 开票税号
+	InvoiceEmail            string       `gorm:"type:varchar(200);not null;default:''" json:"invoice_email,omitempty"`             // 发票接收邮箱
 	TaxAmount               money.Amount `gorm:"type:decimal(20,2);not null;default:0" json:"tax_amount"`
 	TotalAmount             money.Amount `gorm:"type:decimal(20,2);not null;default:0" json:"total_amount"`                // 实付金额
 	WalletPaidAmount        money.Amount `gorm:"type:decimal(20,2);not null;default:0" json:"wallet_paid_amount"`          // 钱包支付金额

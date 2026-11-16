@@ -63,6 +63,9 @@ type OrderPaymentCreator interface {
 type CreateOrderAndPayRequest struct {
 	InvoiceRequested    bool                    `json:"invoice_requested"`
 	InvoiceType         string                  `json:"invoice_type"`
+	InvoiceTitle        string                  `json:"invoice_title"`
+	InvoiceTaxNo        string                  `json:"invoice_tax_no"`
+	InvoiceEmail        string                  `json:"invoice_email"`
 	Items               []OrderItemRequest      `json:"items" binding:"required"`
 	CouponCode          string                  `json:"coupon_code"`
 	AffiliateCode       string                  `json:"affiliate_code"`
@@ -76,6 +79,9 @@ type CreateOrderAndPayRequest struct {
 type CreateGuestOrderAndPayRequest struct {
 	InvoiceRequested    bool                              `json:"invoice_requested"`
 	InvoiceType         string                            `json:"invoice_type"`
+	InvoiceTitle        string                            `json:"invoice_title"`
+	InvoiceTaxNo        string                            `json:"invoice_tax_no"`
+	InvoiceEmail        string                            `json:"invoice_email"`
 	Email               string                            `json:"email" binding:"required"`
 	OrderPassword       string                            `json:"order_password" binding:"required"`
 	Items               []OrderItemRequest                `json:"items" binding:"required"`
@@ -118,6 +124,9 @@ func (h *CreateHandler) CreateOrder(c *gin.Context) {
 	order, err := h.orders.CreateOrder(CreateOrderInput{
 		InvoiceRequested:    req.InvoiceRequested,
 		InvoiceType:         req.InvoiceType,
+		InvoiceTitle:        req.InvoiceTitle,
+		InvoiceTaxNo:        req.InvoiceTaxNo,
+		InvoiceEmail:        req.InvoiceEmail,
 		UserID:              uid,
 		Tenant:              tenantFromRequest(c),
 		Items:               mapOrderItems(req.Items),
@@ -151,6 +160,9 @@ func (h *CreateHandler) CreateGuestOrder(c *gin.Context) {
 	order, err := h.orders.CreateGuestOrder(CreateGuestOrderInput{
 		InvoiceRequested:    req.InvoiceRequested,
 		InvoiceType:         req.InvoiceType,
+		InvoiceTitle:        req.InvoiceTitle,
+		InvoiceTaxNo:        req.InvoiceTaxNo,
+		InvoiceEmail:        req.InvoiceEmail,
 		Email:               req.Email,
 		OrderPassword:       req.OrderPassword,
 		Locale:              i18n.ResolveLocale(c),
@@ -187,6 +199,9 @@ func (h *CreateHandler) CreateOrderAndPay(c *gin.Context) {
 	order, err := h.orders.CreateOrder(CreateOrderInput{
 		InvoiceRequested:    req.InvoiceRequested,
 		InvoiceType:         req.InvoiceType,
+		InvoiceTitle:        req.InvoiceTitle,
+		InvoiceTaxNo:        req.InvoiceTaxNo,
+		InvoiceEmail:        req.InvoiceEmail,
 		UserID:              uid,
 		Tenant:              tenantFromRequest(c),
 		Items:               mapOrderItems(req.Items),
@@ -229,6 +244,9 @@ func (h *CreateHandler) CreateGuestOrderAndPay(c *gin.Context) {
 	order, err := h.orders.CreateGuestOrder(CreateGuestOrderInput{
 		InvoiceRequested:    req.InvoiceRequested,
 		InvoiceType:         req.InvoiceType,
+		InvoiceTitle:        req.InvoiceTitle,
+		InvoiceTaxNo:        req.InvoiceTaxNo,
+		InvoiceEmail:        req.InvoiceEmail,
 		Email:               req.Email,
 		OrderPassword:       req.OrderPassword,
 		Locale:              i18n.ResolveLocale(c),

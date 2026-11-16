@@ -673,9 +673,12 @@ func TestInvoiceOrderPersistsTaxAndAllocatesChildren(t *testing.T) {
 				}
 				input.InvoiceRequested = tc.requested
 				input.InvoiceType = tc.invoiceType
+				input.InvoiceTitle = "示例科技"
+				input.InvoiceTaxNo = "91310000TEST"
+				input.InvoiceEmail = "invoice@example.com"
 				var order *orderdomain.Order
 				if guest {
-					order, err = f.svc.CreateGuestOrder(CreateGuestOrderInput{Email: "invoice@example.com", OrderPassword: "invoice-pass", Tenant: input.Tenant, Items: input.Items, InvoiceRequested: tc.requested, InvoiceType: tc.invoiceType})
+					order, err = f.svc.CreateGuestOrder(CreateGuestOrderInput{Email: "invoice@example.com", OrderPassword: "invoice-pass", Tenant: input.Tenant, Items: input.Items, InvoiceRequested: tc.requested, InvoiceType: tc.invoiceType, InvoiceTitle: "示例科技", InvoiceTaxNo: "91310000TEST", InvoiceEmail: "invoice@example.com"})
 				} else {
 					order, err = f.svc.CreateOrder(input)
 				}
@@ -710,6 +713,9 @@ func TestInvoiceChildTaxUsesCombinedRounding(t *testing.T) {
 	f := newOrderResellerSnapshotFixture(t)
 	input := f.createInput(f.buyer.ID)
 	input.InvoiceRequested = true
+	input.InvoiceTitle = "示例科技"
+	input.InvoiceTaxNo = "91310000TEST"
+	input.InvoiceEmail = "invoice@example.com"
 	input.Items = nil
 	for idx, price := range []string{"0.16", "0.16", "0.17"} {
 		product, sku := f.addResellerSnapshotProduct(t, fmt.Sprintf("invoice-round-%d", idx), decimal.RequireFromString(price), decimal.Zero, decimal.Zero)
