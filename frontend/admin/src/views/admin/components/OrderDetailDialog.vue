@@ -800,6 +800,20 @@ watch(
                     ? (selectedOrder.invoice_type === 'special' ? t('admin.orders.detailInvoiceSpecial') : t('admin.orders.detailInvoiceGeneral'))
                     : t('admin.orders.detailInvoiceNone') }}
                 </div>
+                <div
+                  v-if="selectedOrder.invoice_requested && (selectedOrder.invoice_title || selectedOrder.invoice_tax_no || selectedOrder.invoice_email)"
+                  class="mt-2 space-y-1 text-xs text-muted-foreground"
+                >
+                  <div v-if="selectedOrder.invoice_title" class="break-words">
+                    {{ t('admin.orders.detailInvoiceCompany') }}：<span class="text-foreground">{{ selectedOrder.invoice_title }}</span>
+                  </div>
+                  <div v-if="selectedOrder.invoice_tax_no" class="break-all">
+                    {{ t('admin.orders.detailInvoiceTaxNo') }}：<span class="text-foreground font-mono">{{ selectedOrder.invoice_tax_no }}</span>
+                  </div>
+                  <div v-if="selectedOrder.invoice_email" class="break-all">
+                    {{ t('admin.orders.detailInvoiceEmail') }}：<span class="text-foreground">{{ selectedOrder.invoice_email }}</span>
+                  </div>
+                </div>
               </CardContent>
             </Card>
           </div>

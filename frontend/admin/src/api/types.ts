@@ -161,6 +161,9 @@ export interface AdminOrder {
   payment_tax_amount?: string | number
   invoice_requested?: boolean
   invoice_type?: string
+  invoice_title?: string
+  invoice_tax_no?: string
+  invoice_email?: string
   id: number
   order_no: string
   parent_id?: number
