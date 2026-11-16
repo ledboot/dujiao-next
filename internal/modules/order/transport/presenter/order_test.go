@@ -238,3 +238,21 @@ func TestNewOrderDetailNilSafety(t *testing.T) {
 		t.Error("expected nil items")
 	}
 }
+
+func TestPayableAmountIncludesCustomerFeeAndPaymentTax(t *testing.T) {
+	order := &orderdomain.Order{
+		TotalAmount:       newMoney("10.00"),
+		CustomerFeeAmount: newMoney("0.20"),
+		PaymentTaxAmount:  newMoney("0.05"),
+	}
+	if got := PayableAmount(order).String(); got != "10.25" {
+		t.Fatalf("PayableAmount() = %s, want 10.25", got)
+	}
+	summary := NewOrderSummary(order)
+	if summary.PayableAmount.String() != "10.25" {
+		t.Fatalf("summary payable = %s", summary.PayableAmount.String())
+	}
+	if !PayableAmount(nil).Decimal.IsZero() {
+		t.Fatal("nil order should yield zero amount")
+	}
+}

@@ -175,6 +175,8 @@ export interface AdminOrder {
   wholesale_discount_amount?: number
   member_discount_amount?: number
   total_amount: number
+  // 实际应付金额：订单金额 + 用户承担的手续费 + 支付税费
+  payable_amount?: string | number
   wallet_paid_amount: number
   online_paid_amount: number
   refunded_amount: number

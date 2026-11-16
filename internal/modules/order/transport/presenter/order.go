@@ -164,11 +164,19 @@ func NewOrderDetail(o *orderdomain.Order) OrderDetail {
 	return d
 }
 
+// PayableAmount 返回用户实际需要支付的金额：订单金额 + 用户承担的手续费 + 支付税费。
+func PayableAmount(o *orderdomain.Order) money.Amount {
+	if o == nil {
+		return money.Amount{}
+	}
+	return money.FromDecimal(o.TotalAmount.Decimal.Add(o.CustomerFeeAmount.Decimal).Add(o.PaymentTaxAmount.Decimal))
+}
+
 // orderBillingAmounts keeps list and detail views on the same immutable snapshots.
 func orderBillingAmounts(o *orderdomain.Order) (fee, tax, payable, paid money.Amount) {
 	fee = o.CustomerFeeAmount
 	tax = money.FromDecimal(o.TaxAmount.Decimal.Add(o.PaymentTaxAmount.Decimal))
-	payable = money.FromDecimal(o.TotalAmount.Decimal.Add(fee.Decimal).Add(o.PaymentTaxAmount.Decimal))
+	payable = PayableAmount(o)
 	if o.PaidAt != nil {
 		paid = payable
 	}

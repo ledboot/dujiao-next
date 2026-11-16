@@ -9,6 +9,9 @@ import (
 	paymentdomain "github.com/dujiao-next/internal/modules/payment/domain"
 
 	orderdomain "github.com/dujiao-next/internal/modules/order/domain"
+	orderpresenter "github.com/dujiao-next/internal/modules/order/transport/presenter"
+
+	"github.com/dujiao-next/internal/shared/money"
 
 	coupondomain "github.com/dujiao-next/internal/modules/coupon/domain"
 
@@ -121,8 +124,9 @@ func NewAdminHandler(
 // AdminOrderListItem 管理端订单列表返回
 type AdminOrderListItem struct {
 	orderdomain.Order
-	UserEmail       string `json:"user_email,omitempty"`
-	UserDisplayName string `json:"user_display_name,omitempty"`
+	UserEmail       string       `json:"user_email,omitempty"`
+	UserDisplayName string       `json:"user_display_name,omitempty"`
+	PayableAmount   money.Amount `json:"payable_amount"`
 }
 
 // AdminOrderPaymentItem 管理端订单详情中的支付项
@@ -221,6 +225,7 @@ func (h *AdminHandler) AdminListOrders(c *gin.Context) {
 			Order:           order,
 			UserEmail:       email,
 			UserDisplayName: displayName,
+			PayableAmount:   orderpresenter.PayableAmount(&order),
 		})
 	}
 

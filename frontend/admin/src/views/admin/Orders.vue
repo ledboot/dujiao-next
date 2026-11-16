@@ -412,7 +412,7 @@ watch(
               <div v-else class="break-all">{{ t('admin.orders.guestLabel') }}: {{ order.guest_email || '-' }}</div>
             </TableCell>
             <TableCell class="px-4 py-3 text-xs text-muted-foreground hidden xl:table-cell">{{ order.client_ip || '-' }}</TableCell>
-            <TableCell class="px-4 py-3 font-mono text-xs text-foreground">{{ formatMoney(order.total_amount, order.currency) }}</TableCell>
+            <TableCell class="px-4 py-3 font-mono text-xs text-foreground">{{ formatMoney(order.payable_amount ?? order.total_amount, order.currency) }}</TableCell>
             <TableCell class="px-4 py-3">
               <span class="inline-flex rounded-full border px-2 py-0.5 text-xs" :class="statusClass(order.status)">
                 {{ statusLabel(order.status) }}
