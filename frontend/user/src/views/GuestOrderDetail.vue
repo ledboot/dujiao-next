@@ -116,7 +116,7 @@
                           class="mt-3 rounded-xl border border-gray-200 bg-white p-3 text-xs text-gray-600 dark:border-white/10 dark:bg-black/30 dark:text-gray-300">
                           <div class="mb-2 font-semibold text-muted-foreground">{{ t('orderDetail.manualSubmissionTitle') }}</div>
                           <div v-for="row in manualSubmissionRows(item.manual_form_submission, item.manual_form_schema_snapshot)" :key="row.key" class="mb-1 last:mb-0">
-                            <span class="text-foreground">{{ row.label }}</span>：{{ row.value }}
+                            <span class="text-foreground">{{ row.label }}</span>：<span class="break-all">{{ row.value }}</span>
                           </div>
                         </div>
                       </div>
@@ -295,7 +295,7 @@
                     class="mt-3 rounded-xl border border-gray-200 bg-white p-3 text-xs text-gray-600 dark:border-white/10 dark:bg-black/30 dark:text-gray-300">
                     <div class="mb-2 font-semibold text-muted-foreground">{{ t('orderDetail.manualSubmissionTitle') }}</div>
                     <div v-for="row in manualSubmissionRows(item.manual_form_submission, item.manual_form_schema_snapshot)" :key="row.key" class="mb-1 last:mb-0">
-                      <span class="text-foreground">{{ row.label }}</span>：{{ row.value }}
+                      <span class="text-foreground">{{ row.label }}</span>：<span class="break-all">{{ row.value }}</span>
                     </div>
                   </div>
                 </div>

@@ -2,7 +2,6 @@ package manualform
 
 import (
 	"errors"
-	"html"
 	"net/mail"
 	"regexp"
 	"sort"
@@ -290,7 +289,7 @@ func normalizeManualFormFieldValue(field manualFormField, rawValue interface{}) 
 				return nil, false, ErrFieldInvalid
 			}
 		}
-		return sanitizeManualFormText(text), true, nil
+		return normalizeManualFormText(text), true, nil
 	case manualFormTypePhone:
 		text, ok := rawValue.(string)
 		if !ok {
@@ -315,7 +314,7 @@ func normalizeManualFormFieldValue(field manualFormField, rawValue interface{}) 
 				return nil, false, ErrFieldInvalid
 			}
 		}
-		return sanitizeManualFormText(text), true, nil
+		return normalizeManualFormText(text), true, nil
 	case manualFormTypeEmail:
 		text, ok := rawValue.(string)
 		if !ok {
@@ -340,7 +339,7 @@ func normalizeManualFormFieldValue(field manualFormField, rawValue interface{}) 
 				return nil, false, ErrFieldInvalid
 			}
 		}
-		return sanitizeManualFormText(text), true, nil
+		return normalizeManualFormText(text), true, nil
 	case manualFormTypeNumber:
 		number, ok := parseSubmissionNumber(rawValue)
 		if !ok {
@@ -683,10 +682,9 @@ func parseCheckboxValues(raw interface{}) ([]string, bool) {
 	}
 }
 
-func sanitizeManualFormText(raw string) string {
-	trimmed := strings.TrimSpace(raw)
-	if trimmed == "" {
-		return ""
-	}
-	return html.EscapeString(trimmed)
+// normalizeManualFormText 只做去除首尾空白，不做 HTML 转义。
+// 表单值以纯文本呈现（前端走文本插值，不会当 HTML 解析），
+// 在这里转义会把 URL 里的 & 变成 &amp;，导致链接等值被破坏。
+func normalizeManualFormText(raw string) string {
+	return strings.TrimSpace(raw)
 }

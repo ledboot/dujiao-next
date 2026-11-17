@@ -23,7 +23,7 @@
         <div v-if="manualSubmissionRows(item.manual_form_submission, item.manual_form_schema_snapshot).length" class="mt-2.5 rounded-sm border bg-secondary px-3 py-2.5 text-[12.5px] text-muted-foreground">
           <div class="mb-1.5 font-bold text-muted-foreground">{{ t('orderDetail.manualSubmissionTitle') }}</div>
           <div v-for="row in manualSubmissionRows(item.manual_form_submission, item.manual_form_schema_snapshot)" :key="row.key" class="mb-0.5 last:mb-0">
-            <span class="font-semibold text-foreground">{{ row.label }}</span>：{{ row.value }}
+            <span class="font-semibold text-foreground">{{ row.label }}</span>：<span class="break-all">{{ row.value }}</span>
           </div>
         </div>
       </div>
