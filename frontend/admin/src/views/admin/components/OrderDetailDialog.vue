@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { reactive, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { Package } from 'lucide-vue-next'
+import { Package, Copy } from 'lucide-vue-next'
 import { adminAPI } from '@/api/admin'
 import type { AdminOrder, AdminOrderItem, AdminFulfillment, AdminProcurementOrder, AdminPayment } from '@/api/types'
 import IdCell from '@/components/IdCell.vue'
@@ -27,6 +27,8 @@ import { resolveSkuCodeFromSnapshot, resolveSkuSpecFromSnapshot } from '@/utils/
 import { adminUrl } from '@/utils/adminBase'
 import { confirmAction } from '@/utils/confirm'
 import { buildItemRefundAllocation, calcItemProfit, toNumber } from '@/utils/orderProfit'
+import { copyText } from '@/utils/clipboard'
+import { buildManualSubmissionCopy } from '@/utils/manualSubmissionCopy'
 
 const props = defineProps<{
   modelValue: boolean
@@ -301,6 +303,26 @@ const manualSubmissionRows = (
   })
 
   return rows
+}
+
+const copiedSubmissionKey = ref('')
+let copiedSubmissionTimer: ReturnType<typeof setTimeout> | null = null
+
+const manualSubmissionCopyKey = (orderNo: string, item: AdminOrderItem) => `${orderNo}-${item.id}`
+
+const handleCopyManualSubmission = async (submission: Record<string, unknown> | null | undefined, orderNo: string, item: AdminOrderItem) => {
+  const key = manualSubmissionCopyKey(orderNo, item)
+  try {
+    await copyText(buildManualSubmissionCopy(submission, orderNo))
+    copiedSubmissionKey.value = key
+    if (copiedSubmissionTimer) clearTimeout(copiedSubmissionTimer)
+    copiedSubmissionTimer = setTimeout(() => {
+      copiedSubmissionKey.value = ''
+      copiedSubmissionTimer = null
+    }, 2000)
+  } catch {
+    copiedSubmissionKey.value = ''
+  }
 }
 
 const parseOrderItemSkuId = (item: AdminOrderItem & Record<string, unknown>) => {
@@ -962,7 +984,13 @@ watch(
                       </span>
                     </div>
                     <div v-if="manualSubmissionRows(item.manual_form_submission, item.manual_form_schema_snapshot).length" class="mt-3 rounded-lg border border-border bg-background p-3">
-                      <div class="text-xs font-semibold text-muted-foreground mb-2">{{ t('admin.orders.manualSubmissionTitle') }}</div>
+                      <div class="mb-2 flex items-center justify-between gap-2">
+                        <div class="text-xs font-semibold text-muted-foreground">{{ t('admin.orders.manualSubmissionTitle') }}</div>
+                        <Button size="sm" variant="secondary" @click="handleCopyManualSubmission(item.manual_form_submission, selectedOrder.order_no, item)">
+                          <Copy class="mr-1 h-3.5 w-3.5" />
+                          {{ copiedSubmissionKey === manualSubmissionCopyKey(selectedOrder.order_no, item) ? t('admin.orders.manualSubmissionCopied') : t('admin.orders.manualSubmissionCopy') }}
+                        </Button>
+                      </div>
                       <div class="space-y-1 text-xs text-muted-foreground">
                         <div v-for="row in manualSubmissionRows(item.manual_form_submission, item.manual_form_schema_snapshot)" :key="`${item.id}-${row.key}`" class="break-words">
                           <span class="text-foreground">{{ row.label }}</span>：<span class="break-all">{{ row.value }}</span>
@@ -1061,7 +1089,13 @@ watch(
                           <div class="mt-1 break-words text-xs text-muted-foreground">{{ t('admin.orders.itemSkuSpec') }}：{{ orderItemSkuSpecText(item) }}</div>
                         </div>
                         <div v-if="manualSubmissionRows(item.manual_form_submission, item.manual_form_schema_snapshot).length" class="mt-3 rounded-lg border border-border bg-muted/20 p-3">
-                          <div class="text-xs font-semibold text-muted-foreground mb-2">{{ t('admin.orders.manualSubmissionTitle') }}</div>
+                          <div class="mb-2 flex items-center justify-between gap-2">
+                            <div class="text-xs font-semibold text-muted-foreground">{{ t('admin.orders.manualSubmissionTitle') }}</div>
+                            <Button size="sm" variant="secondary" @click="handleCopyManualSubmission(item.manual_form_submission, child.order_no, item)">
+                              <Copy class="mr-1 h-3.5 w-3.5" />
+                              {{ copiedSubmissionKey === manualSubmissionCopyKey(child.order_no, item) ? t('admin.orders.manualSubmissionCopied') : t('admin.orders.manualSubmissionCopy') }}
+                            </Button>
+                          </div>
                           <div class="space-y-1 text-xs text-muted-foreground">
                             <div v-for="row in manualSubmissionRows(item.manual_form_submission, item.manual_form_schema_snapshot)" :key="`${item.id}-${row.key}`" class="break-words">
                               <span class="text-foreground">{{ row.label }}</span>：<span class="break-all">{{ row.value }}</span>

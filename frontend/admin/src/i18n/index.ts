@@ -1071,6 +1071,8 @@ const messages = {
         manualConfirmNoPayments: '该订单没有可确认的支付记录',
         manualConfirmUnderpaidDisabled: '欠付款项已转入用户余额，不可确认',
         manualSubmissionTitle: '用户提交信息',
+        manualSubmissionCopy: '一键复制',
+        manualSubmissionCopied: '已复制',
         detailFetchFailed: '订单详情获取失败',
       },
       payments: {
@@ -5794,6 +5796,8 @@ const messages = {
         manualConfirmNoPayments: '該訂單沒有可確認的支付記錄',
         manualConfirmUnderpaidDisabled: '欠付款項已轉入用戶餘額，不可確認',
         manualSubmissionTitle: '使用者提交資訊',
+        manualSubmissionCopy: '一鍵複製',
+        manualSubmissionCopied: '已複製',
         detailFetchFailed: '訂單詳情取得失敗',
       },
       payments: {
@@ -10517,6 +10521,8 @@ const messages = {
         manualConfirmNoPayments: 'This order has no payment record to confirm',
         manualConfirmUnderpaidDisabled: 'Underpaid amount was credited to the wallet and cannot be confirmed',
         manualSubmissionTitle: 'User submitted data',
+        manualSubmissionCopy: 'Copy',
+        manualSubmissionCopied: 'Copied',
         detailFetchFailed: 'Failed to load order detail',
       },
       payments: {
