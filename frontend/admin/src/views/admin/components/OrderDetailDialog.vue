@@ -28,7 +28,7 @@ import { adminUrl } from '@/utils/adminBase'
 import { confirmAction } from '@/utils/confirm'
 import { buildItemRefundAllocation, calcItemProfit, toNumber } from '@/utils/orderProfit'
 import { copyText } from '@/utils/clipboard'
-import { buildManualSubmissionCopy } from '@/utils/manualSubmissionCopy'
+import { buildManualSubmissionCopy, resolveKycType } from '@/utils/manualSubmissionCopy'
 
 const props = defineProps<{
   modelValue: boolean
@@ -313,7 +313,7 @@ const manualSubmissionCopyKey = (orderNo: string, item: AdminOrderItem) => `${or
 const handleCopyManualSubmission = async (submission: Record<string, unknown> | null | undefined, orderNo: string, item: AdminOrderItem) => {
   const key = manualSubmissionCopyKey(orderNo, item)
   try {
-    await copyText(buildManualSubmissionCopy(submission, orderNo))
+    await copyText(buildManualSubmissionCopy(submission, orderNo, resolveKycType(getLocalizedText(item.title))))
     copiedSubmissionKey.value = key
     if (copiedSubmissionTimer) clearTimeout(copiedSubmissionTimer)
     copiedSubmissionTimer = setTimeout(() => {
