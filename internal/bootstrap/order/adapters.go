@@ -31,6 +31,7 @@ import (
 	couponcontract "github.com/dujiao-next/internal/modules/coupon/contract"
 	ordertransport "github.com/dujiao-next/internal/modules/order/transport/http"
 	orderriskcontract "github.com/dujiao-next/internal/modules/orderrisk/contract"
+	procurementcontract "github.com/dujiao-next/internal/modules/procurement/contract"
 	promotioncontract "github.com/dujiao-next/internal/modules/promotion/contract"
 	reseller "github.com/dujiao-next/internal/modules/reseller/contract"
 	settingsstorefront "github.com/dujiao-next/internal/modules/settings/schema/storefront"
@@ -133,6 +134,40 @@ func (a orderAdminAccountingAdapter) RefundReversesCost() bool {
 		return false
 	}
 	return setting.Accounting.RefundReversesCost
+}
+
+type orderAdminProcurementAdapter struct {
+	procurements procurementcontract.Repository
+}
+
+func (a orderAdminProcurementAdapter) ListByLocalOrderIDs(localOrderIDs []uint) ([]ordertransport.AdminOrderProcurementItem, error) {
+	if a.procurements == nil || len(localOrderIDs) == 0 {
+		return nil, nil
+	}
+	orders, err := a.procurements.ListByLocalOrderIDs(localOrderIDs)
+	if err != nil {
+		return nil, err
+	}
+	items := make([]ordertransport.AdminOrderProcurementItem, 0, len(orders))
+	for _, item := range orders {
+		var connName string
+		if item.Connection != nil {
+			connName = item.Connection.Name
+		}
+		items = append(items, ordertransport.AdminOrderProcurementItem{
+			ID:               item.ID,
+			ConnectionID:     item.ConnectionID,
+			ConnectionName:   connName,
+			LocalOrderID:     item.LocalOrderID,
+			LocalOrderNo:     item.LocalOrderNo,
+			UpstreamOrderNo:  item.UpstreamOrderNo,
+			Status:           item.Status,
+			UpstreamAmount:   item.UpstreamAmount,
+			UpstreamCurrency: item.UpstreamCurrency,
+			ErrorMessage:     item.ErrorMessage,
+		})
+	}
+	return items, nil
 }
 
 type orderUserQueryAdapter struct {

@@ -198,10 +198,24 @@ export interface AdminOrder {
   fulfillment?: AdminFulfillment
   children?: AdminOrder[]
   payments?: AdminPayment[]
+  procurement_orders?: AdminOrderProcurementItem[]
   user_display_name?: string
   user_email?: string
   // 订单详情接口返回：退款时是否按比例冲回成本（仪表盘统计口径）
   refund_reverses_cost?: boolean
+}
+
+export interface AdminOrderProcurementItem {
+  id: number
+  connection_id: number
+  connection_name?: string
+  local_order_id: number
+  local_order_no: string
+  upstream_order_no?: string
+  status: string
+  upstream_amount?: string | number
+  upstream_currency?: string
+  error_message?: string
 }
 
 export interface AdminUserOAuthIdentity {

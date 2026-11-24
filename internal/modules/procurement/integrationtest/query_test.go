@@ -13,6 +13,7 @@ import (
 	"github.com/dujiao-next/internal/constants"
 	procurementcontract "github.com/dujiao-next/internal/modules/procurement/contract"
 	procurementdomain "github.com/dujiao-next/internal/modules/procurement/domain"
+	procurementgormstore "github.com/dujiao-next/internal/modules/procurement/infrastructure/gormstore"
 	siteconnectionapp "github.com/dujiao-next/internal/modules/siteconnection/application"
 	"github.com/dujiao-next/internal/shared/money"
 
@@ -434,5 +435,152 @@ func TestProcurement_GetByID_WithoutUpstreamRefundOmitsRefundFields(t *testing.T
 	}
 	if _, ok := decoded["upstream_order_id"]; ok {
 		t.Fatalf("expected upstream_order_id to be omitted from procurement payload, payload=%s", string(payload))
+	}
+}
+
+func TestProcurement_ListAndStats_SupportFuzzyOrderNoAndUpstreamOrderNo(t *testing.T) {
+	db := setupProcurementTestDB(t)
+	connSvc := newTestSiteConnectionService(db, "test-key", t.TempDir())
+	svc := newTestProcurementService(db, connSvc)
+
+	orderA := createProcTestOrder(t, db, "DJ20261124ALPHA9901", constants.OrderStatusPaid, constants.FulfillmentTypeUpstream)
+	procA := createTestProcurementOrder(t, db, 1, orderA.ID, orderA.OrderNo, constants.ProcurementStatusAccepted)
+	if err := db.Model(&ProcurementOrder{}).Where("id = ?", procA.ID).Updates(map[string]interface{}{
+		"upstream_order_no":   "UP-20261124-XYZ7788",
+		"downstream_order_no": "DJ20261124ALPHA9901-R1",
+	}).Error; err != nil {
+		t.Fatalf("update procA order nos: %v", err)
+	}
+
+	parentB := createProcTestOrder(t, db, "DJ20261124PARENT5566", constants.OrderStatusPaid, constants.FulfillmentTypeUpstream)
+	childB := createProcTestOrder(t, db, "DJ20261124CHILD8811", constants.OrderStatusPaid, constants.FulfillmentTypeUpstream)
+	if err := db.Model(&orderdomain.Order{}).Where("id = ?", childB.ID).Update("parent_id", parentB.ID).Error; err != nil {
+		t.Fatalf("set childB parent_id: %v", err)
+	}
+	procB := createTestProcurementOrder(t, db, 1, childB.ID, childB.OrderNo, constants.ProcurementStatusPending)
+	if err := db.Model(&ProcurementOrder{}).Where("id = ?", procB.ID).Updates(map[string]interface{}{
+		"upstream_order_no": "UP-20261124-BETA3344",
+	}).Error; err != nil {
+		t.Fatalf("update procB upstream_order_no: %v", err)
+	}
+
+	cases := []struct {
+		name            string
+		localOrderNo    string
+		upstreamOrderNo string
+		wantIDs         []uint
+	}{
+		{
+			name:         "fuzzy local_order_no lowercase substring",
+			localOrderNo: "alpha99",
+			wantIDs:      []uint{procA.ID},
+		},
+		{
+			name:         "fuzzy downstream_order_no retry suffix",
+			localOrderNo: "9901-r1",
+			wantIDs:      []uint{procA.ID},
+		},
+		{
+			name:         "fuzzy parent_order_no fragment matches child procurement order",
+			localOrderNo: "parent5566",
+			wantIDs:      []uint{procB.ID},
+		},
+		{
+			name:            "fuzzy upstream_order_no lowercase substring",
+			upstreamOrderNo: "xyz7788",
+			wantIDs:         []uint{procA.ID},
+		},
+		{
+			name:            "shared prefix matches both procurement orders",
+			upstreamOrderNo: "up-20261124",
+			wantIDs:         []uint{procB.ID, procA.ID},
+		},
+		{
+			name:         "non-matching keyword returns empty",
+			localOrderNo: "NO-SUCH-PROC",
+			wantIDs:      nil,
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			filter := ListFilter{
+				LocalOrderNo:    tc.localOrderNo,
+				UpstreamOrderNo: tc.upstreamOrderNo,
+				Page:            1,
+				PageSize:        20,
+			}
+			orders, total, err := svc.List(filter)
+			if err != nil {
+				t.Fatalf("List(%+v): %v", filter, err)
+			}
+			if int(total) != len(tc.wantIDs) || len(orders) != len(tc.wantIDs) {
+				t.Fatalf("List(%+v) total=%d len=%d, want %d", filter, total, len(orders), len(tc.wantIDs))
+			}
+			gotSet := make(map[uint]bool, len(orders))
+			for _, item := range orders {
+				gotSet[item.ID] = true
+			}
+			for _, wantID := range tc.wantIDs {
+				if !gotSet[wantID] {
+					t.Fatalf("List(%+v) missing expected procurement ID %d", filter, wantID)
+				}
+			}
+
+			stats, err := svc.StatsByStatus(filter)
+			if err != nil {
+				t.Fatalf("StatsByStatus(%+v): %v", filter, err)
+			}
+			var statsTotal int64
+			for _, v := range stats {
+				statsTotal += v
+			}
+			if int(statsTotal) != len(tc.wantIDs) {
+				t.Fatalf("StatsByStatus(%+v) sum=%d, want %d (stats=%v)", filter, statsTotal, len(tc.wantIDs), stats)
+			}
+		})
+	}
+}
+
+func TestProcurement_ListByLocalOrderIDs_LoadsConnectionsAndSkipsSoftDeleted(t *testing.T) {
+	db := setupProcurementTestDB(t)
+	connSvc := newTestSiteConnectionService(db, "test-key", t.TempDir())
+	conn, err := connSvc.Create(siteconnectionapp.CreateInput{
+		Name:      "Main Upstream",
+		BaseURL:   "https://upstream.example.com",
+		ApiKey:    "key",
+		ApiSecret: "secret",
+		Protocol:  constants.ConnectionProtocolDujiaoNext,
+	})
+	if err != nil {
+		t.Fatalf("create connection: %v", err)
+	}
+
+	parent := createProcTestOrder(t, db, "DJ-DETAIL-PARENT", constants.OrderStatusPaid, constants.FulfillmentTypeUpstream)
+	child1 := createProcTestOrder(t, db, "DJ-DETAIL-CHILD-1", constants.OrderStatusPaid, constants.FulfillmentTypeUpstream)
+	child2 := createProcTestOrder(t, db, "DJ-DETAIL-CHILD-2", constants.OrderStatusPaid, constants.FulfillmentTypeUpstream)
+	proc1 := createTestProcurementOrder(t, db, conn.ID, child1.ID, child1.OrderNo, constants.ProcurementStatusFulfilled)
+	proc2 := createTestProcurementOrder(t, db, conn.ID, child2.ID, child2.OrderNo, constants.ProcurementStatusAccepted)
+	if err := db.Model(&ProcurementOrder{}).Where("id = ?", proc1.ID).Update("upstream_order_no", "UP-CHILD-001").Error; err != nil {
+		t.Fatalf("set proc1 upstream_order_no: %v", err)
+	}
+	deletedAt := time.Now()
+	if err := db.Model(&ProcurementOrder{}).Where("id = ?", proc2.ID).Update("deleted_at", deletedAt).Error; err != nil {
+		t.Fatalf("soft delete proc2: %v", err)
+	}
+
+	store := procurementgormstore.New(db)
+	got, err := store.ListByLocalOrderIDs([]uint{parent.ID, child1.ID, child2.ID})
+	if err != nil {
+		t.Fatalf("ListByLocalOrderIDs: %v", err)
+	}
+	if len(got) != 1 || got[0].ID != proc1.ID {
+		t.Fatalf("expected only proc1, got %+v", got)
+	}
+	if got[0].UpstreamOrderNo != "UP-CHILD-001" {
+		t.Fatalf("expected upstream_order_no UP-CHILD-001, got %q", got[0].UpstreamOrderNo)
+	}
+	if got[0].Connection == nil || got[0].Connection.Name != "Main Upstream" {
+		t.Fatalf("expected preloaded connection Main Upstream, got %+v", got[0].Connection)
 	}
 }

@@ -3,14 +3,24 @@ package orderwiring
 import (
 	"encoding/json"
 	"errors"
+	"net/http"
+	"net/http/httptest"
+
 	"github.com/dujiao-next/internal/constants"
+	coupondomain "github.com/dujiao-next/internal/modules/coupon/domain"
+	userdomain "github.com/dujiao-next/internal/modules/identity/user/domain"
 	orderapp "github.com/dujiao-next/internal/modules/order/application"
 	ordercontract "github.com/dujiao-next/internal/modules/order/contract"
 	orderdomain "github.com/dujiao-next/internal/modules/order/domain"
 	ordertransport "github.com/dujiao-next/internal/modules/order/transport/http"
 	orderpresenter "github.com/dujiao-next/internal/modules/order/transport/presenter"
 	paymentdomain "github.com/dujiao-next/internal/modules/payment/domain"
+	procurementcontract "github.com/dujiao-next/internal/modules/procurement/contract"
+	procurementdomain "github.com/dujiao-next/internal/modules/procurement/domain"
+	promotiondomain "github.com/dujiao-next/internal/modules/promotion/domain"
+	siteconnectiondomain "github.com/dujiao-next/internal/modules/siteconnection/domain"
 	"github.com/dujiao-next/internal/shared/money"
+	"github.com/gin-gonic/gin"
 	"github.com/shopspring/decimal"
 	"testing"
 	"time"
@@ -328,5 +338,116 @@ func TestOrderListBillingMatchesDetailsInOneBatch(t *testing.T) {
 	calls := store.batchCalls
 	if _, _, err := reader.enrichList(nil, 0, nil); err != nil || calls != store.batchCalls {
 		t.Fatal("empty page queried payments")
+	}
+}
+
+type adminDetailQueryStub struct{ order *orderdomain.Order }
+
+func (s adminDetailQueryStub) ListOrdersForAdmin(ordertransport.OrderListFilter) ([]orderdomain.Order, int64, error) {
+	return nil, 0, nil
+}
+func (s adminDetailQueryStub) GetOrderForAdmin(uint) (*orderdomain.Order, error) { return s.order, nil }
+func (s adminDetailQueryStub) UpdateOrderStatus(uint, string) (*orderdomain.Order, error) {
+	return s.order, nil
+}
+
+type adminUserDirStub struct{}
+
+func (adminUserDirStub) ListByIDs([]uint) ([]userdomain.User, error) { return nil, nil }
+func (adminUserDirStub) GetByID(uint) (*userdomain.User, error)      { return nil, nil }
+
+type adminCouponStub struct{}
+
+func (adminCouponStub) GetByID(uint) (*coupondomain.Coupon, error) { return nil, nil }
+
+type adminPromotionStub struct{}
+
+func (adminPromotionStub) GetByID(uint) (*promotiondomain.Promotion, error) { return nil, nil }
+
+type adminPaymentDirStub struct{}
+
+func (adminPaymentDirStub) ListByOrderID(uint) ([]paymentdomain.Payment, error) { return nil, nil }
+
+type adminChannelDirStub struct{}
+
+func (adminChannelDirStub) ListByIDs([]uint) ([]paymentdomain.PaymentChannel, error) { return nil, nil }
+
+type adminAccountingStub struct{}
+
+func (adminAccountingStub) RefundReversesCost() bool { return false }
+
+type adminProcurementRepoStub struct {
+	procurementcontract.Repository
+	orders []procurementdomain.Order
+	gotIDs []uint
+}
+
+func (s *adminProcurementRepoStub) ListByLocalOrderIDs(ids []uint) ([]procurementdomain.Order, error) {
+	s.gotIDs = append([]uint(nil), ids...)
+	return s.orders, nil
+}
+
+func TestAdminGetOrderIncludesParentAndChildProcurementOrders(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	procRepo := &adminProcurementRepoStub{
+		orders: []procurementdomain.Order{
+			{
+				ID:               91,
+				ConnectionID:     3,
+				LocalOrderID:     201,
+				LocalOrderNo:     "DJ-CHILD-201",
+				UpstreamOrderNo:  "UP-ORDER-8899",
+				Status:           constants.ProcurementStatusFulfilled,
+				UpstreamAmount:   billingMoney("45.00"),
+				UpstreamCurrency: "USD",
+				Connection:       &siteconnectiondomain.Connection{ID: 3, Name: "Alpha Upstream"},
+			},
+		},
+	}
+	parentOrder := &orderdomain.Order{
+		ID:      200,
+		OrderNo: "DJ-PARENT-200",
+		Status:  constants.OrderStatusDelivered,
+		Children: []orderdomain.Order{
+			{ID: 201, OrderNo: "DJ-CHILD-201", Status: constants.OrderStatusDelivered},
+		},
+	}
+	handler := ordertransport.NewAdminHandler(
+		adminDetailQueryStub{order: parentOrder},
+		adminUserDirStub{},
+		adminCouponStub{},
+		adminPromotionStub{},
+		adminPaymentDirStub{},
+		adminChannelDirStub{},
+		adminAccountingStub{},
+		orderAdminProcurementAdapter{procurements: procRepo},
+	)
+
+	router := gin.New()
+	router.GET("/api/v1/admin/orders/:id", handler.AdminGetOrder)
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/admin/orders/200", nil)
+	rec := httptest.NewRecorder()
+	router.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("AdminGetOrder status=%d body=%s", rec.Code, rec.Body.String())
+	}
+	if len(procRepo.gotIDs) != 2 || procRepo.gotIDs[0] != 200 || procRepo.gotIDs[1] != 201 {
+		t.Fatalf("expected ListByLocalOrderIDs([200, 201]), got %v", procRepo.gotIDs)
+	}
+	var resp struct {
+		Data struct {
+			ProcurementOrders []ordertransport.AdminOrderProcurementItem `json:"procurement_orders"`
+		} `json:"data"`
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &resp); err != nil {
+		t.Fatalf("decode response: %v", err)
+	}
+	if len(resp.Data.ProcurementOrders) != 1 {
+		t.Fatalf("expected 1 procurement order, got %+v", resp.Data.ProcurementOrders)
+	}
+	got := resp.Data.ProcurementOrders[0]
+	if got.UpstreamOrderNo != "UP-ORDER-8899" || got.ConnectionName != "Alpha Upstream" || got.LocalOrderNo != "DJ-CHILD-201" {
+		t.Fatalf("unexpected procurement item: %+v", got)
 	}
 }

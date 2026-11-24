@@ -87,15 +87,35 @@ type AccountingPolicy interface {
 	RefundReversesCost() bool
 }
 
+// ProcurementDirectory 关联采购单查询端口。
+type ProcurementDirectory interface {
+	ListByLocalOrderIDs(localOrderIDs []uint) ([]AdminOrderProcurementItem, error)
+}
+
+// AdminOrderProcurementItem 管理端订单详情中的关联采购单摘要
+type AdminOrderProcurementItem struct {
+	ID               uint         `json:"id"`
+	ConnectionID     uint         `json:"connection_id"`
+	ConnectionName   string       `json:"connection_name,omitempty"`
+	LocalOrderID     uint         `json:"local_order_id"`
+	LocalOrderNo     string       `json:"local_order_no"`
+	UpstreamOrderNo  string       `json:"upstream_order_no,omitempty"`
+	Status           string       `json:"status"`
+	UpstreamAmount   money.Amount `json:"upstream_amount"`
+	UpstreamCurrency string       `json:"upstream_currency,omitempty"`
+	ErrorMessage     string       `json:"error_message,omitempty"`
+}
+
 // AdminHandler 处理后台订单 HTTP。
 type AdminHandler struct {
-	orders     OrderQuery
-	users      UserDirectory
-	coupons    CouponLookup
-	promotions PromotionLookup
-	payments   PaymentDirectory
-	channels   PaymentChannelDirectory
-	accounting AccountingPolicy
+	orders       OrderQuery
+	users        UserDirectory
+	coupons      CouponLookup
+	promotions   PromotionLookup
+	payments     PaymentDirectory
+	channels     PaymentChannelDirectory
+	accounting   AccountingPolicy
+	procurements ProcurementDirectory
 }
 
 func NewAdminHandler(
@@ -106,18 +126,24 @@ func NewAdminHandler(
 	payments PaymentDirectory,
 	channels PaymentChannelDirectory,
 	accounting AccountingPolicy,
+	procurements ...ProcurementDirectory,
 ) *AdminHandler {
 	if orders == nil || users == nil || coupons == nil || promotions == nil || payments == nil || channels == nil || accounting == nil {
 		panic("order admin handler: required dependency is nil")
 	}
+	var procurementDir ProcurementDirectory
+	if len(procurements) > 0 {
+		procurementDir = procurements[0]
+	}
 	return &AdminHandler{
-		orders:     orders,
-		users:      users,
-		coupons:    coupons,
-		promotions: promotions,
-		payments:   payments,
-		channels:   channels,
-		accounting: accounting,
+		orders:       orders,
+		users:        users,
+		coupons:      coupons,
+		promotions:   promotions,
+		payments:     payments,
+		channels:     channels,
+		accounting:   accounting,
+		procurements: procurementDir,
 	}
 }
 
@@ -139,11 +165,12 @@ type AdminOrderPaymentItem struct {
 // AdminOrderDetail 管理端订单详情返回
 type AdminOrderDetail struct {
 	orderdomain.Order
-	UserEmail       string                  `json:"user_email,omitempty"`
-	UserDisplayName string                  `json:"user_display_name,omitempty"`
-	CouponCode      string                  `json:"coupon_code,omitempty"`
-	PromotionName   string                  `json:"promotion_name,omitempty"`
-	Payments        []AdminOrderPaymentItem `json:"payments,omitempty"`
+	UserEmail         string                      `json:"user_email,omitempty"`
+	UserDisplayName   string                      `json:"user_display_name,omitempty"`
+	CouponCode        string                      `json:"coupon_code,omitempty"`
+	PromotionName     string                      `json:"promotion_name,omitempty"`
+	Payments          []AdminOrderPaymentItem     `json:"payments,omitempty"`
+	ProcurementOrders []AdminOrderProcurementItem `json:"procurement_orders,omitempty"`
 	// RefundReversesCost 为 true 时，订单详情利润在退款时按比例冲回成本。
 	RefundReversesCost bool `json:"refund_reverses_cost"`
 }
@@ -365,14 +392,34 @@ func (h *AdminHandler) AdminGetOrder(c *gin.Context) {
 		})
 	}
 
+	var procurementItems []AdminOrderProcurementItem
+	if h.procurements != nil {
+		localOrderIDs := make([]uint, 0, 1+len(order.Children))
+		if order.ID > 0 {
+			localOrderIDs = append(localOrderIDs, order.ID)
+		}
+		for i := range order.Children {
+			if order.Children[i].ID > 0 {
+				localOrderIDs = append(localOrderIDs, order.Children[i].ID)
+			}
+		}
+		var procErr error
+		procurementItems, procErr = h.procurements.ListByLocalOrderIDs(localOrderIDs)
+		if procErr != nil {
+			ginutil.RespondError(c, response.CodeInternal, "error.order_fetch_failed", procErr)
+			return
+		}
+	}
+
 	order.TruncateFulfillmentPayload()
 	response.Success(c, AdminOrderDetail{
-		Order:           *order,
-		UserEmail:       email,
-		UserDisplayName: displayName,
-		CouponCode:      couponCode,
-		PromotionName:   promotionName,
-		Payments:        paymentItems,
+		Order:             *order,
+		UserEmail:         email,
+		UserDisplayName:   displayName,
+		CouponCode:        couponCode,
+		PromotionName:     promotionName,
+		Payments:          paymentItems,
+		ProcurementOrders: procurementItems,
 
 		RefundReversesCost: h.accounting.RefundReversesCost(),
 	})

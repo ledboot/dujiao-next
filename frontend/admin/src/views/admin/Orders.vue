@@ -1,12 +1,12 @@
 <script setup lang="ts">
-import { onMounted, reactive, ref, watch } from 'vue'
+import { onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
 import { useDebounceFn } from '@vueuse/core'
 import { useRoute } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { adminAPI } from '@/api/admin'
 import type { AdminOrder, AdminOrderItem } from '@/api/types'
 import IdCell from '@/components/IdCell.vue'
-import { Copy } from 'lucide-vue-next'
+import { Check, Copy } from 'lucide-vue-next'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
@@ -15,6 +15,7 @@ import TableSkeleton from '@/components/TableSkeleton.vue'
 import ListPagination from '@/components/ListPagination.vue'
 import { useListRefresh, type ListFetchOptions } from '@/composables/useListRefresh'
 import { copyText } from '@/utils/clipboard'
+import { notifyError, notifySuccess } from '@/utils/notify'
 import {
   orderStatusClass,
   orderStatusLabel,
@@ -47,9 +48,29 @@ const filters = reactive({
   sortOrder: '',
 })
 
+const copiedOrderNo = ref('')
+let copiedOrderNoTimer: ReturnType<typeof setTimeout> | null = null
+
 const handleCopyOrderNo = async (orderNo: string) => {
-  try { await copyText(orderNo) } catch {}
+  if (!orderNo) return
+  try {
+    await copyText(orderNo)
+    copiedOrderNo.value = orderNo
+    if (copiedOrderNoTimer) clearTimeout(copiedOrderNoTimer)
+    copiedOrderNoTimer = setTimeout(() => {
+      copiedOrderNo.value = ''
+      copiedOrderNoTimer = null
+    }, 1800)
+    notifySuccess(t('admin.common.copied'))
+  } catch {
+    copiedOrderNo.value = ''
+    notifyError(t('admin.common.copyFailed'))
+  }
 }
+
+onBeforeUnmount(() => {
+  if (copiedOrderNoTimer) clearTimeout(copiedOrderNoTimer)
+})
 const statusEdits = reactive<Record<number, string>>({})
 const showDetail = ref(false)
 const showFulfillmentModal = ref(false)
@@ -384,8 +405,29 @@ watch(
             <TableCell class="min-w-[140px] px-4 py-3">
               <div class="flex items-center gap-1.5">
                 <span class="break-all font-medium text-foreground text-xs">{{ order.order_no }}</span>
-                <button type="button" class="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-md border border-border/60 text-muted-foreground hover:text-foreground hover:border-border" :title="t('admin.common.copy')" @click="handleCopyOrderNo(order.order_no)">
-                  <Copy class="h-3 w-3" />
+                <button
+                  type="button"
+                  class="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-md border transition-all duration-200 active:scale-90"
+                  :class="
+                    copiedOrderNo === order.order_no
+                      ? 'border-emerald-500/50 bg-emerald-500/10 text-emerald-600 shadow-xs dark:border-emerald-400/50 dark:bg-emerald-400/15 dark:text-emerald-400'
+                      : 'border-border/60 text-muted-foreground hover:border-border hover:bg-muted/60 hover:text-foreground'
+                  "
+                  :title="copiedOrderNo === order.order_no ? t('admin.common.copied') : t('admin.common.copy')"
+                  @click="handleCopyOrderNo(order.order_no)"
+                >
+                  <Transition
+                    mode="out-in"
+                    enter-active-class="transition duration-150 ease-out"
+                    enter-from-class="scale-50 -rotate-12 opacity-0"
+                    enter-to-class="scale-100 rotate-0 opacity-100"
+                    leave-active-class="transition duration-100 ease-in"
+                    leave-from-class="scale-100 opacity-100"
+                    leave-to-class="scale-50 opacity-0"
+                  >
+                    <Check v-if="copiedOrderNo === order.order_no" key="check" class="h-3.5 w-3.5" />
+                    <Copy v-else key="copy" class="h-3 w-3" />
+                  </Transition>
                 </button>
               </div>
             </TableCell>

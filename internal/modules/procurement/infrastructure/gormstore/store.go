@@ -2,6 +2,7 @@ package gormstore
 
 import (
 	"errors"
+	"strings"
 	"time"
 
 	orderdomain "github.com/dujiao-next/internal/modules/order/domain"
@@ -38,6 +39,19 @@ func (s *Store) GetByID(id uint) (*procurementdomain.Order, error) {
 
 func (s *Store) GetByLocalOrderID(localOrderID uint) (*procurementdomain.Order, error) {
 	return s.first("local_order_id = ?", localOrderID)
+}
+
+func (s *Store) ListByLocalOrderIDs(localOrderIDs []uint) ([]procurementdomain.Order, error) {
+	if len(localOrderIDs) == 0 {
+		return nil, nil
+	}
+	var orders []procurementdomain.Order
+	if err := preloadProcurement(
+		s.active().Where("local_order_id IN ?", localOrderIDs).Order("id ASC"),
+	).Find(&orders).Error; err != nil {
+		return nil, err
+	}
+	return orders, nil
 }
 
 func (s *Store) GetByLocalOrderNo(localOrderNo string) (*procurementdomain.Order, error) {
@@ -142,11 +156,16 @@ func applyFilter(query *gorm.DB, filter procurementcontract.ListFilter) *gorm.DB
 	if filter.Status != "" {
 		query = query.Where("status = ?", filter.Status)
 	}
-	if filter.LocalOrderNo != "" {
-		query = query.Where("local_order_no = ?", filter.LocalOrderNo)
+	if localOrderNo := strings.TrimSpace(filter.LocalOrderNo); localOrderNo != "" {
+		like := "%" + strings.ToLower(localOrderNo) + "%"
+		query = query.Where(
+			"(LOWER(procurement_orders.local_order_no) LIKE ? OR LOWER(COALESCE(procurement_orders.downstream_order_no, '')) LIKE ? OR EXISTS (SELECT 1 FROM orders local_orders JOIN orders parent_orders ON parent_orders.id = local_orders.parent_id WHERE local_orders.deleted_at IS NULL AND parent_orders.deleted_at IS NULL AND local_orders.id = procurement_orders.local_order_id AND LOWER(parent_orders.order_no) LIKE ?))",
+			like, like, like,
+		)
 	}
-	if filter.UpstreamOrderNo != "" {
-		query = query.Where("upstream_order_no = ?", filter.UpstreamOrderNo)
+	if upstreamOrderNo := strings.TrimSpace(filter.UpstreamOrderNo); upstreamOrderNo != "" {
+		like := "%" + strings.ToLower(upstreamOrderNo) + "%"
+		query = query.Where("LOWER(COALESCE(procurement_orders.upstream_order_no, '')) LIKE ?", like)
 	}
 	if filter.CreatedFrom != nil {
 		query = query.Where("created_at >= ?", *filter.CreatedFrom)

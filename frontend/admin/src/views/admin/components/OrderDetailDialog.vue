@@ -1,9 +1,9 @@
 <script setup lang="ts">
-import { reactive, ref, watch } from 'vue'
+import { computed, onBeforeUnmount, reactive, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { Package, Copy } from 'lucide-vue-next'
+import { Check, Copy, Package } from 'lucide-vue-next'
 import { adminAPI } from '@/api/admin'
-import type { AdminOrder, AdminOrderItem, AdminFulfillment, AdminProcurementOrder, AdminPayment } from '@/api/types'
+import type { AdminOrder, AdminOrderItem, AdminFulfillment, AdminOrderProcurementItem, AdminPayment } from '@/api/types'
 import IdCell from '@/components/IdCell.vue'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogScrollContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
@@ -28,6 +28,7 @@ import { adminUrl } from '@/utils/adminBase'
 import { confirmAction } from '@/utils/confirm'
 import { buildItemRefundAllocation, calcItemProfit, toNumber } from '@/utils/orderProfit'
 import { copyText } from '@/utils/clipboard'
+import { notifyError, notifySuccess } from '@/utils/notify'
 import { buildManualSubmissionCopy, resolveKycType } from '@/utils/manualSubmissionCopy'
 
 const props = defineProps<{
@@ -48,7 +49,11 @@ const { t, locale } = useI18n()
 const detailLoading = ref(false)
 const detailError = ref('')
 const selectedOrder = ref<AdminOrder | null>(null)
-const procurementOrder = ref<AdminProcurementOrder | null | undefined>(null)
+const procurementOrders = computed<AdminOrderProcurementItem[]>(() => selectedOrder.value?.procurement_orders || [])
+const childProcurementOrder = (childId?: number) => {
+  if (!childId) return undefined
+  return procurementOrders.value.find((item) => item.local_order_id === childId)
+}
 
 const refundSubmitting = ref(false)
 const refundError = ref('')
@@ -307,6 +312,31 @@ const manualSubmissionRows = (
 
 const copiedSubmissionKey = ref('')
 let copiedSubmissionTimer: ReturnType<typeof setTimeout> | null = null
+const copiedTextKey = ref('')
+let copiedTextTimer: ReturnType<typeof setTimeout> | null = null
+
+const handleCopyText = async (value: string | undefined, key: string) => {
+  const text = String(value || '').trim()
+  if (!text) return
+  try {
+    await copyText(text)
+    copiedTextKey.value = key
+    if (copiedTextTimer) clearTimeout(copiedTextTimer)
+    copiedTextTimer = setTimeout(() => {
+      copiedTextKey.value = ''
+      copiedTextTimer = null
+    }, 1800)
+    notifySuccess(t('admin.common.copied'))
+  } catch {
+    copiedTextKey.value = ''
+    notifyError(t('admin.common.copyFailed'))
+  }
+}
+
+onBeforeUnmount(() => {
+  if (copiedSubmissionTimer) clearTimeout(copiedSubmissionTimer)
+  if (copiedTextTimer) clearTimeout(copiedTextTimer)
+})
 
 const manualSubmissionCopyKey = (orderNo: string, item: AdminOrderItem) => `${orderNo}-${item.id}`
 
@@ -612,20 +642,10 @@ const fetchOrderDetail = async (orderId: number) => {
   detailLoading.value = true
   detailError.value = ''
   selectedOrder.value = null
-  procurementOrder.value = null
   try {
     const response = await adminAPI.getOrder(orderId)
     selectedOrder.value = response.data.data
     ensureRefundTabAvailable(selectedOrder.value)
-    try {
-      const procRes = await adminAPI.getProcurementOrders({ order_no: selectedOrder.value?.order_no, page_size: 1 })
-      const procList = procRes.data.data
-      if (Array.isArray(procList) && procList.length > 0) {
-        procurementOrder.value = procList[0]
-      }
-    } catch {
-      // silently ignore - procurement order may not exist
-    }
   } catch (err: any) {
     detailError.value = err?.message || t('admin.orders.detailFetchFailed')
   } finally {
@@ -785,7 +805,71 @@ watch(
             <Card class="col-span-2 sm:col-span-1 min-w-0 rounded-lg border-border bg-background shadow-none">
               <CardContent class="p-3">
                 <div class="text-xs text-muted-foreground">{{ t('admin.orders.detailOrderNo') }}</div>
-                <div class="mt-1 break-all font-mono text-foreground">{{ selectedOrder.order_no }}</div>
+                <div class="mt-1 flex items-center gap-1.5">
+                  <span class="break-all font-mono text-foreground">{{ selectedOrder.order_no }}</span>
+                  <button
+                    type="button"
+                    class="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-md border transition-all duration-200 active:scale-90"
+                    :class="
+                      copiedTextKey === `detail-order-${selectedOrder.id}`
+                        ? 'border-emerald-500/50 bg-emerald-500/10 text-emerald-600 shadow-xs dark:border-emerald-400/50 dark:bg-emerald-400/15 dark:text-emerald-400'
+                        : 'border-border/60 text-muted-foreground hover:border-border hover:bg-muted/60 hover:text-foreground'
+                    "
+                    :title="copiedTextKey === `detail-order-${selectedOrder.id}` ? t('admin.common.copied') : t('admin.common.copy')"
+                    @click="handleCopyText(selectedOrder.order_no, `detail-order-${selectedOrder.id}`)"
+                  >
+                    <Transition
+                      mode="out-in"
+                      enter-active-class="transition duration-150 ease-out"
+                      enter-from-class="scale-50 -rotate-12 opacity-0"
+                      enter-to-class="scale-100 rotate-0 opacity-100"
+                      leave-active-class="transition duration-100 ease-in"
+                      leave-from-class="scale-100 opacity-100"
+                      leave-to-class="scale-50 opacity-0"
+                    >
+                      <Check v-if="copiedTextKey === `detail-order-${selectedOrder.id}`" key="check" class="h-3.5 w-3.5" />
+                      <Copy v-else key="copy" class="h-3 w-3" />
+                    </Transition>
+                  </button>
+                </div>
+              </CardContent>
+            </Card>
+            <Card v-if="procurementOrders.length > 0" class="col-span-2 sm:col-span-1 min-w-0 rounded-lg border-border bg-background shadow-none">
+              <CardContent class="p-3">
+                <div class="text-xs text-muted-foreground">{{ t('admin.orders.detailUpstreamOrderNo') }}</div>
+                <div class="mt-1 space-y-1.5">
+                  <div v-for="proc in procurementOrders" :key="`top-proc-${proc.id}`" class="flex flex-wrap items-center gap-1.5">
+                    <span class="break-all font-mono text-foreground">{{ proc.upstream_order_no || '-' }}</span>
+                    <button
+                      v-if="proc.upstream_order_no"
+                      type="button"
+                      class="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-md border transition-all duration-200 active:scale-90"
+                      :class="
+                        copiedTextKey === `top-upstream-${proc.id}`
+                          ? 'border-emerald-500/50 bg-emerald-500/10 text-emerald-600 shadow-xs dark:border-emerald-400/50 dark:bg-emerald-400/15 dark:text-emerald-400'
+                          : 'border-border/60 text-muted-foreground hover:border-border hover:bg-muted/60 hover:text-foreground'
+                      "
+                      :title="copiedTextKey === `top-upstream-${proc.id}` ? t('admin.common.copied') : t('admin.common.copy')"
+                      @click="handleCopyText(proc.upstream_order_no, `top-upstream-${proc.id}`)"
+                    >
+                      <Transition
+                        mode="out-in"
+                        enter-active-class="transition duration-150 ease-out"
+                        enter-from-class="scale-50 -rotate-12 opacity-0"
+                        enter-to-class="scale-100 rotate-0 opacity-100"
+                        leave-active-class="transition duration-100 ease-in"
+                        leave-from-class="scale-100 opacity-100"
+                        leave-to-class="scale-50 opacity-0"
+                      >
+                        <Check v-if="copiedTextKey === `top-upstream-${proc.id}`" key="check" class="h-3.5 w-3.5" />
+                        <Copy v-else key="copy" class="h-3 w-3" />
+                      </Transition>
+                    </button>
+                    <span v-if="procurementOrders.length > 1 && proc.local_order_no" class="text-[11px] font-mono text-muted-foreground">
+                      ({{ proc.local_order_no }})
+                    </span>
+                  </div>
+                </div>
               </CardContent>
             </Card>
             <Card class="col-span-2 sm:col-span-1 min-w-0 rounded-lg border-border bg-background shadow-none">
@@ -1050,7 +1134,36 @@ watch(
               <div v-for="child in selectedOrder.children" :key="child.id" class="rounded-xl border border-border bg-background p-4">
                 <div class="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
                   <div class="min-w-0">
-                    <div class="break-all text-xs text-muted-foreground">{{ t('orderDetail.childOrderNo') }}：{{ child.order_no }}</div>
+                    <div class="break-all text-xs text-muted-foreground">{{ t('orderDetail.childOrderNo') }}：<span class="font-mono text-foreground">{{ child.order_no }}</span></div>
+                    <div v-if="childProcurementOrder(child.id)" class="mt-1 flex flex-wrap items-center gap-1.5 text-xs text-muted-foreground">
+                      <span>{{ t('admin.orders.detailUpstreamOrderNo') }}：</span>
+                      <span class="break-all font-mono text-foreground">{{ childProcurementOrder(child.id)?.upstream_order_no || '-' }}</span>
+                      <button
+                        v-if="childProcurementOrder(child.id)?.upstream_order_no"
+                        type="button"
+                        class="inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-md border transition-all duration-200 active:scale-90"
+                        :class="
+                          copiedTextKey === `child-upstream-${child.id}`
+                            ? 'border-emerald-500/50 bg-emerald-500/10 text-emerald-600 shadow-xs dark:border-emerald-400/50 dark:bg-emerald-400/15 dark:text-emerald-400'
+                            : 'border-border/60 text-muted-foreground hover:border-border hover:bg-muted/60 hover:text-foreground'
+                        "
+                        :title="copiedTextKey === `child-upstream-${child.id}` ? t('admin.common.copied') : t('admin.common.copy')"
+                        @click="handleCopyText(childProcurementOrder(child.id)?.upstream_order_no, `child-upstream-${child.id}`)"
+                      >
+                        <Transition
+                          mode="out-in"
+                          enter-active-class="transition duration-150 ease-out"
+                          enter-from-class="scale-50 -rotate-12 opacity-0"
+                          enter-to-class="scale-100 rotate-0 opacity-100"
+                          leave-active-class="transition duration-100 ease-in"
+                          leave-from-class="scale-100 opacity-100"
+                          leave-to-class="scale-50 opacity-0"
+                        >
+                          <Check v-if="copiedTextKey === `child-upstream-${child.id}`" key="check" class="h-3 w-3" />
+                          <Copy v-else key="copy" class="h-3 w-3" />
+                        </Transition>
+                      </button>
+                    </div>
                     <div class="text-xs text-muted-foreground mt-1">{{ t('orderDetail.childOrderAmount') }}：{{ formatMoney(customerPayable(child), child.currency || selectedOrder.currency) }}</div>
                   </div>
                   <div class="flex w-full flex-wrap items-center gap-2 md:w-auto md:justify-end">
@@ -1187,44 +1300,80 @@ watch(
             </div>
           </div>
 
-          <div v-if="procurementOrder" class="rounded-xl border border-indigo-200 bg-indigo-50/50 p-4">
-            <h3 class="text-sm font-semibold text-indigo-800 mb-3">{{ t('orderDetail.procurementTitle') }}</h3>
-            <div class="grid grid-cols-1 gap-3 text-sm sm:grid-cols-2">
-              <div>
-                <span class="text-xs text-muted-foreground">{{ t('procurement.columns.id') }}:</span>
-                <span class="ml-1 font-mono">{{ procurementOrder.id }}</span>
-              </div>
-              <div>
-                <span class="text-xs text-muted-foreground">{{ t('procurement.columns.status') }}:</span>
-                <span
-                  class="ml-1 inline-flex rounded-full border px-2 py-0.5 text-xs"
-                  :class="{
-                    'text-yellow-700 border-yellow-200 bg-yellow-50': procurementOrder.status === 'pending',
-                    'text-blue-700 border-blue-200 bg-blue-50': ['submitted', 'accepted', 'refunded'].includes(procurementOrder.status),
-                    'text-emerald-700 border-emerald-200 bg-emerald-50': ['fulfilled', 'completed'].includes(procurementOrder.status),
-                    'text-orange-700 border-orange-200 bg-orange-50': procurementOrder.status === 'partially_refunded',
-                    'text-red-700 border-red-200 bg-red-50': ['failed', 'rejected'].includes(procurementOrder.status),
-                    'text-muted-foreground border-border bg-muted/30': procurementOrder.status === 'canceled',
-                  }"
-                >
-                  {{ t('procurement.status.' + procurementOrder.status) }}
-                </span>
-              </div>
-              <div>
-                <span class="text-xs text-muted-foreground">{{ t('procurement.columns.connection') }}:</span>
-                <span class="ml-1 break-words">{{ procurementOrder.connection?.name || procurementOrder.connection_id || '-' }}</span>
-              </div>
-              <div>
-                <span class="text-xs text-muted-foreground">{{ t('procurement.columns.upstreamOrderNo') }}:</span>
-                <span class="ml-1 break-all font-mono">{{ procurementOrder.upstream_order_no || '-' }}</span>
-              </div>
-              <div>
-                <span class="text-xs text-muted-foreground">{{ t('procurement.columns.upstreamAmount') }}:</span>
-                <span class="ml-1">{{ procurementOrder.upstream_amount || '-' }}</span>
-              </div>
-              <div v-if="procurementOrder.error_message">
-                <span class="text-xs text-muted-foreground">{{ t('procurement.columns.errorMessage') }}:</span>
-                <span class="ml-1 break-words text-xs text-red-600">{{ procurementOrder.error_message }}</span>
+          <div v-if="procurementOrders.length > 0" class="rounded-xl border border-indigo-200 bg-indigo-50/50 p-4 dark:border-indigo-800/60 dark:bg-indigo-950/25">
+            <h3 class="text-sm font-semibold text-indigo-800 dark:text-indigo-300 mb-3">{{ t('orderDetail.procurementTitle') }}</h3>
+            <div class="space-y-3">
+              <div
+                v-for="proc in procurementOrders"
+                :key="proc.id"
+                class="grid grid-cols-1 gap-3 text-sm sm:grid-cols-2"
+                :class="procurementOrders.length > 1 ? 'rounded-lg border border-indigo-200/70 bg-background/80 p-3 dark:border-indigo-800/50' : ''"
+              >
+                <div>
+                  <span class="text-xs text-muted-foreground">{{ t('procurement.columns.id') }}:</span>
+                  <span class="ml-1 font-mono">{{ proc.id }}</span>
+                </div>
+                <div>
+                  <span class="text-xs text-muted-foreground">{{ t('procurement.columns.status') }}:</span>
+                  <span
+                    class="ml-1 inline-flex rounded-full border px-2 py-0.5 text-xs"
+                    :class="{
+                      'text-yellow-700 border-yellow-200 bg-yellow-50': proc.status === 'pending',
+                      'text-blue-700 border-blue-200 bg-blue-50': ['submitted', 'accepted', 'refunded'].includes(proc.status),
+                      'text-emerald-700 border-emerald-200 bg-emerald-50': ['fulfilled', 'completed'].includes(proc.status),
+                      'text-orange-700 border-orange-200 bg-orange-50': proc.status === 'partially_refunded',
+                      'text-red-700 border-red-200 bg-red-50': ['failed', 'rejected'].includes(proc.status),
+                      'text-muted-foreground border-border bg-muted/30': proc.status === 'canceled',
+                    }"
+                  >
+                    {{ t('procurement.status.' + proc.status) }}
+                  </span>
+                </div>
+                <div v-if="selectedOrder.children && selectedOrder.children.length > 0 && proc.local_order_no">
+                  <span class="text-xs text-muted-foreground">{{ t('orderDetail.childOrderNo') }}:</span>
+                  <span class="ml-1 break-all font-mono">{{ proc.local_order_no }}</span>
+                </div>
+                <div>
+                  <span class="text-xs text-muted-foreground">{{ t('procurement.columns.connection') }}:</span>
+                  <span class="ml-1 break-words">{{ proc.connection_name || proc.connection_id || '-' }}</span>
+                </div>
+                <div class="flex flex-wrap items-center gap-1.5">
+                  <span class="text-xs text-muted-foreground">{{ t('procurement.columns.upstreamOrderNo') }}:</span>
+                  <span class="break-all font-mono">{{ proc.upstream_order_no || '-' }}</span>
+                  <button
+                    v-if="proc.upstream_order_no"
+                    type="button"
+                    class="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-md border transition-all duration-200 active:scale-90"
+                    :class="
+                      copiedTextKey === `card-upstream-${proc.id}`
+                        ? 'border-emerald-500/50 bg-emerald-500/10 text-emerald-600 shadow-xs dark:border-emerald-400/50 dark:bg-emerald-400/15 dark:text-emerald-400'
+                        : 'border-border/60 bg-background text-muted-foreground hover:border-border hover:bg-muted/60 hover:text-foreground'
+                    "
+                    :title="copiedTextKey === `card-upstream-${proc.id}` ? t('admin.common.copied') : t('admin.common.copy')"
+                    @click="handleCopyText(proc.upstream_order_no, `card-upstream-${proc.id}`)"
+                  >
+                    <Transition
+                      mode="out-in"
+                      enter-active-class="transition duration-150 ease-out"
+                      enter-from-class="scale-50 -rotate-12 opacity-0"
+                      enter-to-class="scale-100 rotate-0 opacity-100"
+                      leave-active-class="transition duration-100 ease-in"
+                      leave-from-class="scale-100 opacity-100"
+                      leave-to-class="scale-50 opacity-0"
+                    >
+                      <Check v-if="copiedTextKey === `card-upstream-${proc.id}`" key="check" class="h-3.5 w-3.5" />
+                      <Copy v-else key="copy" class="h-3 w-3" />
+                    </Transition>
+                  </button>
+                </div>
+                <div>
+                  <span class="text-xs text-muted-foreground">{{ t('procurement.columns.upstreamAmount') }}:</span>
+                  <span class="ml-1 font-mono">{{ proc.upstream_amount && String(proc.upstream_amount) !== '0.00' ? formatMoney(proc.upstream_amount, proc.upstream_currency || selectedOrder.currency) : '-' }}</span>
+                </div>
+                <div v-if="proc.error_message" class="sm:col-span-2">
+                  <span class="text-xs text-muted-foreground">{{ t('procurement.columns.errorMessage') }}:</span>
+                  <span class="ml-1 break-words text-xs text-red-600">{{ proc.error_message }}</span>
+                </div>
               </div>
             </div>
           </div>

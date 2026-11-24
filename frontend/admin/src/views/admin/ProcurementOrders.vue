@@ -116,8 +116,10 @@ const stats = reactive({
 const buildStatsParams = () => {
   const params: Record<string, unknown> = {}
   if (filters.connection_id && filters.connection_id !== '__all__') params.connection_id = filters.connection_id
-  if (filters.order_no) params.order_no = filters.order_no
-  if (filters.upstream_order_no) params.upstream_order_no = filters.upstream_order_no
+  const orderNo = filters.order_no.trim()
+  if (orderNo) params.order_no = orderNo
+  const upstreamOrderNo = filters.upstream_order_no.trim()
+  if (upstreamOrderNo) params.upstream_order_no = upstreamOrderNo
   const createdFrom = toRFC3339(filters.created_from)
   if (createdFrom) params.created_from = createdFrom
   const createdTo = toRFC3339(filters.created_to)
@@ -162,8 +164,10 @@ const fetchOrders = async (page = 1, options: ListFetchOptions = {}) => {
     }
     if (filters.status && filters.status !== '__all__') params.status = filters.status
     if (filters.connection_id && filters.connection_id !== '__all__') params.connection_id = filters.connection_id
-    if (filters.order_no) params.order_no = filters.order_no
-    if (filters.upstream_order_no) params.upstream_order_no = filters.upstream_order_no
+    const orderNo = filters.order_no.trim()
+    if (orderNo) params.order_no = orderNo
+    const upstreamOrderNo = filters.upstream_order_no.trim()
+    if (upstreamOrderNo) params.upstream_order_no = upstreamOrderNo
     const createdFrom = toRFC3339(filters.created_from)
     if (createdFrom) params.created_from = createdFrom
     const createdTo = toRFC3339(filters.created_to)
@@ -521,11 +525,11 @@ onMounted(() => {
       </div>
       <div class="w-full sm:w-auto">
         <label class="mb-1.5 block text-xs font-medium text-muted-foreground">{{ t('procurement.filters.orderNo') }}</label>
-        <Input v-model="filters.order_no" class="h-9 w-full sm:w-44" :placeholder="t('procurement.filters.orderNoPlaceholder')" @update:modelValue="debouncedSearch" @keyup.enter="handleSearch" />
+        <Input v-model="filters.order_no" class="h-9 w-full sm:w-44" :placeholder="t('procurement.filters.orderNoPlaceholder')" @update:modelValue="debouncedSearch" @keydown.enter="handleSearch" />
       </div>
       <div class="w-full sm:w-auto">
         <label class="mb-1.5 block text-xs font-medium text-muted-foreground">{{ t('procurement.filters.upstreamOrderNo') }}</label>
-        <Input v-model="filters.upstream_order_no" class="h-9 w-full sm:w-44" :placeholder="t('procurement.filters.upstreamOrderNoPlaceholder')" @update:modelValue="debouncedSearch" @keyup.enter="handleSearch" />
+        <Input v-model="filters.upstream_order_no" class="h-9 w-full sm:w-44" :placeholder="t('procurement.filters.upstreamOrderNoPlaceholder')" @update:modelValue="debouncedSearch" @keydown.enter="handleSearch" />
       </div>
       <div class="w-full sm:w-auto">
         <label class="mb-1.5 block text-xs font-medium text-muted-foreground">{{ t('procurement.filters.dateRange') }}</label>

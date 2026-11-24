@@ -9,6 +9,7 @@ import (
 type Repository interface {
 	GetByID(id uint) (*procurementdomain.Order, error)
 	GetByLocalOrderID(localOrderID uint) (*procurementdomain.Order, error)
+	ListByLocalOrderIDs(localOrderIDs []uint) ([]procurementdomain.Order, error)
 	GetByLocalOrderNo(localOrderNo string) (*procurementdomain.Order, error)
 	Create(order *procurementdomain.Order) error
 	// UpdateStatus 仅当当前状态仍为 fromStatus 时写入（比较后再写），返回是否写入；
