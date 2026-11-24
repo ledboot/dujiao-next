@@ -371,7 +371,7 @@ onMounted(() => {
       </div>
     </div>
 
-    <div class="rounded-xl border border-border bg-card overflow-x-auto">
+    <div class="rounded-xl border border-border bg-card overflow-hidden">
       <Table class="min-w-[1120px]">
         <TableHeader class="border-b border-border bg-muted/40 text-xs uppercase text-muted-foreground">
           <TableRow>
@@ -451,7 +451,7 @@ onMounted(() => {
         </DialogHeader>
 
         <Tabs v-model="activeTab" class="mt-2">
-          <TabsList class="flex h-auto w-full flex-wrap justify-start gap-1 bg-muted/40 p-1">
+          <TabsList class="w-full flex-nowrap justify-start gap-1 bg-muted/40 p-1 sm:h-auto sm:flex-wrap">
             <TabsTrigger value="brand" class="flex-none">{{ t('admin.resellerSiteConfigs.editor.sections.brand') }}</TabsTrigger>
             <TabsTrigger value="announcement" class="flex-none">{{ t('admin.resellerSiteConfigs.editor.sections.announcement') }}</TabsTrigger>
             <TabsTrigger value="support" class="flex-none">{{ t('admin.resellerSiteConfigs.editor.sections.support') }}</TabsTrigger>

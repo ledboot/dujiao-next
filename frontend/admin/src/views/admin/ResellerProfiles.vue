@@ -313,7 +313,7 @@ onMounted(() => {
       </div>
     </div>
 
-    <div class="rounded-xl border border-border bg-card overflow-x-auto">
+    <div class="rounded-xl border border-border bg-card overflow-hidden">
       <Table class="min-w-[1280px]">
         <TableHeader class="border-b border-border bg-muted/40 text-xs uppercase text-muted-foreground">
           <TableRow>

@@ -1059,7 +1059,7 @@ onMounted(async () => {
                   <div
                     v-for="item in group.items"
                     :key="item.permission"
-                    class="flex items-center justify-between rounded-lg border border-border px-3 py-2"
+                    class="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-border px-3 py-2"
                   >
                     <div class="min-w-0">
                       <div class="text-[11px] text-muted-foreground uppercase tracking-wide">{{ item.module }}</div>

@@ -165,9 +165,9 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <div class="min-h-screen admin-auth-bg text-foreground flex items-center justify-center px-4 py-12 sm:px-6">
+  <div class="min-h-dvh admin-auth-bg text-foreground flex items-center justify-center px-4 pt-[max(2rem,env(safe-area-inset-top))] pb-[max(2rem,env(safe-area-inset-bottom))] sm:px-6 sm:py-12">
     <div class="w-full max-w-[420px] admin-stagger-in">
-      <Card class="rounded-3xl border-border/80 bg-card/92 backdrop-blur-xl shadow-2xl p-2 sm:p-3">
+      <Card class="rounded-3xl border-border/80 bg-card/92 backdrop-blur-xl shadow-2xl p-1 sm:p-3">
         <CardHeader class="text-center pb-4">
           <div class="mx-auto mb-3 flex h-11 w-11 items-center justify-center rounded-2xl bg-primary text-sm font-bold tracking-tight text-primary-foreground shadow-sm">
             DJ

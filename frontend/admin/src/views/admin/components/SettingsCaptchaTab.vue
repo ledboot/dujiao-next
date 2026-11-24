@@ -155,12 +155,12 @@ defineExpose({ save, submitting })
 <template>
   <div class="space-y-6">
     <div class="rounded-xl border border-border bg-card">
-      <div class="border-b border-border bg-muted/40 px-6 py-4">
+      <div class="border-b border-border bg-muted/40 px-4 py-3.5 sm:px-6 sm:py-4">
         <h2 class="text-lg font-semibold">{{ t('admin.settings.captcha.title') }}</h2>
         <p class="mt-1 text-xs text-muted-foreground">{{ t('admin.settings.captcha.subtitle') }}</p>
       </div>
 
-      <div class="space-y-6 p-6">
+      <div class="space-y-5 p-4 sm:space-y-6 sm:p-6">
         <div class="space-y-2">
           <label class="text-xs font-medium text-muted-foreground">{{ t('admin.settings.captcha.provider') }}</label>
           <Select v-model="form.provider">
@@ -212,7 +212,7 @@ defineExpose({ save, submitting })
           <div class="border-b border-border bg-muted/30 px-4 py-3">
             <h3 class="text-sm font-semibold">{{ t('admin.settings.captcha.image.title') }}</h3>
           </div>
-          <div class="grid grid-cols-1 gap-4 p-4 md:grid-cols-4">
+          <div class="grid grid-cols-2 gap-3 p-4 md:grid-cols-4">
             <div class="space-y-2">
               <label class="text-xs font-medium text-muted-foreground">{{ t('admin.settings.captcha.image.length') }}</label>
               <Input v-model.number="form.image.length" type="number" min="4" max="8" />

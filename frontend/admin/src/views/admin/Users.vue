@@ -279,22 +279,19 @@ onMounted(() => {
 </script>
 
 <template>
-  <div class="space-y-6">
+  <div class="space-y-4 sm:space-y-6">
     <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-      <h1 class="text-2xl font-semibold">{{ t('admin.users.title') }}</h1>
+      <h1 class="text-xl sm:text-2xl font-semibold">{{ t('admin.users.title') }}</h1>
     </div>
 
-    <div class="rounded-xl border border-border bg-card p-4 shadow-sm">
-      <div class="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center">
+    <div class="rounded-xl border border-border bg-card p-3.5 sm:p-4 shadow-sm">
+      <div class="grid grid-cols-2 gap-2.5 sm:flex sm:flex-row sm:flex-wrap sm:items-center sm:gap-3">
         <div class="w-full md:w-32">
           <Input v-model="filters.userId" :placeholder="t('admin.users.filterUserId')" @update:modelValue="debouncedSearch" />
         </div>
-        <div class="w-full md:w-64">
-          <Input v-model="filters.keyword" :placeholder="t('admin.users.filterKeyword')" @update:modelValue="debouncedSearch" />
-        </div>
         <div class="w-full md:w-40">
           <Select v-model="filters.status" @update:modelValue="handleSearch">
-            <SelectTrigger class="h-9 w-full">
+            <SelectTrigger class="w-full">
             <SelectValue :placeholder="t('admin.users.filterStatusAll')" />
           </SelectTrigger>
           <SelectContent>
@@ -304,51 +301,58 @@ onMounted(() => {
           </SelectContent>
         </Select>
         </div>
-        <div class="flex w-full flex-col gap-2 md:w-auto md:flex-row md:flex-wrap md:items-center">
-          <span class="text-xs text-muted-foreground whitespace-nowrap">{{ t('admin.users.filterCreatedRange') }}</span>
-          <Input
-            v-model="filters.createdFrom"
-            type="datetime-local"
-            class="h-9 w-full md:w-auto"
-            :placeholder="t('admin.users.filterCreatedFrom')"
-            @update:modelValue="handleSearch"
-          />
-          <span class="hidden text-muted-foreground md:inline">-</span>
-          <Input
-            v-model="filters.createdTo"
-            type="datetime-local"
-            class="h-9 w-full md:w-auto"
-            :placeholder="t('admin.users.filterCreatedTo')"
-            @update:modelValue="handleSearch"
-          />
+        <div class="col-span-2 sm:col-span-1 w-full md:w-64">
+          <Input v-model="filters.keyword" :placeholder="t('admin.users.filterKeyword')" @update:modelValue="debouncedSearch" />
         </div>
-        <div class="flex w-full flex-col gap-2 md:w-auto md:flex-row md:flex-wrap md:items-center">
+        <div class="col-span-2 flex w-full flex-col gap-2 md:w-auto md:flex-row md:flex-wrap md:items-center">
+          <span class="text-xs text-muted-foreground whitespace-nowrap">{{ t('admin.users.filterCreatedRange') }}</span>
+          <div class="grid grid-cols-1 gap-2 sm:grid-cols-2 md:flex md:items-center">
+            <Input
+              v-model="filters.createdFrom"
+              type="datetime-local"
+              class="w-full md:w-auto"
+              :placeholder="t('admin.users.filterCreatedFrom')"
+              @update:modelValue="handleSearch"
+            />
+            <span class="hidden text-muted-foreground md:inline">-</span>
+            <Input
+              v-model="filters.createdTo"
+              type="datetime-local"
+              class="w-full md:w-auto"
+              :placeholder="t('admin.users.filterCreatedTo')"
+              @update:modelValue="handleSearch"
+            />
+          </div>
+        </div>
+        <div class="col-span-2 flex w-full flex-col gap-2 md:w-auto md:flex-row md:flex-wrap md:items-center">
           <span class="text-xs text-muted-foreground whitespace-nowrap">{{ t('admin.users.filterLastLoginRange') }}</span>
-          <Input
-            v-model="filters.lastLoginFrom"
-            type="datetime-local"
-            class="h-9 w-full md:w-auto"
-            :placeholder="t('admin.users.filterLastLoginFrom')"
-            @update:modelValue="handleSearch"
-          />
-          <span class="hidden text-muted-foreground md:inline">-</span>
-          <Input
-            v-model="filters.lastLoginTo"
-            type="datetime-local"
-            class="h-9 w-full md:w-auto"
-            :placeholder="t('admin.users.filterLastLoginTo')"
-            @update:modelValue="handleSearch"
-          />
+          <div class="grid grid-cols-1 gap-2 sm:grid-cols-2 md:flex md:items-center">
+            <Input
+              v-model="filters.lastLoginFrom"
+              type="datetime-local"
+              class="w-full md:w-auto"
+              :placeholder="t('admin.users.filterLastLoginFrom')"
+              @update:modelValue="handleSearch"
+            />
+            <span class="hidden text-muted-foreground md:inline">-</span>
+            <Input
+              v-model="filters.lastLoginTo"
+              type="datetime-local"
+              class="w-full md:w-auto"
+              :placeholder="t('admin.users.filterLastLoginTo')"
+              @update:modelValue="handleSearch"
+            />
+          </div>
         </div>
         <div class="hidden flex-1 sm:block"></div>
-        <div class="flex w-full flex-col gap-2 sm:w-auto sm:flex-row">
+        <div class="col-span-2 grid grid-cols-2 gap-2 sm:flex sm:w-auto sm:flex-row">
           <Button size="sm" variant="outline" class="w-full sm:w-auto" @click="resetFilters">{{ t('admin.common.reset') }}</Button>
           <Button size="sm" class="w-full sm:w-auto" :disabled="refreshing" @click="refresh">{{ t('admin.common.refresh') }}</Button>
         </div>
       </div>
     </div>
 
-    <div class="rounded-xl border border-border bg-card overflow-x-auto">
+    <div class="rounded-xl border border-border bg-card overflow-hidden">
       <Table class="min-w-[1020px]">
         <TableHeader class="border-b border-border bg-muted/40 text-xs uppercase text-muted-foreground">
           <TableRow>

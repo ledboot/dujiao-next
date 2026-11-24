@@ -122,11 +122,11 @@ defineExpose({ save, submitting })
 <template>
   <div v-if="loaded" class="space-y-6">
     <div class="rounded-xl border border-border bg-card">
-      <div class="border-b border-border bg-muted/40 px-6 py-4">
+      <div class="border-b border-border bg-muted/40 px-4 py-3.5 sm:px-6 sm:py-4">
         <h2 class="text-lg font-semibold">{{ t('admin.settings.homeAnnouncement.title') }}</h2>
         <p class="mt-1 text-xs text-muted-foreground">{{ t('admin.settings.homeAnnouncement.subtitle') }}</p>
       </div>
-      <div class="space-y-5 px-6 py-5">
+      <div class="space-y-5 px-4 py-4 sm:px-6 sm:py-5">
         <!-- 启用开关 -->
         <div class="flex items-center justify-between gap-4">
           <div>

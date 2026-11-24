@@ -496,15 +496,15 @@ watch(
 </script>
 
 <template>
-  <div class="space-y-6">
+  <div class="space-y-4 sm:space-y-6">
     <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-      <h1 class="text-2xl font-semibold">{{ t('admin.products.title') }}</h1>
+      <h1 class="text-xl sm:text-2xl font-semibold">{{ t('admin.products.title') }}</h1>
       <Button class="w-full sm:w-auto" @click="openCreateModal">{{ t('admin.products.create') }}</Button>
     </div>
 
-    <div class="rounded-xl border border-border bg-card p-4 shadow-sm">
-      <div class="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center">
-        <div class="relative w-full md:w-80">
+    <div class="rounded-xl border border-border bg-card p-3.5 sm:p-4 shadow-sm">
+      <div class="grid grid-cols-2 gap-2.5 sm:flex sm:flex-row sm:flex-wrap sm:items-center sm:gap-3">
+        <div class="col-span-2 relative w-full md:w-80">
           <div class="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">
             <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
@@ -521,7 +521,7 @@ watch(
         </div>
         <div class="w-full md:w-56">
           <Select v-model="stockStatus" @update:modelValue="handleSearch">
-            <SelectTrigger class="h-9 w-full">
+            <SelectTrigger class="w-full">
               <SelectValue :placeholder="t('admin.products.filters.stockStatusPlaceholder')" />
             </SelectTrigger>
             <SelectContent>
@@ -534,7 +534,7 @@ watch(
         </div>
         <div class="w-full md:w-56">
           <Select v-model="categoryFilter" @update:modelValue="handleSearch">
-            <SelectTrigger class="h-9 w-full">
+            <SelectTrigger class="w-full">
               <SelectValue :placeholder="t('admin.products.filters.categoryPlaceholder')" />
             </SelectTrigger>
             <SelectContent>
@@ -553,7 +553,7 @@ watch(
         </div>
         <div class="w-full md:w-48">
           <Select v-model="statusFilter" @update:modelValue="handleSearch">
-            <SelectTrigger class="h-9 w-full">
+            <SelectTrigger class="w-full">
               <SelectValue :placeholder="t('admin.products.filters.statusPlaceholder')" />
             </SelectTrigger>
             <SelectContent>
@@ -565,7 +565,7 @@ watch(
         </div>
         <div class="w-full md:w-48">
           <Select v-model="wholesaleStatus" @update:modelValue="handleWholesaleStatusChange">
-            <SelectTrigger class="h-9 w-full">
+            <SelectTrigger class="w-full">
               <SelectValue :placeholder="t('admin.products.filters.wholesalePlaceholder')" />
             </SelectTrigger>
             <SelectContent>
@@ -575,21 +575,24 @@ watch(
             </SelectContent>
           </Select>
         </div>
-        <Button variant="outline" size="sm" class="h-9 w-full sm:w-auto" @click="resetFilters">
+        <Button variant="outline" size="sm" class="col-span-2 h-9 w-full sm:w-auto" @click="resetFilters">
           {{ t('admin.common.reset') }}
         </Button>
       </div>
     </div>
 
     <!-- Batch action bar -->
-    <div v-if="selectedIds.size > 0" class="flex flex-wrap items-center gap-3 rounded-xl border border-primary/20 bg-primary/5 px-4 py-3">
-      <span class="text-sm font-medium">{{ t('admin.products.batch.selected', { count: selectedIds.size }) }}</span>
-      <div class="flex flex-wrap items-center gap-2">
+    <div v-if="selectedIds.size > 0" class="flex flex-wrap items-center gap-2.5 sm:gap-3 rounded-xl border border-primary/20 bg-primary/5 p-3.5 sm:px-4 sm:py-3">
+      <div class="flex w-full items-center justify-between sm:w-auto">
+        <span class="text-sm font-medium">{{ t('admin.products.batch.selected', { count: selectedIds.size }) }}</span>
+        <button class="text-xs text-muted-foreground hover:text-foreground sm:hidden" @click="selectedIds = new Set()">{{ t('admin.products.batch.clearSelection') }}</button>
+      </div>
+      <div class="flex w-full flex-wrap items-center gap-2 sm:w-auto">
         <Button size="sm" variant="outline" :disabled="batchOperating" @click="handleBatchStatus(true)">{{ t('admin.products.batch.activate') }}</Button>
         <Button size="sm" variant="outline" :disabled="batchOperating" @click="handleBatchStatus(false)">{{ t('admin.products.batch.deactivate') }}</Button>
-        <div class="flex items-center gap-1">
+        <div class="flex w-full items-center gap-1.5 sm:w-auto sm:gap-1">
           <Select v-model="batchCategoryId">
-            <SelectTrigger class="h-8 w-[160px] text-xs"><SelectValue :placeholder="t('admin.products.batch.categoryPlaceholder')" /></SelectTrigger>
+            <SelectTrigger class="h-8 flex-1 text-xs sm:w-[160px] sm:flex-none"><SelectValue :placeholder="t('admin.products.batch.categoryPlaceholder')" /></SelectTrigger>
             <SelectContent>
               <SelectItem
                 v-for="item in flattenAdminCategories(categories).map(i => ({ ...i, selectable: isAdminProductCategorySelectable(i.category, categoryChildCountMap) }))"
@@ -602,40 +605,40 @@ watch(
               </SelectItem>
             </SelectContent>
           </Select>
-          <Button size="sm" variant="outline" :disabled="batchOperating || !batchCategoryId" @click="handleBatchCategory">{{ t('admin.products.batch.moveCategory') }}</Button>
+          <Button size="sm" variant="outline" class="shrink-0" :disabled="batchOperating || !batchCategoryId" @click="handleBatchCategory">{{ t('admin.products.batch.moveCategory') }}</Button>
         </div>
-        <div class="flex items-center gap-1">
+        <div class="flex w-full items-center gap-1.5 sm:w-auto sm:gap-1">
           <Select v-model="batchStockDisplayMode">
-            <SelectTrigger class="h-8 w-[140px] text-xs"><SelectValue :placeholder="t('admin.products.batch.stockDisplayPlaceholder')" /></SelectTrigger>
+            <SelectTrigger class="h-8 flex-1 text-xs sm:w-[140px] sm:flex-none"><SelectValue :placeholder="t('admin.products.batch.stockDisplayPlaceholder')" /></SelectTrigger>
             <SelectContent>
               <SelectItem v-for="mode in stockDisplayModes" :key="mode" :value="mode">{{ t(`admin.products.form.stockDisplayModes.${mode}`) }}</SelectItem>
             </SelectContent>
           </Select>
-          <Button size="sm" variant="outline" :disabled="batchOperating || !batchStockDisplayMode" @click="handleBatchStockDisplay">{{ t('admin.products.batch.applyStockDisplay') }}</Button>
+          <Button size="sm" variant="outline" class="shrink-0" :disabled="batchOperating || !batchStockDisplayMode" @click="handleBatchStockDisplay">{{ t('admin.products.batch.applyStockDisplay') }}</Button>
         </div>
-        <div class="flex items-center gap-1">
+        <div class="flex w-full items-center gap-1.5 sm:w-auto sm:gap-1">
           <Select v-model="batchPurchaseType">
-            <SelectTrigger class="h-8 w-[140px] text-xs"><SelectValue :placeholder="t('admin.products.batch.purchaseTypePlaceholder')" /></SelectTrigger>
+            <SelectTrigger class="h-8 flex-1 text-xs sm:w-[140px] sm:flex-none"><SelectValue :placeholder="t('admin.products.batch.purchaseTypePlaceholder')" /></SelectTrigger>
             <SelectContent>
               <SelectItem v-for="type in purchaseTypes" :key="type" :value="type">{{ t(`admin.products.purchaseType.${type}`) }}</SelectItem>
             </SelectContent>
           </Select>
-          <Button size="sm" variant="outline" :disabled="batchOperating || !batchPurchaseType" @click="handleBatchPurchaseType">{{ t('admin.products.batch.applyPurchaseType') }}</Button>
+          <Button size="sm" variant="outline" class="shrink-0" :disabled="batchOperating || !batchPurchaseType" @click="handleBatchPurchaseType">{{ t('admin.products.batch.applyPurchaseType') }}</Button>
         </div>
         <Button size="sm" variant="destructive" :disabled="batchOperating" @click="handleBatchDelete">{{ t('admin.products.batch.delete') }}</Button>
       </div>
-      <button class="ml-auto text-xs text-muted-foreground hover:text-foreground" @click="selectedIds = new Set()">{{ t('admin.products.batch.clearSelection') }}</button>
+      <button class="ml-auto hidden text-xs text-muted-foreground hover:text-foreground sm:inline-block" @click="selectedIds = new Set()">{{ t('admin.products.batch.clearSelection') }}</button>
     </div>
 
-    <div class="rounded-xl border border-border bg-card overflow-x-auto">
-      <Table class="min-w-[920px]">
+    <div class="rounded-xl border border-border bg-card overflow-hidden">
+      <Table class="min-w-[840px] sm:min-w-[920px]">
         <TableHeader class="border-b border-border bg-muted/40 text-xs uppercase text-muted-foreground">
           <TableRow>
             <TableHead class="w-10 px-3 py-3">
               <Checkbox :model-value="allSelected ? true : (selectedIds.size > 0 ? 'indeterminate' : false)" @update:model-value="toggleSelectAll" />
             </TableHead>
             <TableHead class="px-6 py-3">{{ t('admin.products.table.id') }}</TableHead>
-            <TableHead class="px-6 py-3 min-w-[320px]">{{ t('admin.products.table.name') }}</TableHead>
+            <TableHead class="px-6 py-3 min-w-[240px] sm:min-w-[320px]">{{ t('admin.products.table.name') }}</TableHead>
             <TableHead class="px-6 py-3">{{ t('admin.products.table.price') }}</TableHead>
             <TableHead class="px-6 py-3 min-w-[220px]">{{ t('admin.products.table.category') }}</TableHead>
             <TableHead class="px-6 py-3">{{ t('admin.products.table.sort') }}</TableHead>
@@ -660,7 +663,7 @@ watch(
               <IdCell :value="product.id" />
             </TableCell>
             <TableCell class="px-6 py-4">
-              <div class="flex min-w-[320px] items-center gap-4">
+              <div class="flex min-w-[240px] sm:min-w-[320px] items-center gap-3 sm:gap-4">
                 <div class="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-border bg-muted/40 text-xs text-muted-foreground">
                   <img v-if="getFirstImageUrl(product.images)" :src="getFirstImageUrl(product.images)" class="h-full w-full object-cover" />
                   <span v-else>{{ t('admin.common.noImage') }}</span>

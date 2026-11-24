@@ -84,13 +84,13 @@ onMounted(() => {
 </script>
 
 <template>
-  <div class="space-y-6">
-    <div class="rounded-lg border p-6">
+  <div class="space-y-4 sm:space-y-6">
+    <div class="rounded-xl border p-4 sm:p-6">
       <h2 class="text-lg font-semibold">{{ t('admin.settings.upstreamSync.title') }}</h2>
       <p class="mt-1 text-xs text-muted-foreground">{{ t('admin.settings.upstreamSync.subtitle') }}</p>
     </div>
 
-    <div class="rounded-lg border p-6 space-y-4">
+    <div class="rounded-xl border p-4 sm:p-6 space-y-4">
       <div>
         <h3 class="text-sm font-semibold">{{ t('admin.settings.upstreamSync.interval.title') }}</h3>
         <p class="mt-1 text-xs text-muted-foreground">{{ t('admin.settings.upstreamSync.interval.subtitle') }}</p>
@@ -105,7 +105,7 @@ onMounted(() => {
       </div>
     </div>
 
-    <div class="rounded-lg border p-6 space-y-4">
+    <div class="rounded-xl border p-4 sm:p-6 space-y-4">
       <div>
         <h3 class="text-sm font-semibold">{{ t('admin.settings.upstreamSync.preOrderCheck.title') }}</h3>
         <p class="mt-1 text-xs text-muted-foreground">{{ t('admin.settings.upstreamSync.preOrderCheck.subtitle') }}</p>
@@ -117,7 +117,7 @@ onMounted(() => {
       <p class="text-xs text-muted-foreground">{{ t('admin.settings.upstreamSync.preOrderCheck.enabledHint') }}</p>
     </div>
 
-    <div class="rounded-lg border p-6 space-y-4">
+    <div class="rounded-xl border p-4 sm:p-6 space-y-4">
       <div>
         <h3 class="text-sm font-semibold">{{ t('admin.settings.upstreamSync.pageSize.title') }}</h3>
         <p class="mt-1 text-xs text-muted-foreground">{{ t('admin.settings.upstreamSync.pageSize.subtitle') }}</p>
@@ -129,7 +129,7 @@ onMounted(() => {
       </div>
     </div>
 
-    <div class="rounded-lg border p-6 space-y-4">
+    <div class="rounded-xl border p-4 sm:p-6 space-y-4">
       <div>
         <h3 class="text-sm font-semibold">{{ t('admin.settings.upstreamSync.maxPages.title') }}</h3>
         <p class="mt-1 text-xs text-muted-foreground">{{ t('admin.settings.upstreamSync.maxPages.subtitle') }}</p>
@@ -141,7 +141,7 @@ onMounted(() => {
       </div>
     </div>
 
-    <div class="rounded-lg border p-6 space-y-4">
+    <div class="rounded-xl border p-4 sm:p-6 space-y-4">
       <div>
         <h3 class="text-sm font-semibold">{{ t('admin.settings.upstreamSync.concurrency.title') }}</h3>
         <p class="mt-1 text-xs text-muted-foreground">{{ t('admin.settings.upstreamSync.concurrency.subtitle') }}</p>

@@ -754,7 +754,7 @@ watch(
       <DialogHeader>
         <DialogTitle>{{ isEditing ? t('admin.products.modal.editTitle') : t('admin.products.modal.createTitle') }}</DialogTitle>
       </DialogHeader>
-      <form class="space-y-6" @submit.prevent="handleSubmit">
+      <form class="space-y-4 sm:space-y-6" @submit.prevent="handleSubmit">
         <div class="border-b border-border">
           <div class="flex gap-2 overflow-x-auto pb-1 sm:gap-4">
             <button
@@ -770,7 +770,7 @@ watch(
           </div>
         </div>
 
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
           <div class="col-span-1 md:col-span-2">
             <label class="block text-xs font-medium text-muted-foreground mb-1.5">{{ t('admin.products.form.title', { lang: getCurrentLangName() }) }}</label>
             <Input v-model="form.title[currentLang]" required :placeholder="t('admin.products.form.titlePlaceholder')" />
@@ -898,14 +898,14 @@ watch(
             <p v-else class="mt-1 text-xs text-muted-foreground">{{ t('admin.products.form.manualStockTotalTip') }}</p>
           </div>
 
-          <div v-if="form.fulfillment_type === 'manual' || editingIsMapped" class="col-span-1 md:col-span-2 rounded-xl border border-border bg-muted/20 p-4 space-y-4">
-            <div class="flex items-center justify-between">
+          <div v-if="form.fulfillment_type === 'manual' || editingIsMapped" class="col-span-1 md:col-span-2 rounded-xl border border-border bg-muted/20 p-3.5 sm:p-4 space-y-4">
+            <div class="flex flex-col gap-2.5 sm:flex-row sm:items-center sm:justify-between">
               <div>
                 <h3 class="text-sm font-semibold text-foreground">{{ t('admin.products.form.manualFormSchemaTitle') }}</h3>
                 <p class="text-xs text-muted-foreground mt-1">{{ t('admin.products.form.manualFormSchemaTip') }}</p>
                 <p v-if="editingIsMapped" class="mt-1 text-xs text-indigo-600">{{ t('admin.products.mappedFormSchemaLocked') }}</p>
               </div>
-              <Button v-if="!editingIsMapped" type="button" size="sm" variant="outline" @click="addManualFormField">
+              <Button v-if="!editingIsMapped" type="button" size="sm" variant="outline" class="w-full shrink-0 sm:w-auto" @click="addManualFormField">
                 {{ t('admin.products.form.manualFormAddField') }}
               </Button>
             </div>
@@ -987,14 +987,14 @@ watch(
             </div>
           </div>
 
-          <div class="col-span-1 md:col-span-2 rounded-xl border border-border bg-muted/20 p-4 space-y-4">
-            <div class="flex items-center justify-between">
+          <div class="col-span-1 md:col-span-2 rounded-xl border border-border bg-muted/20 p-3.5 sm:p-4 space-y-4">
+            <div class="flex flex-col gap-2.5 sm:flex-row sm:items-center sm:justify-between">
               <div>
                 <h3 class="text-sm font-semibold text-foreground">{{ t('admin.products.form.skuTitle') }}</h3>
                 <p class="text-xs text-muted-foreground mt-1">{{ t('admin.products.form.skuTip') }}</p>
                 <p v-if="editingIsMapped" class="mt-1 text-xs text-indigo-600">{{ t('admin.products.mappedSkuLocked') }}</p>
               </div>
-              <Button v-if="!editingIsMapped" type="button" size="sm" variant="outline" @click="addSKU">
+              <Button v-if="!editingIsMapped" type="button" size="sm" variant="outline" class="w-full shrink-0 sm:w-auto" @click="addSKU">
                 {{ t('admin.products.form.skuAdd') }}
               </Button>
             </div>

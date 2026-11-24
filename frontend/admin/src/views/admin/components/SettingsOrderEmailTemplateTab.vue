@@ -152,12 +152,12 @@ defineExpose({ save, submitting })
 <template>
   <div class="space-y-6">
     <div class="rounded-xl border border-border bg-card">
-      <div class="border-b border-border bg-muted/40 px-6 py-4">
+      <div class="border-b border-border bg-muted/40 px-4 py-3.5 sm:px-6 sm:py-4">
         <h2 class="text-lg font-semibold">{{ t('admin.settings.orderEmailTemplate.title') }}</h2>
         <p class="mt-1 text-xs text-muted-foreground">{{ t('admin.settings.orderEmailTemplate.subtitle') }}</p>
       </div>
 
-      <div class="space-y-6 p-6">
+      <div class="space-y-5 p-4 sm:space-y-6 sm:p-6">
         <!-- 可用变量提示 -->
         <div class="rounded-lg border border-blue-200 bg-blue-50 p-4 dark:border-blue-800 dark:bg-blue-950/30">
           <h3 class="mb-2 text-sm font-medium text-blue-800 dark:text-blue-300">
@@ -210,12 +210,12 @@ defineExpose({ save, submitting })
         </div>
 
         <!-- 操作按钮 -->
-        <div class="flex items-center gap-3">
-          <Button :disabled="submitting || resetting" @click="save">
+        <div class="flex flex-col gap-2.5 sm:flex-row sm:items-center sm:gap-3">
+          <Button class="w-full sm:w-auto" :disabled="submitting || resetting" @click="save">
             <span v-if="submitting" class="mr-2 h-3 w-3 animate-spin rounded-full border-2 border-primary/30 border-t-primary"></span>
             {{ submitting ? t('admin.settings.actions.saving') : t('admin.settings.actions.save') }}
           </Button>
-          <Button variant="outline" :disabled="submitting || resetting" @click="resetToDefault">
+          <Button variant="outline" class="w-full sm:w-auto" :disabled="submitting || resetting" @click="resetToDefault">
             <span v-if="resetting" class="mr-2 h-3 w-3 animate-spin rounded-full border-2 border-primary/30 border-t-primary"></span>
             {{ t('admin.settings.orderEmailTemplate.resetToDefault') }}
           </Button>

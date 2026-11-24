@@ -56,47 +56,50 @@ const changePageSize = (value: unknown) => {
 <template>
   <div
     v-if="shouldShow"
-    class="flex flex-wrap items-center justify-between gap-3 border-t border-border/70 bg-muted/15 px-5 py-3.5"
+    class="flex flex-col gap-2.5 border-t border-border/70 bg-muted/15 px-3.5 py-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between sm:px-5 sm:py-3.5"
   >
-    <div class="flex items-center gap-3">
+    <div class="flex flex-wrap items-center justify-between gap-2 sm:justify-start sm:gap-3">
       <span class="text-xs tabular-nums text-muted-foreground">
         {{ t('admin.common.pageInfo', { total, page, totalPage }) }}
       </span>
       <slot name="actions" />
     </div>
-    <div class="flex flex-wrap items-center gap-2">
-      <div v-if="normalizedPageSizeOptions.length > 0" class="flex items-center gap-2">
-        <span class="text-xs text-muted-foreground">{{ t('admin.common.pageSize') }}</span>
-        <Select :model-value="pageSizeValue" @update:modelValue="changePageSize">
-          <SelectTrigger class="h-8 w-[88px] text-xs">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem v-for="size in normalizedPageSizeOptions" :key="size" :value="String(size)">
-              {{ size }}
-            </SelectItem>
-          </SelectContent>
-        </Select>
+    <div class="flex flex-wrap items-center justify-between gap-2 sm:justify-end">
+      <div class="flex items-center gap-1.5 sm:gap-2">
+        <div v-if="normalizedPageSizeOptions.length > 0" class="flex items-center gap-1.5">
+          <span class="hidden text-xs text-muted-foreground sm:inline">{{ t('admin.common.pageSize') }}</span>
+          <Select :model-value="pageSizeValue" @update:modelValue="changePageSize">
+            <SelectTrigger class="h-8 w-[72px] px-2.5 text-xs sm:w-[88px] sm:px-3">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem v-for="size in normalizedPageSizeOptions" :key="size" :value="String(size)">
+                {{ size }}
+              </SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+        <div v-if="totalPage > 1" class="flex items-center gap-1.5">
+          <Input
+            v-model="jumpPage"
+            type="number"
+            inputmode="numeric"
+            min="1"
+            :max="totalPage"
+            class="h-8 w-14 px-2 text-center text-base md:text-xs tabular-nums sm:w-18"
+            :placeholder="t('admin.common.jumpPlaceholder')"
+            @keydown.enter="jumpToPage"
+          />
+          <Button variant="outline" size="sm" class="h-8 px-2.5 sm:px-3" @click="jumpToPage">
+            {{ t('admin.common.jumpTo') }}
+          </Button>
+        </div>
       </div>
-      <div class="flex items-center gap-1.5">
-        <Input
-          v-model="jumpPage"
-          type="number"
-          min="1"
-          :max="totalPage"
-          class="h-8 w-18 text-xs tabular-nums"
-          :placeholder="t('admin.common.jumpPlaceholder')"
-          @keydown.enter="jumpToPage"
-        />
-        <Button variant="outline" size="sm" class="h-8" @click="jumpToPage">
-          {{ t('admin.common.jumpTo') }}
-        </Button>
-      </div>
-      <div class="flex items-center gap-1.5">
+      <div class="flex items-center gap-1.5 ml-auto sm:ml-0">
         <Button
           variant="outline"
           size="sm"
-          class="h-8"
+          class="h-8 px-2.5 sm:px-3"
           :disabled="page <= 1 || totalPage <= 1"
           @click="emit('changePage', page - 1)"
         >
@@ -105,7 +108,7 @@ const changePageSize = (value: unknown) => {
         <Button
           variant="outline"
           size="sm"
-          class="h-8"
+          class="h-8 px-2.5 sm:px-3"
           :disabled="page >= totalPage || totalPage <= 1"
           @click="emit('changePage', page + 1)"
         >

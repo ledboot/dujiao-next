@@ -766,8 +766,8 @@ watch(
         <div v-else-if="detailError" class="rounded-lg border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive">
           {{ detailError }}
         </div>
-        <div v-else-if="selectedOrder" class="space-y-6">
-          <div class="grid grid-cols-1 gap-4 text-sm md:grid-cols-2 [&>*]:min-w-0">
+        <div v-else-if="selectedOrder" class="space-y-4 sm:space-y-6">
+          <div class="grid grid-cols-2 gap-2.5 sm:gap-4 text-sm md:grid-cols-2 [&>*]:min-w-0">
             <Card class="min-w-0 rounded-lg border-border bg-background shadow-none">
               <CardContent class="p-3">
                 <div class="text-xs text-muted-foreground">{{ t('admin.orders.table.id') }}</div>
@@ -778,14 +778,20 @@ watch(
             </Card>
             <Card class="min-w-0 rounded-lg border-border bg-background shadow-none">
               <CardContent class="p-3">
+                <div class="text-xs text-muted-foreground">{{ t('admin.orders.detailStatus') }}</div>
+                <div class="text-sm text-foreground mt-1">{{ statusLabel(selectedOrder.status) }}</div>
+              </CardContent>
+            </Card>
+            <Card class="col-span-2 sm:col-span-1 min-w-0 rounded-lg border-border bg-background shadow-none">
+              <CardContent class="p-3">
                 <div class="text-xs text-muted-foreground">{{ t('admin.orders.detailOrderNo') }}</div>
                 <div class="mt-1 break-all font-mono text-foreground">{{ selectedOrder.order_no }}</div>
               </CardContent>
             </Card>
-            <Card class="min-w-0 rounded-lg border-border bg-background shadow-none">
+            <Card class="col-span-2 sm:col-span-1 min-w-0 rounded-lg border-border bg-background shadow-none">
               <CardContent class="p-3">
                 <div class="text-xs text-muted-foreground">{{ t('admin.orders.detailUser') }}</div>
-                <div class="text-sm text-foreground break-words">
+                <div class="text-sm text-foreground break-words mt-1">
                   <span v-if="selectedOrder.user_id">
                     {{ t('admin.orders.userLabel') }}:
                     <a :href="userDetailLink(selectedOrder.user_id)" target="_blank" rel="noopener" class="text-primary underline-offset-4 hover:underline">
@@ -798,26 +804,20 @@ watch(
             </Card>
             <Card class="min-w-0 rounded-lg border-border bg-background shadow-none">
               <CardContent class="p-3">
-                <div class="text-xs text-muted-foreground">{{ t('admin.orders.detailStatus') }}</div>
-                <div class="text-sm text-foreground">{{ statusLabel(selectedOrder.status) }}</div>
-              </CardContent>
-            </Card>
-            <Card class="min-w-0 rounded-lg border-border bg-background shadow-none">
-              <CardContent class="p-3">
                 <div class="text-xs text-muted-foreground">{{ t('admin.orders.detailCreatedAt') }}</div>
-                <div class="text-sm text-foreground">{{ formatDate(selectedOrder.created_at) }}</div>
+                <div class="text-xs sm:text-sm text-foreground mt-1">{{ formatDate(selectedOrder.created_at) }}</div>
               </CardContent>
             </Card>
             <Card class="min-w-0 rounded-lg border-border bg-background shadow-none">
               <CardContent class="p-3">
                 <div class="text-xs text-muted-foreground">{{ t('admin.orders.detailClientIp') }}</div>
-                <div class="break-all text-sm text-foreground">{{ selectedOrder.client_ip || '-' }}</div>
+                <div class="break-all text-xs sm:text-sm text-foreground mt-1">{{ selectedOrder.client_ip || '-' }}</div>
               </CardContent>
             </Card>
-            <Card class="min-w-0 rounded-lg border-border bg-background shadow-none">
+            <Card class="col-span-2 sm:col-span-1 min-w-0 rounded-lg border-border bg-background shadow-none">
               <CardContent class="p-3">
                 <div class="text-xs text-muted-foreground">{{ t('admin.orders.detailInvoice') }}</div>
-                <div class="text-sm text-foreground">
+                <div class="text-sm text-foreground mt-1">
                   {{ selectedOrder.invoice_requested
                     ? (selectedOrder.invoice_type === 'special' ? t('admin.orders.detailInvoiceSpecial') : t('admin.orders.detailInvoiceGeneral'))
                     : t('admin.orders.detailInvoiceNone') }}
@@ -840,9 +840,9 @@ watch(
             </Card>
           </div>
 
-          <div class="rounded-xl border border-border bg-muted/20 p-4">
+          <div class="rounded-xl border border-border bg-muted/20 p-3.5 sm:p-4">
             <h3 class="text-sm font-semibold text-foreground mb-3">{{ t('orderDetail.amountTitle') }}</h3>
-            <div class="grid grid-cols-1 gap-4 text-sm md:grid-cols-3 [&>*]:min-w-0">
+            <div class="grid grid-cols-2 gap-2.5 sm:gap-4 text-sm md:grid-cols-3 [&>*]:min-w-0">
               <Card class="min-w-0 rounded-lg border-border bg-background shadow-none">
                 <CardContent class="p-3">
                   <div class="text-xs text-muted-foreground">{{ t('orderDetail.amountOriginal') }}</div>
@@ -899,9 +899,9 @@ watch(
             </div>
           </div>
 
-          <div class="rounded-xl border border-border bg-muted/20 p-4">
+          <div class="rounded-xl border border-border bg-muted/20 p-3.5 sm:p-4">
             <h3 class="text-sm font-semibold text-foreground mb-3">{{ t('admin.orders.detailDiscountTitle') }}</h3>
-            <div class="grid grid-cols-1 gap-4 text-sm md:grid-cols-2 [&>*]:min-w-0">
+            <div class="grid grid-cols-2 gap-2.5 sm:gap-4 text-sm md:grid-cols-2 [&>*]:min-w-0">
               <Card class="min-w-0 rounded-lg border-border bg-background shadow-none">
                 <CardContent class="p-3">
                   <div class="text-xs text-muted-foreground">{{ t('admin.orders.detailCouponDiscount') }}</div>
@@ -984,7 +984,7 @@ watch(
                       </span>
                     </div>
                     <div v-if="manualSubmissionRows(item.manual_form_submission, item.manual_form_schema_snapshot).length" class="mt-3 rounded-lg border border-border bg-background p-3">
-                      <div class="mb-2 flex items-center justify-between gap-2">
+                      <div class="mb-2 flex flex-wrap items-center justify-between gap-2">
                         <div class="text-xs font-semibold text-muted-foreground">{{ t('admin.orders.manualSubmissionTitle') }}</div>
                         <Button size="sm" variant="secondary" @click="handleCopyManualSubmission(item.manual_form_submission, selectedOrder.order_no, item)">
                           <Copy class="mr-1 h-3.5 w-3.5" />
@@ -1089,7 +1089,7 @@ watch(
                           <div class="mt-1 break-words text-xs text-muted-foreground">{{ t('admin.orders.itemSkuSpec') }}：{{ orderItemSkuSpecText(item) }}</div>
                         </div>
                         <div v-if="manualSubmissionRows(item.manual_form_submission, item.manual_form_schema_snapshot).length" class="mt-3 rounded-lg border border-border bg-muted/20 p-3">
-                          <div class="mb-2 flex items-center justify-between gap-2">
+                          <div class="mb-2 flex flex-wrap items-center justify-between gap-2">
                             <div class="text-xs font-semibold text-muted-foreground">{{ t('admin.orders.manualSubmissionTitle') }}</div>
                             <Button size="sm" variant="secondary" @click="handleCopyManualSubmission(item.manual_form_submission, child.order_no, item)">
                               <Copy class="mr-1 h-3.5 w-3.5" />

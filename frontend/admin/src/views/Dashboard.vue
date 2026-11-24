@@ -379,13 +379,13 @@ onMounted(() => {
 </script>
 
 <template>
-  <div class="space-y-6">
+  <div class="space-y-4 sm:space-y-6">
     <div class="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
       <div>
-        <h1 class="text-2xl font-bold tracking-tight text-foreground">{{ t('admin.dashboard.title') }}</h1>
-        <p class="mt-1 text-sm text-muted-foreground">{{ t('admin.dashboard.subtitle') }}</p>
+        <h1 class="text-xl sm:text-2xl font-bold tracking-tight text-foreground">{{ t('admin.dashboard.title') }}</h1>
+        <p class="mt-0.5 sm:mt-1 text-xs sm:text-sm text-muted-foreground">{{ t('admin.dashboard.subtitle') }}</p>
       </div>
-      <div class="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">
+      <div class="grid grid-cols-2 gap-2 sm:flex sm:flex-row sm:flex-wrap sm:items-center">
         <div class="w-full sm:w-[156px]">
           <Select v-model="filters.range" @update:modelValue="handleRangeChange">
             <SelectTrigger class="h-9 bg-card">
@@ -398,6 +398,9 @@ onMounted(() => {
             </SelectContent>
           </Select>
         </div>
+        <Button size="sm" variant="outline" class="h-9.5 sm:h-9 w-full sm:w-auto sm:order-last" :disabled="loadingOverview || loadingTrends || loadingRankings" @click="refreshDashboard">
+          {{ t('admin.dashboard.actions.refreshNow') }}
+        </Button>
         <Input
           v-if="isCustomRange"
           v-model="filters.from"
@@ -414,9 +417,6 @@ onMounted(() => {
           :placeholder="t('admin.dashboard.filters.to')"
           @update:modelValue="handleCustomRangeChange"
         />
-        <Button size="sm" variant="outline" class="h-9 w-full sm:w-auto" :disabled="loadingOverview || loadingTrends || loadingRankings" @click="refreshDashboard">
-          {{ t('admin.dashboard.actions.refreshNow') }}
-        </Button>
       </div>
     </div>
 
@@ -424,122 +424,122 @@ onMounted(() => {
       {{ dashboardError }}
     </div>
 
-    <div class="grid gap-4 sm:grid-cols-2 xl:grid-cols-4 [&>*]:min-w-0">
+    <div class="grid grid-cols-2 gap-2.5 sm:gap-4 xl:grid-cols-4 2xl:grid-cols-6 [&>*]:min-w-0">
       <Card class="min-w-0 hover:-translate-y-0.5 hover:border-primary/25 hover:shadow-md admin-stagger-in" style="animation-delay: 0ms">
-        <CardHeader class="pb-1.5">
-          <CardTitle class="text-xs font-medium text-muted-foreground">{{ t('admin.dashboard.kpi.ordersTotal') }}</CardTitle>
+        <CardHeader class="pb-1 sm:pb-1.5">
+          <CardTitle class="text-[11px] sm:text-xs font-medium text-muted-foreground">{{ t('admin.dashboard.kpi.ordersTotal') }}</CardTitle>
         </CardHeader>
         <CardContent>
-          <div class="text-2xl font-bold tracking-tight tabular-nums">{{ overview?.kpi.orders_total ?? 0 }}</div>
-          <div class="mt-1.5 text-xs text-muted-foreground tabular-nums">{{ t('admin.dashboard.kpi.paidOrders') }}: {{ overview?.kpi.paid_orders ?? 0 }}</div>
+          <div class="text-lg sm:text-2xl font-bold tracking-tight tabular-nums break-words">{{ overview?.kpi.orders_total ?? 0 }}</div>
+          <div class="mt-1 sm:mt-1.5 text-[11px] sm:text-xs text-muted-foreground tabular-nums">{{ t('admin.dashboard.kpi.paidOrders') }}: {{ overview?.kpi.paid_orders ?? 0 }}</div>
         </CardContent>
       </Card>
 
       <Card class="min-w-0 hover:-translate-y-0.5 hover:border-primary/25 hover:shadow-md admin-stagger-in" style="animation-delay: 25ms">
-        <CardHeader class="pb-1.5">
-          <CardTitle class="text-xs font-medium text-muted-foreground">{{ t('admin.dashboard.kpi.gmvPaid') }}</CardTitle>
+        <CardHeader class="pb-1 sm:pb-1.5">
+          <CardTitle class="text-[11px] sm:text-xs font-medium text-muted-foreground">{{ t('admin.dashboard.kpi.gmvPaid') }}</CardTitle>
         </CardHeader>
         <CardContent>
-          <div class="text-2xl font-bold tracking-tight tabular-nums text-primary">{{ formatMoney(overview?.kpi.gmv_paid, overview?.currency) }}</div>
-          <div class="mt-1.5 text-xs text-muted-foreground tabular-nums">{{ t('admin.dashboard.kpi.paymentSuccessRate') }}: {{ overview?.kpi.payment_success_rate ?? '0.00' }}%</div>
+          <div class="text-lg sm:text-2xl font-bold tracking-tight tabular-nums text-primary break-words">{{ formatMoney(overview?.kpi.gmv_paid, overview?.currency) }}</div>
+          <div class="mt-1 sm:mt-1.5 text-[11px] sm:text-xs text-muted-foreground tabular-nums">{{ t('admin.dashboard.kpi.paymentSuccessRate') }}: {{ overview?.kpi.payment_success_rate ?? '0.00' }}%</div>
         </CardContent>
       </Card>
 
       <Card class="min-w-0 hover:-translate-y-0.5 hover:border-primary/25 hover:shadow-md admin-stagger-in" style="animation-delay: 50ms">
-        <CardHeader class="pb-1.5">
-          <CardTitle class="text-xs font-medium text-muted-foreground">{{ t('admin.dashboard.kpi.totalCost') }}</CardTitle>
+        <CardHeader class="pb-1 sm:pb-1.5">
+          <CardTitle class="text-[11px] sm:text-xs font-medium text-muted-foreground">{{ t('admin.dashboard.kpi.totalCost') }}</CardTitle>
         </CardHeader>
         <CardContent>
-          <div class="text-2xl font-bold tracking-tight tabular-nums">{{ formatMoney(overview?.kpi.total_cost, overview?.currency) }}</div>
-          <div class="mt-1.5 text-xs text-muted-foreground tabular-nums">{{ t('admin.dashboard.kpi.paymentFee') }}: {{ formatMoney(overview?.kpi.payment_fee, overview?.currency) }}</div>
+          <div class="text-lg sm:text-2xl font-bold tracking-tight tabular-nums break-words">{{ formatMoney(overview?.kpi.total_cost, overview?.currency) }}</div>
+          <div class="mt-1 sm:mt-1.5 text-[11px] sm:text-xs text-muted-foreground tabular-nums">{{ t('admin.dashboard.kpi.paymentFee') }}: {{ formatMoney(overview?.kpi.payment_fee, overview?.currency) }}</div>
         </CardContent>
       </Card>
 
       <Card class="min-w-0 hover:-translate-y-0.5 hover:border-primary/25 hover:shadow-md admin-stagger-in" style="animation-delay: 75ms">
-        <CardHeader class="pb-1.5">
-          <CardTitle class="text-xs font-medium text-muted-foreground">{{ t('admin.dashboard.kpi.totalProfit') }}</CardTitle>
+        <CardHeader class="pb-1 sm:pb-1.5">
+          <CardTitle class="text-[11px] sm:text-xs font-medium text-muted-foreground">{{ t('admin.dashboard.kpi.totalProfit') }}</CardTitle>
         </CardHeader>
         <CardContent>
-          <div class="text-2xl font-bold tracking-tight tabular-nums text-emerald-600 dark:text-emerald-400">{{ formatMoney(overview?.kpi.total_profit, overview?.currency) }}</div>
+          <div class="text-lg sm:text-2xl font-bold tracking-tight tabular-nums text-emerald-600 dark:text-emerald-400 break-words">{{ formatMoney(overview?.kpi.total_profit, overview?.currency) }}</div>
         </CardContent>
       </Card>
 
       <Card class="min-w-0 hover:-translate-y-0.5 hover:border-primary/25 hover:shadow-md admin-stagger-in" style="animation-delay: 100ms">
-        <CardHeader class="pb-1.5">
-          <CardTitle class="text-xs font-medium text-muted-foreground">{{ t('admin.dashboard.kpi.profitMargin') }}</CardTitle>
+        <CardHeader class="pb-1 sm:pb-1.5">
+          <CardTitle class="text-[11px] sm:text-xs font-medium text-muted-foreground">{{ t('admin.dashboard.kpi.profitMargin') }}</CardTitle>
         </CardHeader>
         <CardContent>
-          <div class="text-2xl font-bold tracking-tight tabular-nums">{{ overview?.kpi.profit_margin ?? '0.00' }}%</div>
+          <div class="text-lg sm:text-2xl font-bold tracking-tight tabular-nums break-words">{{ overview?.kpi.profit_margin ?? '0.00' }}%</div>
         </CardContent>
       </Card>
 
       <Card class="min-w-0 hover:-translate-y-0.5 hover:border-primary/25 hover:shadow-md admin-stagger-in" style="animation-delay: 125ms">
-        <CardHeader class="pb-1.5">
-          <CardTitle class="text-xs font-medium text-muted-foreground">{{ t('admin.dashboard.kpi.pendingOrders') }}</CardTitle>
+        <CardHeader class="pb-1 sm:pb-1.5">
+          <CardTitle class="text-[11px] sm:text-xs font-medium text-muted-foreground">{{ t('admin.dashboard.kpi.pendingOrders') }}</CardTitle>
         </CardHeader>
         <CardContent>
-          <div class="text-2xl font-bold tracking-tight tabular-nums">{{ overview?.kpi.pending_payment_orders ?? 0 }}</div>
-          <div class="mt-1.5 text-xs text-muted-foreground tabular-nums">{{ t('admin.dashboard.kpi.processingOrders') }}: {{ overview?.kpi.processing_orders ?? 0 }}</div>
+          <div class="text-lg sm:text-2xl font-bold tracking-tight tabular-nums break-words">{{ overview?.kpi.pending_payment_orders ?? 0 }}</div>
+          <div class="mt-1 sm:mt-1.5 text-[11px] sm:text-xs text-muted-foreground tabular-nums">{{ t('admin.dashboard.kpi.processingOrders') }}: {{ overview?.kpi.processing_orders ?? 0 }}</div>
         </CardContent>
       </Card>
 
       <Card class="min-w-0 hover:-translate-y-0.5 hover:border-primary/25 hover:shadow-md admin-stagger-in" style="animation-delay: 150ms">
-        <CardHeader class="pb-1.5">
-          <CardTitle class="text-xs font-medium text-muted-foreground">{{ t('admin.dashboard.kpi.newUsers') }}</CardTitle>
+        <CardHeader class="pb-1 sm:pb-1.5">
+          <CardTitle class="text-[11px] sm:text-xs font-medium text-muted-foreground">{{ t('admin.dashboard.kpi.newUsers') }}</CardTitle>
         </CardHeader>
         <CardContent>
-          <div class="text-2xl font-bold tracking-tight tabular-nums">{{ overview?.kpi.new_users ?? 0 }}</div>
-          <div class="mt-1.5 text-xs text-muted-foreground tabular-nums">{{ t('admin.dashboard.kpi.activeProducts') }}: {{ overview?.kpi.active_products ?? 0 }}</div>
+          <div class="text-lg sm:text-2xl font-bold tracking-tight tabular-nums break-words">{{ overview?.kpi.new_users ?? 0 }}</div>
+          <div class="mt-1 sm:mt-1.5 text-[11px] sm:text-xs text-muted-foreground tabular-nums">{{ t('admin.dashboard.kpi.activeProducts') }}: {{ overview?.kpi.active_products ?? 0 }}</div>
         </CardContent>
       </Card>
 
       <Card class="min-w-0 hover:-translate-y-0.5 hover:border-primary/25 hover:shadow-md admin-stagger-in" style="animation-delay: 175ms">
-        <CardHeader class="pb-1.5">
-          <CardTitle class="text-xs font-medium text-muted-foreground">{{ t('admin.dashboard.kpi.totalUserBalance') }}</CardTitle>
+        <CardHeader class="pb-1 sm:pb-1.5">
+          <CardTitle class="text-[11px] sm:text-xs font-medium text-muted-foreground">{{ t('admin.dashboard.kpi.totalUserBalance') }}</CardTitle>
         </CardHeader>
         <CardContent>
-          <div class="text-2xl font-bold tracking-tight tabular-nums">{{ formatMoney(overview?.kpi.total_user_balance, overview?.currency) }}</div>
+          <div class="text-lg sm:text-2xl font-bold tracking-tight tabular-nums break-words">{{ formatMoney(overview?.kpi.total_user_balance, overview?.currency) }}</div>
         </CardContent>
       </Card>
 
       <Card class="min-w-0 hover:-translate-y-0.5 hover:border-primary/25 hover:shadow-md admin-stagger-in" style="animation-delay: 200ms">
-        <CardHeader class="pb-1.5">
-          <CardTitle class="text-xs font-medium text-muted-foreground">{{ t('admin.dashboard.kpi.lowStockProducts') }}</CardTitle>
+        <CardHeader class="pb-1 sm:pb-1.5">
+          <CardTitle class="text-[11px] sm:text-xs font-medium text-muted-foreground">{{ t('admin.dashboard.kpi.lowStockProducts') }}</CardTitle>
         </CardHeader>
         <CardContent>
-          <div class="text-2xl font-bold tracking-tight tabular-nums">{{ overview?.kpi.low_stock_products ?? 0 }}</div>
-          <div class="mt-1.5 text-xs text-muted-foreground tabular-nums">{{ t('admin.dashboard.kpi.outOfStockProducts') }}: {{ overview?.kpi.out_of_stock_products ?? 0 }}</div>
-          <div class="mt-1 text-xs text-muted-foreground tabular-nums">{{ t('admin.dashboard.kpi.outOfStockSKUs') }}: {{ overview?.kpi.out_of_stock_skus ?? 0 }} / {{ t('admin.dashboard.kpi.lowStockSKUs') }}: {{ overview?.kpi.low_stock_skus ?? 0 }}</div>
+          <div class="text-lg sm:text-2xl font-bold tracking-tight tabular-nums break-words">{{ overview?.kpi.low_stock_products ?? 0 }}</div>
+          <div class="mt-1 sm:mt-1.5 text-[11px] sm:text-xs text-muted-foreground tabular-nums">{{ t('admin.dashboard.kpi.outOfStockProducts') }}: {{ overview?.kpi.out_of_stock_products ?? 0 }}</div>
+          <div class="mt-0.5 sm:mt-1 text-[11px] sm:text-xs text-muted-foreground tabular-nums">{{ t('admin.dashboard.kpi.outOfStockSKUs') }}: {{ overview?.kpi.out_of_stock_skus ?? 0 }} / {{ t('admin.dashboard.kpi.lowStockSKUs') }}: {{ overview?.kpi.low_stock_skus ?? 0 }}</div>
         </CardContent>
       </Card>
 
       <Card class="min-w-0 hover:-translate-y-0.5 hover:border-primary/25 hover:shadow-md admin-stagger-in" style="animation-delay: 225ms">
-        <CardHeader class="pb-1.5">
-          <CardTitle class="text-xs font-medium text-muted-foreground">{{ t('admin.dashboard.kpi.autoAvailableSecrets') }}</CardTitle>
+        <CardHeader class="pb-1 sm:pb-1.5">
+          <CardTitle class="text-[11px] sm:text-xs font-medium text-muted-foreground">{{ t('admin.dashboard.kpi.autoAvailableSecrets') }}</CardTitle>
         </CardHeader>
         <CardContent>
-          <div class="text-2xl font-bold tracking-tight tabular-nums">{{ overview?.kpi.auto_available_secrets ?? 0 }}</div>
-          <div class="mt-1.5 text-xs text-muted-foreground tabular-nums">{{ t('admin.dashboard.kpi.manualAvailableUnits') }}: {{ overview?.kpi.manual_available_units ?? 0 }}</div>
+          <div class="text-lg sm:text-2xl font-bold tracking-tight tabular-nums break-words">{{ overview?.kpi.auto_available_secrets ?? 0 }}</div>
+          <div class="mt-1 sm:mt-1.5 text-[11px] sm:text-xs text-muted-foreground tabular-nums">{{ t('admin.dashboard.kpi.manualAvailableUnits') }}: {{ overview?.kpi.manual_available_units ?? 0 }}</div>
         </CardContent>
       </Card>
 
       <Card class="min-w-0 hover:-translate-y-0.5 hover:border-primary/25 hover:shadow-md admin-stagger-in" style="animation-delay: 250ms">
-        <CardHeader class="pb-1.5">
-          <CardTitle class="text-xs font-medium text-muted-foreground">{{ t('admin.dashboard.kpi.paymentsSuccess') }}</CardTitle>
+        <CardHeader class="pb-1 sm:pb-1.5">
+          <CardTitle class="text-[11px] sm:text-xs font-medium text-muted-foreground">{{ t('admin.dashboard.kpi.paymentsSuccess') }}</CardTitle>
         </CardHeader>
         <CardContent>
-          <div class="text-2xl font-bold tracking-tight tabular-nums">{{ overview?.kpi.payments_success ?? 0 }}</div>
-          <div class="mt-1.5 text-xs text-muted-foreground tabular-nums">{{ t('admin.dashboard.kpi.paymentsFailed') }}: {{ overview?.kpi.payments_failed ?? 0 }}</div>
+          <div class="text-lg sm:text-2xl font-bold tracking-tight tabular-nums break-words">{{ overview?.kpi.payments_success ?? 0 }}</div>
+          <div class="mt-1 sm:mt-1.5 text-[11px] sm:text-xs text-muted-foreground tabular-nums">{{ t('admin.dashboard.kpi.paymentsFailed') }}: {{ overview?.kpi.payments_failed ?? 0 }}</div>
         </CardContent>
       </Card>
 
       <Card class="min-w-0 hover:-translate-y-0.5 hover:border-primary/25 hover:shadow-md admin-stagger-in" style="animation-delay: 275ms">
-        <CardHeader class="pb-1.5">
-          <CardTitle class="text-xs font-medium text-muted-foreground">{{ t('admin.dashboard.period') }}</CardTitle>
+        <CardHeader class="pb-1 sm:pb-1.5">
+          <CardTitle class="text-[11px] sm:text-xs font-medium text-muted-foreground">{{ t('admin.dashboard.period') }}</CardTitle>
         </CardHeader>
         <CardContent>
-          <div class="text-sm font-semibold tabular-nums">{{ shortDate(overview?.from) }} - {{ shortDate(overview?.to) }}</div>
-          <div class="mt-1.5 text-xs text-muted-foreground">{{ overview?.timezone || '-' }}</div>
+          <div class="text-xs sm:text-sm font-semibold tabular-nums">{{ shortDate(overview?.from) }} - {{ shortDate(overview?.to) }}</div>
+          <div class="mt-1 sm:mt-1.5 text-[11px] sm:text-xs text-muted-foreground break-all">{{ overview?.timezone || '-' }}</div>
         </CardContent>
       </Card>
     </div>
@@ -558,8 +558,8 @@ onMounted(() => {
               <span class="inline-flex items-center gap-1.5"><span class="h-2.5 w-2.5 rounded-full bg-emerald-500"></span>{{ t('admin.dashboard.trends.ordersPaid') }}</span>
             </div>
             <div class="overflow-x-auto">
-              <div class="flex min-w-max items-end gap-2.5 rounded-xl border border-border/60 bg-muted/25 px-3.5 py-4">
-                <div v-for="point in trendPoints" :key="point.date" class="group flex shrink-0 flex-col items-center gap-1.5 rounded-lg px-1.5 py-1 transition-colors hover:bg-card/80">
+              <div class="flex min-w-full items-end justify-between gap-2 rounded-xl border border-border/60 bg-muted/25 px-3.5 py-4">
+                <div v-for="point in trendPoints" :key="point.date" class="group flex min-w-[44px] flex-1 shrink-0 flex-col items-center gap-1.5 rounded-lg px-1.5 py-1 transition-colors hover:bg-card/80">
                   <div class="flex h-32 items-end gap-1">
                     <div class="w-2.5 rounded-t-sm bg-primary/85 transition-all duration-500 ease-out group-hover:bg-primary" :style="{ height: orderTotalHeight(point.orders_total) }" :title="`${t('admin.dashboard.trends.ordersTotal')}: ${point.orders_total}`"></div>
                     <div class="w-2.5 rounded-t-sm bg-emerald-500/85 transition-all duration-500 ease-out group-hover:bg-emerald-500" :style="{ height: orderPaidHeight(point.orders_paid) }" :title="`${t('admin.dashboard.trends.ordersPaid')}: ${point.orders_paid}`"></div>
@@ -586,8 +586,8 @@ onMounted(() => {
               <span class="inline-flex items-center gap-1.5"><span class="h-2.5 w-2.5 rounded-full bg-rose-500"></span>{{ t('admin.dashboard.trends.paymentsFailed') }}</span>
             </div>
             <div class="overflow-x-auto">
-              <div class="flex min-w-max items-end gap-2.5 rounded-xl border border-border/60 bg-muted/25 px-3.5 py-4">
-                <div v-for="point in trendPoints" :key="`${point.date}-payment`" class="group flex shrink-0 flex-col items-center gap-1.5 rounded-lg px-1.5 py-1 transition-colors hover:bg-card/80">
+              <div class="flex min-w-full items-end justify-between gap-2 rounded-xl border border-border/60 bg-muted/25 px-3.5 py-4">
+                <div v-for="point in trendPoints" :key="`${point.date}-payment`" class="group flex min-w-[44px] flex-1 shrink-0 flex-col items-center gap-1.5 rounded-lg px-1.5 py-1 transition-colors hover:bg-card/80">
                   <div class="flex h-32 items-end gap-1">
                     <div class="w-2.5 rounded-t-sm bg-sky-500/85 transition-all duration-500 ease-out group-hover:bg-sky-500" :style="{ height: paymentSuccessHeight(point.payments_success) }" :title="`${t('admin.dashboard.trends.paymentsSuccess')}: ${point.payments_success}`"></div>
                     <div class="w-2.5 rounded-t-sm bg-rose-500/85 transition-all duration-500 ease-out group-hover:bg-rose-500" :style="{ height: paymentFailedHeight(point.payments_failed) }" :title="`${t('admin.dashboard.trends.paymentsFailed')}: ${point.payments_failed}`"></div>
@@ -722,12 +722,12 @@ onMounted(() => {
               :key="`inv-${item.product_id}-${item.sku_id || 0}-${idx}`"
               class="rounded-xl border border-border/75 bg-muted/15 px-3.5 py-2.5 text-sm transition-colors hover:bg-muted/30"
             >
-              <div class="flex items-center justify-between gap-2">
+              <div class="flex flex-col items-start gap-2 sm:flex-row sm:items-center sm:justify-between">
                 <div class="min-w-0 flex-1">
                   <router-link :to="{ path: '/products', query: { product_id: item.product_id } }" class="font-medium text-primary underline-offset-4 hover:underline break-words">
                     {{ getLocalizedText(item.product_title) }}
                   </router-link>
-                  <div v-if="skuSpecLabel(item)" class="text-xs text-muted-foreground mt-0.5">
+                  <div v-if="skuSpecLabel(item)" class="text-xs text-muted-foreground mt-0.5 break-words">
                     SKU: {{ skuSpecLabel(item) }}
                     <span v-if="item.sku_code" class="ml-1">({{ item.sku_code }})</span>
                   </div>
@@ -761,18 +761,18 @@ onMounted(() => {
           <CardTitle class="text-sm font-semibold">{{ t('admin.dashboard.quickActions.title') }}</CardTitle>
         </CardHeader>
         <CardContent>
-          <div class="grid grid-cols-2 gap-2.5 md:grid-cols-3">
+          <div class="grid grid-cols-2 gap-2 sm:gap-2.5 md:grid-cols-3">
             <Button
               v-for="action in quickActions"
               :key="action.path"
               variant="outline"
               size="sm"
-              class="h-10 justify-between rounded-xl px-3.5 hover:border-primary/35 hover:bg-primary/5 hover:text-primary"
+              class="h-10 min-w-0 justify-between rounded-xl px-3 hover:border-primary/35 hover:bg-primary/5 hover:text-primary"
               as-child
             >
               <router-link :to="action.path">
-                <span>{{ action.label }}</span>
-                <span aria-hidden="true" class="text-xs opacity-50">→</span>
+                <span class="truncate">{{ action.label }}</span>
+                <span aria-hidden="true" class="shrink-0 text-xs opacity-50">→</span>
               </router-link>
             </Button>
           </div>

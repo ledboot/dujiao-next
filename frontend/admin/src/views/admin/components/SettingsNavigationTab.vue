@@ -159,11 +159,11 @@ defineExpose({ save, submitting })
   <div v-if="loaded" class="space-y-6">
     <!-- 内置导航项 -->
     <div class="rounded-xl border border-border bg-card">
-      <div class="border-b border-border bg-muted/40 px-6 py-4">
+      <div class="border-b border-border bg-muted/40 px-4 py-3.5 sm:px-6 sm:py-4">
         <h2 class="text-lg font-semibold">{{ t('admin.settings.navigation.builtin.title') }}</h2>
         <p class="mt-1 text-xs text-muted-foreground">{{ t('admin.settings.navigation.builtin.subtitle') }}</p>
       </div>
-      <div class="divide-y divide-border px-6">
+      <div class="divide-y divide-border px-4 sm:px-6">
         <div class="flex items-center justify-between py-4">
           <Label class="text-sm font-medium">{{ t('admin.settings.navigation.builtin.blog') }}</Label>
           <Switch v-model="form.builtin.blog" />
@@ -181,14 +181,14 @@ defineExpose({ save, submitting })
 
     <!-- 自定义导航项 -->
     <div class="rounded-xl border border-border bg-card">
-      <div class="border-b border-border bg-muted/40 px-6 py-4">
-        <div class="flex items-center justify-between">
+      <div class="border-b border-border bg-muted/40 px-4 py-3.5 sm:px-6 sm:py-4">
+        <div class="flex flex-col gap-2.5 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <h2 class="text-lg font-semibold">{{ t('admin.settings.navigation.custom.title') }}</h2>
             <p class="mt-1 text-xs text-muted-foreground">{{ t('admin.settings.navigation.custom.subtitle', { max: MAX_CUSTOM_ITEMS }) }}</p>
           </div>
           <button
-            class="rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-50"
+            class="self-start sm:self-auto shrink-0 rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-50"
             :disabled="form.customItems.length >= MAX_CUSTOM_ITEMS"
             @click="addItem"
           >
@@ -197,12 +197,12 @@ defineExpose({ save, submitting })
         </div>
       </div>
 
-      <div v-if="form.customItems.length === 0" class="px-6 py-8 text-center text-sm text-muted-foreground">
+      <div v-if="form.customItems.length === 0" class="px-4 py-8 sm:px-6 text-center text-sm text-muted-foreground">
         {{ t('admin.settings.navigation.custom.empty') }}
       </div>
 
       <div v-else class="divide-y divide-border">
-        <div v-for="(item, index) in form.customItems" :key="item.id" class="px-6 py-4 space-y-3">
+        <div v-for="(item, index) in form.customItems" :key="item.id" class="px-4 py-4 sm:px-6 space-y-3">
           <div class="flex items-center justify-between">
             <span class="text-sm font-medium text-muted-foreground">#{{ index + 1 }}</span>
             <div class="flex items-center gap-3">

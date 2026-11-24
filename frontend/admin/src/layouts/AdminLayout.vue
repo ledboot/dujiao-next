@@ -588,6 +588,20 @@ watch(
 const normalizedSearch = computed(() => navSearch.value.trim().toLowerCase())
 const dashboardNavLabel = computed(() => t('admin.navItems.dashboard'))
 
+const currentPageTitle = computed(() => {
+  if (isItemActive('/')) {
+    return dashboardNavLabel.value
+  }
+  for (const group of navGroups.value) {
+    for (const item of group.items) {
+      if (isItemActive(item.to)) {
+        return item.label
+      }
+    }
+  }
+  return t('admin.brand')
+})
+
 const showDashboardNav = computed(() => {
   const keyword = normalizedSearch.value
   if (!keyword) {
@@ -761,14 +775,14 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <div class="min-h-screen bg-background text-foreground">
-    <div class="flex min-h-screen">
+  <div class="min-h-dvh w-full bg-background text-foreground">
+    <div class="flex min-h-dvh w-full">
       <!-- Desktop sidebar -->
       <aside
-        class="hidden md:flex border-r border-border/80 bg-card/85 backdrop-blur-xl flex-col sticky top-0 h-screen overflow-y-auto transition-[width] duration-300 ease-[cubic-bezier(0.16,1,0.3,1)]"
-        :class="sidebarCollapsed ? 'w-16' : 'w-64'"
+        class="hidden md:flex shrink-0 border-r border-border/80 bg-card/85 backdrop-blur-xl flex-col sticky top-0 h-dvh overflow-y-auto transition-[width] duration-300 ease-[cubic-bezier(0.16,1,0.3,1)]"
+        :class="sidebarCollapsed ? 'w-16' : 'w-60'"
       >
-        <div class="py-5" :class="sidebarCollapsed ? 'px-2' : 'px-5'">
+        <div class="py-4.5" :class="sidebarCollapsed ? 'px-2' : 'px-4'">
           <div v-if="!sidebarCollapsed" class="flex items-center gap-3">
             <div class="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-primary text-xs font-bold tracking-tight text-primary-foreground shadow-xs">
               DJ
@@ -900,10 +914,10 @@ onBeforeUnmount(() => {
 
       <!-- Mobile sidebar (Sheet) -->
       <Sheet v-model:open="mobileNavOpen">
-        <SheetContent side="left" class="w-72 p-0 flex flex-col border-border/80 bg-card/98 backdrop-blur-xl">
+        <SheetContent side="left" class="w-[min(85vw,304px)] p-0 flex flex-col border-border/80 bg-card/98 backdrop-blur-xl pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)]">
           <SheetTitle class="sr-only">{{ t('admin.layout.navigation') }}</SheetTitle>
-          <div class="px-5 py-5 flex items-center gap-3">
-            <div class="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-primary text-xs font-bold tracking-tight text-primary-foreground shadow-xs">
+          <div class="px-4 pt-4 pb-3 flex items-center gap-3 pr-12">
+            <div class="flex h-8.5 w-8.5 shrink-0 items-center justify-center rounded-xl bg-primary text-xs font-bold tracking-tight text-primary-foreground shadow-xs">
               DJ
             </div>
             <div class="min-w-0">
@@ -915,19 +929,19 @@ onBeforeUnmount(() => {
           </div>
           <div class="px-3.5 pb-3">
             <div class="relative">
-              <Search class="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground/70" />
+              <Search class="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground/70" />
               <Input
                 v-model="navSearch"
-                class="h-8 pl-8 text-xs bg-muted/45 border-transparent focus-visible:bg-card"
+                class="h-9.5 pl-9 text-base bg-muted/45 border-transparent focus-visible:bg-card"
                 :placeholder="t('admin.navSearch.placeholder')"
               />
             </div>
           </div>
-          <nav class="px-3 pb-4 space-y-1.5 flex-1 overflow-y-auto">
+          <nav class="px-3 pb-4 space-y-1.5 flex-1 overflow-y-auto overscroll-contain [-webkit-overflow-scrolling:touch]">
             <RouterLink
               v-if="showDashboardNav"
               to="/"
-              class="flex items-center gap-2.5 rounded-xl px-3 py-2 text-[13px] font-medium transition-colors"
+              class="flex items-center gap-2.5 rounded-xl px-3 py-2.5 text-sm font-medium transition-colors"
               :class="isItemActive('/') ? 'bg-primary/10 text-primary' : 'text-muted-foreground hover:text-foreground hover:bg-muted/65'"
             >
               <LayoutDashboard class="h-4 w-4 shrink-0" />
@@ -942,7 +956,7 @@ onBeforeUnmount(() => {
             <div v-for="group in filteredNavGroups" :key="`mobile-${group.id}`" class="space-y-0.5 pt-1">
               <button
                 type="button"
-                class="flex w-full items-center justify-between rounded-xl px-3 py-1.5 text-[13px] font-medium transition-colors hover:bg-muted/65"
+                class="flex w-full items-center justify-between rounded-xl px-3 py-2 text-sm font-medium transition-colors hover:bg-muted/65"
                 :class="isGroupExpanded(group.id) ? 'text-foreground' : 'text-muted-foreground'"
                 @click="toggleGroup(group.id)"
               >
@@ -951,7 +965,7 @@ onBeforeUnmount(() => {
                   <span class="truncate">{{ group.label }}</span>
                 </div>
                 <ChevronRight
-                  class="h-3.5 w-3.5 shrink-0 text-muted-foreground/70 transition-transform duration-200"
+                  class="h-4 w-4 shrink-0 text-muted-foreground/70 transition-transform duration-200"
                   :class="isGroupExpanded(group.id) ? 'rotate-90' : ''"
                 />
               </button>
@@ -960,80 +974,95 @@ onBeforeUnmount(() => {
                   v-for="item in group.items"
                   :key="`mobile-${group.id}-${item.to}`"
                   :to="item.to"
-                  class="flex items-center gap-2 rounded-lg px-2.5 py-1.5 text-[13px] transition-colors"
+                  class="flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-sm transition-colors"
                   :class="isItemActive(item.to) ? 'bg-primary/10 text-primary font-medium' : 'text-muted-foreground hover:bg-muted/65 hover:text-foreground'"
                 >
-                  <component v-if="item.icon" :is="item.icon" class="h-3.5 w-3.5 shrink-0 opacity-80" />
+                  <component v-if="item.icon" :is="item.icon" class="h-4 w-4 shrink-0 opacity-80" />
                   <span class="truncate">{{ item.label }}</span>
                 </RouterLink>
               </div>
             </div>
           </nav>
-          <div class="px-5 py-3.5 border-t border-border/75 text-[11px] text-muted-foreground">
-            <p>© {{ new Date().getFullYear() }} Dujiao-Next <span v-if="appVersion" class="text-muted-foreground/70">{{ appVersion }}</span></p>
+          <div class="px-4 py-3 border-t border-border/75 flex items-center justify-between gap-2 text-[11px] text-muted-foreground">
+            <p class="truncate">© {{ new Date().getFullYear() }} Dujiao-Next <span v-if="appVersion" class="text-muted-foreground/70">{{ appVersion }}</span></p>
+            <a
+              v-if="siteUrl"
+              :href="siteUrl"
+              target="_blank"
+              rel="noopener noreferrer"
+              class="inline-flex shrink-0 items-center gap-1 rounded-lg border border-border/80 bg-muted/35 px-2.5 py-1 text-xs font-medium text-foreground transition-colors hover:bg-muted"
+            >
+              <Home class="h-3.5 w-3.5" />
+              <span>{{ t('admin.layout.homePage') }}</span>
+            </a>
           </div>
         </SheetContent>
       </Sheet>
 
-      <div class="flex-1 flex flex-col min-w-0">
-        <header class="sticky top-0 z-30 flex h-14 items-center justify-between border-b border-border/75 bg-background/80 backdrop-blur-xl px-4 md:px-8 gap-2">
-          <div class="flex items-center gap-2.5">
-            <Button size="icon-sm" variant="ghost" class="md:hidden" @click="mobileNavOpen = true">
-              <Menu class="h-5 w-5" />
-            </Button>
-            <Button
-              size="icon-sm"
-              variant="ghost"
-              class="hidden md:inline-flex text-muted-foreground hover:text-foreground"
-              @click="toggleSidebar"
-              :title="sidebarCollapsed ? t('admin.layout.expandSidebar') : t('admin.layout.collapseSidebar')"
-            >
-              <ChevronsRight v-if="sidebarCollapsed" class="h-4 w-4" />
-              <ChevronsLeft v-else class="h-4 w-4" />
-            </Button>
-            <span class="hidden h-4 w-px bg-border/80 sm:block" />
-            <div class="text-xs font-medium text-muted-foreground hidden sm:block">{{ t('admin.layout.workspace') }}</div>
-          </div>
-          <div class="flex items-center gap-1.5 sm:gap-2">
-            <Select
-              :model-value="locale"
-              @update:modelValue="(value) => { if (value) applyLocale(String(value)) }"
-            >
-              <SelectTrigger class="h-8 w-[100px] md:w-[132px] text-xs bg-card/70">
-                <SelectValue :placeholder="t('admin.common.lang.zhCN')" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="zh-CN">{{ t('admin.common.lang.zhCN') }}</SelectItem>
-                <SelectItem value="zh-TW">{{ t('admin.common.lang.zhTW') }}</SelectItem>
-                <SelectItem value="en-US">{{ t('admin.common.lang.enUS') }}</SelectItem>
-              </SelectContent>
-            </Select>
-            <Button
-              size="icon-sm"
-              variant="outline"
-              class="text-muted-foreground hover:text-foreground"
-              :title="t('admin.updateCheck.button')"
-              @click="updateCheckOpen = true"
-            >
-              <RefreshCw class="h-3.5 w-3.5" />
-            </Button>
-            <Button size="icon-sm" variant="outline" class="text-muted-foreground hover:text-foreground" @click="toggleTheme">
-              <Sun v-if="isDark" class="h-3.5 w-3.5" />
-              <Moon v-else class="h-3.5 w-3.5" />
-            </Button>
-            <a v-if="siteUrl" :href="siteUrl" target="_blank" rel="noopener noreferrer">
-              <Button size="icon-sm" variant="outline" class="text-muted-foreground hover:text-foreground" :title="t('admin.layout.homePage')">
-                <Home class="h-3.5 w-3.5" />
+      <div class="flex-1 flex flex-col min-w-0 w-full">
+        <header class="sticky top-0 z-30 border-b border-border/75 bg-background/85 backdrop-blur-xl pt-[env(safe-area-inset-top)]">
+          <div class="flex h-13 sm:h-14 items-center justify-between px-3 sm:px-5 md:px-6 gap-2">
+            <div class="flex min-w-0 flex-1 items-center gap-2 sm:gap-2.5">
+              <Button size="icon-sm" variant="ghost" class="md:hidden shrink-0" @click="mobileNavOpen = true">
+                <Menu class="h-5 w-5" />
               </Button>
-            </a>
-            <Button variant="outline" size="sm" class="h-8 gap-1.5 text-xs" @click="handleLogout">
-              <LogOut class="h-3.5 w-3.5" />
-              <span class="hidden sm:inline">{{ t('admin.common.logout') }}</span>
-            </Button>
+              <div class="md:hidden min-w-0 truncate text-sm font-semibold tracking-tight text-foreground">
+                {{ currentPageTitle }}
+              </div>
+              <Button
+                size="icon-sm"
+                variant="ghost"
+                class="hidden md:inline-flex shrink-0 text-muted-foreground hover:text-foreground"
+                @click="toggleSidebar"
+                :title="sidebarCollapsed ? t('admin.layout.expandSidebar') : t('admin.layout.collapseSidebar')"
+              >
+                <ChevronsRight v-if="sidebarCollapsed" class="h-4 w-4" />
+                <ChevronsLeft v-else class="h-4 w-4" />
+              </Button>
+              <span class="hidden h-4 w-px bg-border/80 md:block" />
+              <div class="text-xs font-medium text-muted-foreground hidden md:block">{{ t('admin.layout.workspace') }}</div>
+            </div>
+            <div class="flex shrink-0 items-center gap-1 sm:gap-2">
+              <Select
+                :model-value="locale"
+                @update:modelValue="(value) => { if (value) applyLocale(String(value)) }"
+              >
+                <SelectTrigger class="h-8 w-[84px] px-2 text-xs sm:w-[116px] sm:px-3 md:w-[132px] bg-card/70">
+                  <SelectValue :placeholder="t('admin.common.lang.zhCN')" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="zh-CN">{{ t('admin.common.lang.zhCN') }}</SelectItem>
+                  <SelectItem value="zh-TW">{{ t('admin.common.lang.zhTW') }}</SelectItem>
+                  <SelectItem value="en-US">{{ t('admin.common.lang.enUS') }}</SelectItem>
+                </SelectContent>
+              </Select>
+              <Button
+                size="icon-sm"
+                variant="outline"
+                class="text-muted-foreground hover:text-foreground"
+                :title="t('admin.updateCheck.button')"
+                @click="updateCheckOpen = true"
+              >
+                <RefreshCw class="h-3.5 w-3.5" />
+              </Button>
+              <Button size="icon-sm" variant="outline" class="text-muted-foreground hover:text-foreground" @click="toggleTheme">
+                <Sun v-if="isDark" class="h-3.5 w-3.5" />
+                <Moon v-else class="h-3.5 w-3.5" />
+              </Button>
+              <a v-if="siteUrl" :href="siteUrl" target="_blank" rel="noopener noreferrer" class="hidden sm:inline-flex">
+                <Button size="icon-sm" variant="outline" class="text-muted-foreground hover:text-foreground" :title="t('admin.layout.homePage')">
+                  <Home class="h-3.5 w-3.5" />
+                </Button>
+              </a>
+              <Button variant="outline" size="sm" class="h-8 w-8 px-0 sm:w-auto sm:px-3 gap-1.5 text-xs" :title="t('admin.common.logout')" @click="handleLogout">
+                <LogOut class="h-3.5 w-3.5" />
+                <span class="hidden sm:inline">{{ t('admin.common.logout') }}</span>
+              </Button>
+            </div>
           </div>
         </header>
-        <main class="min-w-0 flex-1 overflow-x-hidden px-4 py-5 md:px-8 md:py-7">
-          <div class="mx-auto max-w-[1600px] min-w-0">
+        <main class="w-full min-w-0 flex-1 overflow-x-hidden px-3.5 py-4 pb-[max(1.25rem,env(safe-area-inset-bottom))] sm:px-5 md:px-6 md:py-5">
+          <div class="w-full min-w-0">
             <RouterView v-slot="{ Component }">
               <Transition name="admin-page" mode="out-in">
                 <component :is="Component" />

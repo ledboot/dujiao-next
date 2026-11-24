@@ -157,7 +157,7 @@ watch(() => route.query.category_id, (v) => { if (v) openEditById(v) })
       <Button class="w-full sm:w-auto" @click="openCreate">{{ t('admin.postCategories.create') }}</Button>
     </div>
 
-    <div class="rounded-xl border border-border bg-card overflow-x-auto">
+    <div class="rounded-xl border border-border bg-card overflow-hidden">
       <Table class="min-w-[760px]">
         <TableHeader class="border-b border-border bg-muted/40 text-xs uppercase text-muted-foreground">
           <TableRow>

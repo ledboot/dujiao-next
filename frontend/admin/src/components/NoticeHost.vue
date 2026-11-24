@@ -60,7 +60,7 @@ const getIcon = (notice: NoticeItem) => {
 </script>
 
 <template>
-  <div class="pointer-events-none fixed right-4 top-4 z-[120] flex w-[min(420px,calc(100vw-2rem))] flex-col gap-2.5">
+  <div class="pointer-events-none fixed left-3 right-3 top-[max(0.75rem,calc(env(safe-area-inset-top)+0.375rem))] z-[120] flex flex-col gap-2.5 sm:left-auto sm:right-4 sm:top-4 sm:w-[400px]">
     <TransitionGroup name="notice-fade" tag="div" class="flex flex-col gap-2.5">
       <Alert
         v-for="notice in notices"

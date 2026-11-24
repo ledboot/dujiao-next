@@ -273,7 +273,7 @@ onMounted(fetchDetail)
       </div>
 
       <Tabs v-model="currentTab" class="space-y-4">
-        <TabsList class="h-auto flex-wrap gap-1">
+        <TabsList class="w-full flex-nowrap justify-start gap-1 sm:h-auto sm:w-fit sm:flex-wrap">
           <TabsTrigger value="overview">{{ t('admin.resellerProfileDetail.tabs.overview') }}</TabsTrigger>
           <TabsTrigger value="profile">{{ t('admin.resellerProfileDetail.tabs.profile') }}</TabsTrigger>
           <TabsTrigger value="domains">{{ t('admin.resellerProfileDetail.tabs.domains') }}</TabsTrigger>

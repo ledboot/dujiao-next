@@ -376,17 +376,17 @@ defineExpose({ openPicker })
 
   <!-- ═══ Picker Dialog ═══ -->
   <Dialog v-model:open="open">
-    <DialogScrollContent class="w-[calc(100vw-1rem)] max-w-5xl p-0" @interact-outside="(e: Event) => e.preventDefault()">
-      <div class="px-6 pt-6">
+    <DialogScrollContent class="w-[calc(100vw-1.25rem)] max-w-5xl p-0" @interact-outside="(e: Event) => e.preventDefault()">
+      <div class="px-4 pt-4 sm:px-6 sm:pt-6">
         <DialogHeader>
           <DialogTitle class="text-lg">{{ t('admin.mediaPicker.title') }}</DialogTitle>
         </DialogHeader>
 
         <!-- Tabs -->
-        <div class="mt-4 flex gap-1 border-b border-border">
+        <div class="mt-3.5 flex gap-1 border-b border-border sm:mt-4">
           <button
             type="button"
-            class="-mb-px border-b-2 px-4 py-2.5 text-sm font-medium transition-colors"
+            class="-mb-px border-b-2 px-3.5 py-2 text-sm font-medium transition-colors sm:px-4 sm:py-2.5"
             :class="activeTab === 'library' ? 'border-primary text-primary' : 'border-transparent text-muted-foreground hover:text-foreground'"
             @click="activeTab = 'library'"
           >
@@ -394,7 +394,7 @@ defineExpose({ openPicker })
           </button>
           <button
             type="button"
-            class="-mb-px border-b-2 px-4 py-2.5 text-sm font-medium transition-colors"
+            class="-mb-px border-b-2 px-3.5 py-2 text-sm font-medium transition-colors sm:px-4 sm:py-2.5"
             :class="activeTab === 'upload' ? 'border-primary text-primary' : 'border-transparent text-muted-foreground hover:text-foreground'"
             @click="activeTab = 'upload'"
           >
@@ -404,7 +404,7 @@ defineExpose({ openPicker })
       </div>
 
       <!-- Library tab -->
-      <div v-if="activeTab === 'library'" class="px-6 py-4">
+      <div v-if="activeTab === 'library'" class="px-4 py-3.5 sm:px-6 sm:py-4">
         <Input
           v-model="search"
           :placeholder="t('admin.mediaPicker.searchPlaceholder')"
@@ -455,9 +455,9 @@ defineExpose({ openPicker })
       </div>
 
       <!-- Upload tab -->
-      <div v-if="activeTab === 'upload'" class="px-6 py-4">
+      <div v-if="activeTab === 'upload'" class="px-4 py-3.5 sm:px-6 sm:py-4">
         <div
-          class="flex cursor-pointer flex-col items-center justify-center rounded-xl border-2 border-dashed py-20 transition-colors"
+          class="flex cursor-pointer flex-col items-center justify-center rounded-xl border-2 border-dashed px-4 py-14 text-center transition-colors sm:py-20"
           :class="isDialogDragOver ? 'border-primary bg-primary/5' : 'border-border hover:border-primary/40'"
           @click="triggerDialogUpload"
           @drop.prevent="handleDialogDrop"
@@ -478,7 +478,7 @@ defineExpose({ openPicker })
       </div>
 
       <!-- Footer -->
-      <div class="flex items-center justify-between border-t border-border px-6 py-4">
+      <div class="flex flex-wrap items-center justify-between gap-2 border-t border-border px-4 py-3.5 sm:px-6 sm:py-4">
         <span class="text-sm text-muted-foreground">
           <template v-if="selected.size > 0">{{ t('admin.mediaPicker.selected', { count: selected.size }) }}</template>
         </span>

@@ -138,10 +138,10 @@ const changePassword = async () => {
     </div>
 
     <div class="rounded-xl border border-border bg-card">
-      <div class="border-b border-border bg-muted/40 px-6 py-4">
+      <div class="border-b border-border bg-muted/40 px-4 py-3.5 sm:px-6 sm:py-4">
         <h2 class="text-lg font-semibold">{{ t('admin.settings.actions.changePassword') }}</h2>
       </div>
-      <div class="space-y-6 p-6">
+      <div class="space-y-5 p-4 sm:space-y-6 sm:p-6">
         <div class="grid grid-cols-1 gap-6 md:grid-cols-2">
           <div class="space-y-2">
             <label class="text-xs font-medium text-muted-foreground">{{ t('admin.settings.security.currentPassword') }}</label>
@@ -168,11 +168,11 @@ const changePassword = async () => {
     </div>
 
     <div class="rounded-xl border border-border bg-card">
-      <div class="border-b border-border bg-muted/40 px-6 py-4">
+      <div class="border-b border-border bg-muted/40 px-4 py-3.5 sm:px-6 sm:py-4">
         <h2 class="text-lg font-semibold">{{ t('admin.twofa.title') }}</h2>
         <p class="mt-1 text-sm text-muted-foreground">{{ t('admin.twofa.description') }}</p>
       </div>
-      <div class="space-y-6 p-6">
+      <div class="space-y-5 p-4 sm:space-y-6 sm:p-6">
         <div v-if="totpLoading" class="text-sm text-muted-foreground">{{ t('admin.common.loading') }}</div>
 
         <div v-else-if="totpStatus && !totpStatus.enabled" class="space-y-2">

@@ -268,22 +268,22 @@ watch(
 </script>
 
 <template>
-  <div class="space-y-6">
+  <div class="space-y-4 sm:space-y-6">
     <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
       <div>
-        <h1 class="text-2xl font-semibold">{{ t('admin.orders.title') }}</h1>
+        <h1 class="text-xl sm:text-2xl font-semibold">{{ t('admin.orders.title') }}</h1>
       </div>
     </div>
 
-    <div class="rounded-xl border border-border bg-card p-4 shadow-sm">
-      <div class="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center">
+    <div class="rounded-xl border border-border bg-card p-3.5 sm:p-4 shadow-sm">
+      <div class="grid grid-cols-2 gap-2.5 sm:flex sm:flex-row sm:flex-wrap sm:items-center sm:gap-3">
         <div class="w-full md:w-32">
           <Input v-model="filters.userId" :placeholder="t('admin.orders.filterUserId')" @update:modelValue="debouncedSearch" />
         </div>
         <div class="w-full md:w-56">
           <Input v-model="filters.userKeyword" :placeholder="t('admin.orders.filterUserKeyword')" @update:modelValue="debouncedSearch" />
         </div>
-        <div class="w-full md:w-48">
+        <div class="col-span-2 sm:col-span-1 w-full md:w-48">
           <Input v-model="filters.orderNo" :placeholder="t('admin.orders.filterOrderNo')" @update:modelValue="debouncedSearch" />
         </div>
         <div class="w-full md:w-48">
@@ -292,27 +292,29 @@ watch(
         <div class="w-full md:w-48">
           <Input v-model="filters.productKeyword" :placeholder="t('admin.orders.filterProductKeyword')" @update:modelValue="debouncedSearch" />
         </div>
-        <div class="flex w-full flex-col gap-2 md:w-auto md:flex-row md:flex-wrap md:items-center">
+        <div class="col-span-2 flex w-full flex-col gap-2 md:w-auto md:flex-row md:flex-wrap md:items-center">
           <span class="text-xs text-muted-foreground whitespace-nowrap">{{ t('admin.orders.filterCreatedRange') }}</span>
-          <Input
-            v-model="filters.createdFrom"
-            type="datetime-local"
-            class="h-9 w-full md:w-auto"
-            :placeholder="t('admin.orders.filterCreatedFrom')"
-            @update:modelValue="handleSearch"
-          />
-          <span class="hidden text-muted-foreground md:inline">-</span>
-          <Input
-            v-model="filters.createdTo"
-            type="datetime-local"
-            class="h-9 w-full md:w-auto"
-            :placeholder="t('admin.orders.filterCreatedTo')"
-            @update:modelValue="handleSearch"
-          />
+          <div class="grid grid-cols-1 gap-2 sm:grid-cols-2 md:flex md:items-center">
+            <Input
+              v-model="filters.createdFrom"
+              type="datetime-local"
+              class="h-9.5 sm:h-9 w-full md:w-auto"
+              :placeholder="t('admin.orders.filterCreatedFrom')"
+              @update:modelValue="handleSearch"
+            />
+            <span class="hidden text-muted-foreground md:inline">-</span>
+            <Input
+              v-model="filters.createdTo"
+              type="datetime-local"
+              class="h-9.5 sm:h-9 w-full md:w-auto"
+              :placeholder="t('admin.orders.filterCreatedTo')"
+              @update:modelValue="handleSearch"
+            />
+          </div>
         </div>
         <div class="w-full md:w-40">
           <Select v-model="filters.status" @update:modelValue="handleSearch">
-            <SelectTrigger class="h-9 w-full">
+            <SelectTrigger class="w-full">
               <SelectValue :placeholder="t('admin.orders.filterStatusAll')" />
             </SelectTrigger>
             <SelectContent>
@@ -331,7 +333,7 @@ watch(
         </div>
         <div class="w-full md:w-48">
           <Select v-model="filters.sortBy" @update:modelValue="handleSearch">
-            <SelectTrigger class="h-9 w-full">
+            <SelectTrigger class="w-full">
               <SelectValue :placeholder="t('admin.orders.sortDefault')" />
             </SelectTrigger>
             <SelectContent>
@@ -346,11 +348,11 @@ watch(
           </Select>
         </div>
         <div class="hidden flex-1 sm:block"></div>
-        <Button size="sm" class="w-full sm:w-auto" :disabled="refreshing" @click="refresh">{{ t('admin.common.refresh') }}</Button>
+        <Button size="sm" class="col-span-2 w-full sm:w-auto" :disabled="refreshing" @click="refresh">{{ t('admin.common.refresh') }}</Button>
       </div>
     </div>
 
-    <div class="rounded-xl border border-border bg-card overflow-x-auto relative">
+    <div class="rounded-xl border border-border bg-card overflow-hidden relative">
       <Table class="min-w-[880px]">
         <TableHeader class="bg-muted/40 text-xs uppercase text-muted-foreground">
           <TableRow>
@@ -363,7 +365,7 @@ watch(
             <TableHead class="px-4 py-3">{{ t('admin.orders.table.status') }}</TableHead>
             <TableHead class="px-4 py-3">{{ t('admin.orders.table.createdAt') }}</TableHead>
             <TableHead class="px-4 py-3">{{ t('admin.orders.table.updatedAt') }}</TableHead>
-            <TableHead class="px-4 py-3 min-w-[140px] text-right sticky right-0 bg-muted/40 z-10">{{ t('admin.orders.table.action') }}</TableHead>
+            <TableHead class="px-4 py-3 min-w-[140px] text-right md:sticky md:right-0 md:bg-muted md:z-10">{{ t('admin.orders.table.action') }}</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody class="divide-y divide-border">
@@ -420,7 +422,7 @@ watch(
             </TableCell>
             <TableCell class="px-4 py-3 text-xs text-muted-foreground whitespace-nowrap">{{ formatDate(order.created_at) }}</TableCell>
             <TableCell class="px-4 py-3 text-xs text-muted-foreground whitespace-nowrap">{{ formatDate(order.updated_at) }}</TableCell>
-            <TableCell class="min-w-[140px] px-4 py-3 sticky right-0 bg-card z-10">
+            <TableCell class="min-w-[140px] px-4 py-3 md:sticky md:right-0 md:bg-card md:z-10">
               <div class="flex flex-wrap items-center justify-end gap-1.5">
                 <Select v-if="canUpdateStatus(order)" v-model="statusEdits[order.id]">
                   <SelectTrigger class="h-7 w-[130px] text-xs">

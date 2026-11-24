@@ -148,22 +148,26 @@ defineExpose({ save, submitting, smtpTesting })
 <template>
   <div class="space-y-6">
     <div class="rounded-xl border border-border bg-card">
-      <div class="border-b border-border bg-muted/40 px-6 py-4">
+      <div class="border-b border-border bg-muted/40 px-4 py-3.5 sm:px-6 sm:py-4">
         <h2 class="text-lg font-semibold">{{ t('admin.settings.smtp.title') }}</h2>
         <p class="mt-1 text-xs text-muted-foreground">{{ t('admin.settings.smtp.subtitle') }}</p>
       </div>
 
-      <div class="space-y-6 p-6">
-        <div class="grid grid-cols-1 gap-6 md:grid-cols-2">
+      <div class="space-y-5 p-4 sm:space-y-6 sm:p-6">
+        <div class="grid grid-cols-1 gap-4 sm:gap-6 md:grid-cols-2">
           <div class="flex items-center gap-3 rounded-lg border border-border bg-muted/20 px-4 py-3">
             <Switch id="smtp-enabled" v-model="form.enabled" />
             <Label for="smtp-enabled" class="text-sm font-medium">{{ t('admin.settings.smtp.enabled') }}</Label>
           </div>
-          <div class="flex items-center gap-3 rounded-lg border border-border bg-muted/20 px-4 py-3">
-            <Switch id="smtp-tls" v-model="form.use_tls" />
-            <Label for="smtp-tls" class="text-sm font-medium">{{ t('admin.settings.smtp.useTLS') }}</Label>
-            <Switch id="smtp-ssl" v-model="form.use_ssl" class="ml-4" />
-            <Label for="smtp-ssl" class="text-sm font-medium">{{ t('admin.settings.smtp.useSSL') }}</Label>
+          <div class="flex flex-wrap items-center gap-x-5 gap-y-2.5 rounded-lg border border-border bg-muted/20 px-4 py-3">
+            <div class="flex items-center gap-2.5">
+              <Switch id="smtp-tls" v-model="form.use_tls" />
+              <Label for="smtp-tls" class="text-sm font-medium">{{ t('admin.settings.smtp.useTLS') }}</Label>
+            </div>
+            <div class="flex items-center gap-2.5">
+              <Switch id="smtp-ssl" v-model="form.use_ssl" />
+              <Label for="smtp-ssl" class="text-sm font-medium">{{ t('admin.settings.smtp.useSSL') }}</Label>
+            </div>
           </div>
         </div>
 

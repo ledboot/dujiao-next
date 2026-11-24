@@ -1000,7 +1000,7 @@ onMounted(async () => {
             </button>
           </div>
 
-          <div class="sticky top-3 z-10 rounded-xl border border-border bg-card/95 p-3 shadow-sm backdrop-blur">
+          <div class="lg:sticky lg:top-18 z-10 rounded-xl border border-border bg-card/95 p-3 shadow-sm backdrop-blur">
             <div class="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
               <div class="space-y-1">
                 <p class="text-sm font-medium text-foreground">{{ t('admin.cardSecrets.batch.operationTitle') }}</p>

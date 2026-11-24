@@ -266,14 +266,14 @@ onMounted(() => fetchMedia(1))
     </div>
 
     <!-- Filters -->
-    <div class="flex flex-wrap items-center gap-3">
+    <div class="grid grid-cols-1 gap-2.5 sm:flex sm:flex-wrap sm:items-center sm:gap-3">
       <Input
         v-model="filters.search"
         :placeholder="t('admin.media.searchPlaceholder')"
-        class="w-64"
+        class="w-full sm:w-64"
       />
       <Select v-model="filters.scene">
-        <SelectTrigger class="w-40">
+        <SelectTrigger class="w-full sm:w-40">
           <SelectValue :placeholder="t('admin.media.filters.scenePlaceholder')" />
         </SelectTrigger>
         <SelectContent>
@@ -330,9 +330,9 @@ onMounted(() => fetchMedia(1))
           <div v-if="batchMode" class="absolute left-2 top-2 z-20 rounded bg-background/90 p-1 shadow-sm">
             <Checkbox :model-value="selectedIds.has(item.id)" @update:model-value="() => toggleSelect(item.id)" />
           </div>
-          <!-- Hover overlay with delete -->
-          <div v-if="!batchMode" class="absolute inset-0 flex items-center justify-center bg-black/40 opacity-0 transition-opacity group-hover:opacity-100">
-            <Button size="sm" variant="destructive" @click="handleDelete(item)">
+          <!-- Hover / touch delete action -->
+          <div v-if="!batchMode" class="pointer-events-none absolute inset-0 flex items-start justify-end p-1.5 sm:items-center sm:justify-center sm:bg-black/40 sm:p-0 sm:opacity-0 sm:transition-opacity sm:group-hover:opacity-100">
+            <Button size="sm" variant="destructive" class="pointer-events-auto h-7 px-2 text-xs shadow-sm sm:h-8 sm:px-3" @click="handleDelete(item)">
               {{ t('admin.common.delete') }}
             </Button>
           </div>
