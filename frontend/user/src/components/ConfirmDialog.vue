@@ -13,9 +13,9 @@
         class="fixed inset-0 z-[110] flex items-center justify-center p-4"
         @click.self="handleCancel"
       >
-        <div class="fixed inset-0 bg-black/40 backdrop-blur-sm" aria-hidden="true" />
+        <div class="fixed inset-0 bg-black/45 backdrop-blur-xs" aria-hidden="true" />
         <Transition
-          enter-active-class="transition duration-200 ease-out"
+          enter-active-class="transition duration-250 ease-[cubic-bezier(0.16,1,0.3,1)]"
           enter-from-class="opacity-0 scale-95 translate-y-2"
           enter-to-class="opacity-100 scale-100 translate-y-0"
           leave-active-class="transition duration-150 ease-in"
@@ -27,15 +27,16 @@
             ref="dialogRef"
             role="alertdialog"
             aria-modal="true"
-            class="relative z-10 w-full max-w-sm rounded-2xl bg-card text-card-foreground border shadow-2xl p-6"
+            class="relative z-10 w-full max-w-sm rounded-3xl bg-card/98 backdrop-blur-xl text-card-foreground border border-border/85 shadow-2xl p-6"
           >
-            <h3 class="text-lg font-bold text-foreground">{{ options.title }}</h3>
+            <h3 class="text-lg font-bold tracking-tight text-foreground">{{ options.title }}</h3>
             <p v-if="options.message" class="mt-2 text-sm text-muted-foreground leading-relaxed">{{ options.message }}</p>
-            <div class="mt-6 flex items-center justify-end gap-3">
-              <Button variant="secondary" @click="handleCancel">
+            <div class="mt-6 flex items-center justify-end gap-2.5">
+              <Button variant="secondary" class="rounded-xl" @click="handleCancel">
                 {{ options.cancelText || t('common.cancel') }}
               </Button>
               <Button
+                class="rounded-xl"
                 :variant="options.variant === 'danger' ? 'destructive' : 'default'"
                 @click="handleConfirm"
               >

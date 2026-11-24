@@ -44,7 +44,7 @@
 
         <!-- Main Info Card -->
         <div
-          class="bg-card backdrop-blur-xl border rounded-3xl overflow-hidden mb-8 shadow-2xl">
+          class="bg-card border border-border/80 rounded-3xl overflow-hidden mb-8 shadow-md theme-fade-scale">
           <div class="grid grid-cols-1 lg:grid-cols-2 gap-0">
             <!-- Product Images (Left) -->
             <ProductImageGallery
@@ -55,13 +55,13 @@
             />
 
             <!-- Product Info (Right) -->
-            <div class="p-6 md:p-8 lg:p-12 flex flex-col justify-center">
+            <div class="p-6 md:p-8 lg:p-11 flex flex-col justify-center">
               <div class="mb-6">
-                <div v-if="categoryName" class="mb-3 text-xs uppercase tracking-wider text-muted-foreground">
+                <div v-if="categoryName" class="mb-2.5 text-xs font-medium uppercase tracking-wider text-muted-foreground">
                   {{ t('productDetail.categoryLabel') }} · {{ categoryName }}
                 </div>
 
-                <div v-if="product.tags && product.tags.length > 0" class="mb-4 flex flex-wrap gap-2">
+                <div v-if="product.tags && product.tags.length > 0" class="mb-3.5 flex flex-wrap gap-1.5">
                   <Badge
                     v-for="(tag, index) in product.tags"
                     :key="index"
@@ -71,7 +71,7 @@
                   </Badge>
                 </div>
 
-                <h1 class="mb-4 text-2xl md:text-3xl lg:text-5xl font-black leading-tight text-foreground">
+                <h1 class="mb-4 text-2xl md:text-3xl lg:text-4xl font-bold tracking-tight leading-tight text-foreground">
                   {{ getLocalizedText(product.title) }}
                 </h1>
 
@@ -214,19 +214,19 @@
                   </ul>
                 </div>
 
-                <div v-if="activeSkus.length" class="mb-8">
-                  <h2 class="mb-3 text-sm font-bold uppercase tracking-widest text-muted-foreground">
+                <div v-if="activeSkus.length" class="mb-7">
+                  <h2 class="mb-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                     {{ t('productDetail.skuTitle') }}
                   </h2>
-                  <div class="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                  <div class="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
                     <button
                       v-for="sku in activeSkus"
                       :key="sku.id"
                       type="button"
-                      class="flex flex-col items-start rounded-xl border px-3 py-2 text-sm transition-all min-h-[44px]"
+                      class="flex flex-col items-start rounded-xl border px-3.5 py-2.5 text-sm transition-all duration-200 min-h-[46px]"
                       :class="[
-                        normalizeSkuId(sku.id) === selectedSkuId ? 'border-primary/40 bg-primary/10 ring-1 ring-primary/30' : 'border bg-secondary text-foreground',
-                        isSkuPurchasable(sku) ? 'hover:-translate-y-0.5' : 'cursor-not-allowed opacity-55 border-dashed',
+                        normalizeSkuId(sku.id) === selectedSkuId ? 'border-primary bg-primary/[0.08] ring-2 ring-primary/15' : 'border-border/80 bg-secondary/60 text-foreground hover:border-hairline-strong hover:bg-secondary',
+                        isSkuPurchasable(sku) ? 'hover:-translate-y-0.5 active:scale-[0.99]' : 'cursor-not-allowed opacity-50 border-dashed',
                       ]"
                       :disabled="!isSkuPurchasable(sku)"
                       @click="selectedSkuId = normalizeSkuId(sku.id)"
@@ -245,25 +245,25 @@
                   </p>
                 </div>
 
-                <div class="mb-8">
-                  <h2 class="mb-3 text-sm font-bold uppercase tracking-widest text-muted-foreground">
+                <div class="mb-7">
+                  <h2 class="mb-2.5 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                     {{ t('productDetail.description') }}
                   </h2>
-                  <p class="text-lg leading-relaxed text-muted-foreground">
+                  <p class="text-sm md:text-base leading-relaxed text-muted-foreground">
                     {{ getLocalizedText(product.description) }}
                   </p>
                 </div>
               </div>
 
               <!-- Quantity Selector -->
-                <div class="mb-8">
-                  <h2 class="mb-3 text-sm font-bold uppercase tracking-widest text-muted-foreground">
+                <div class="mb-7">
+                  <h2 class="mb-2.5 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                     {{ t('productDetail.quantity') }}
                   </h2>
-                  <div class="flex items-center rounded-lg border overflow-hidden w-fit">
+                  <div class="flex items-center rounded-xl border border-border/85 bg-secondary/40 overflow-hidden w-fit">
                     <button
                       type="button"
-                      class="w-10 h-10 flex items-center justify-center text-muted-foreground hover:bg-muted transition-colors disabled:opacity-30"
+                      class="w-10 h-10 flex items-center justify-center text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors disabled:opacity-30"
                       :disabled="quantity <= quantityEffectiveMin"
                       @click="quantity = Math.max(quantityEffectiveMin, quantity - 1)"
                     >
@@ -272,14 +272,14 @@
                     <input
                       type="text"
                       inputmode="numeric"
-                      class="w-14 h-10 text-center text-sm font-semibold text-foreground border-x bg-transparent outline-none tabular-nums [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                      class="w-14 h-10 text-center text-sm font-semibold text-foreground border-x border-border/70 bg-card outline-none tabular-nums [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                       :value="quantity"
                       @change="handleQuantityInput($event)"
                       @keydown.enter.prevent="($event.target as HTMLInputElement)?.blur()"
                     />
                     <button
                       type="button"
-                      class="w-10 h-10 flex items-center justify-center text-muted-foreground hover:bg-muted transition-colors disabled:opacity-30"
+                      class="w-10 h-10 flex items-center justify-center text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors disabled:opacity-30"
                       :disabled="quantityEffectiveLimit !== null && quantity >= quantityEffectiveLimit"
                       @click="quantity = quantity + 1"
                     >
@@ -289,7 +289,7 @@
                 </div>
 
               <!-- Purchase Actions (Desktop + original position) -->
-              <div ref="purchaseActionsRef" class="mt-auto space-y-6">
+              <div ref="purchaseActionsRef" class="mt-auto space-y-5">
                 <Alert v-if="cannotPurchaseReason" variant="destructive">
                   <AlertDescription class="font-semibold">{{ cannotPurchaseReason }}</AlertDescription>
                 </Alert>
@@ -298,14 +298,14 @@
                 </Alert>
 
                 <div class="space-y-3">
-                  <Button v-if="requiresLogin" class="w-full h-12 font-bold" @click="goLogin">
+                  <Button v-if="requiresLogin" class="w-full h-12 rounded-xl font-semibold" @click="goLogin">
                     {{ t('productDetail.loginToBuy') }}
                   </Button>
-                  <div v-else class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <Button variant="secondary" class="h-12 font-bold" :disabled="!canPurchase" @click="addToCart">
+                  <div v-else class="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                    <Button variant="secondary" class="h-12 rounded-xl font-semibold" :disabled="!canPurchase" @click="addToCart">
                       {{ t('productDetail.addToCart') }}
                     </Button>
-                    <Button class="h-12 font-bold" :disabled="!canPurchase" @click="buyNow">
+                    <Button class="h-12 rounded-xl font-semibold" :disabled="!canPurchase" @click="buyNow">
                       {{ t('productDetail.buyNow') }}
                     </Button>
                   </div>

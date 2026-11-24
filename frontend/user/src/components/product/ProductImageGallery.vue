@@ -1,28 +1,32 @@
 <template>
-  <div class="p-4 md:p-8 bg-secondary border-r">
-    <div class="mb-4 md:mb-6 relative group"
+  <div class="p-5 md:p-8 bg-secondary/45 border-b lg:border-b-0 lg:border-r border-border/75">
+    <div class="mb-4 md:mb-5 relative group overflow-hidden rounded-2xl border border-border/70 bg-muted/60 shadow-sm"
       @touchstart="onImageTouchStart"
       @touchend="onImageTouchEnd">
-      <img v-if="currentImage" :src="currentImage" :alt="productTitle"
-        class="w-full aspect-[4/3] object-cover rounded-xl border relative z-10 shadow-lg" />
-      <div v-else
-        class="w-full aspect-[4/3] bg-muted rounded-xl border flex items-center justify-center relative z-10">
-        <ImageIcon class="w-24 h-24 text-muted-foreground" :stroke-width="1.5" />
-      </div>
+      <Transition name="gallery-fade" mode="out-in">
+        <img v-if="currentImage && !imageErrored" :key="currentImage" :src="currentImage" :alt="productTitle"
+          class="w-full aspect-[4/3] object-cover relative z-10"
+          @error="imageErrored = true" />
+        <div v-else
+          class="w-full aspect-[4/3] flex items-center justify-center relative z-10 text-muted-foreground/55">
+          <ImageIcon class="w-16 h-16 md:w-20 md:h-20" :stroke-width="1.5" />
+        </div>
+      </Transition>
     </div>
 
     <!-- Thumbnail Gallery: horizontal scroll on mobile, grid on desktop -->
-    <div v-if="images.length > 1" class="flex md:grid md:grid-cols-5 gap-3 overflow-x-auto md:overflow-visible pb-2 md:pb-0 -mx-1 px-1 snap-x snap-mandatory">
-      <div v-for="(image, index) in images" :key="index" @click="$emit('update:currentImage', image)"
-        class="cursor-pointer rounded-lg overflow-hidden border-2 transition-all duration-300 shrink-0 w-16 h-16 md:w-auto md:h-auto md:aspect-square snap-start"
-        :class="currentImage === image ? 'border-primary ring-1 ring-primary/40 opacity-100' : 'border-transparent opacity-60 hover:opacity-100 hover:scale-105'">
+    <div v-if="images.length > 1" class="flex md:grid md:grid-cols-5 gap-2.5 overflow-x-auto md:overflow-visible pb-2 md:pb-0 -mx-1 px-1 snap-x snap-mandatory">
+      <button v-for="(image, index) in images" :key="index" type="button" @click="$emit('update:currentImage', image)"
+        class="cursor-pointer rounded-xl overflow-hidden border-2 transition-all duration-200 shrink-0 w-16 h-16 md:w-auto md:h-auto md:aspect-square snap-start"
+        :class="currentImage === image ? 'border-primary ring-2 ring-primary/25 opacity-100 scale-[1.02]' : 'border-transparent opacity-65 hover:opacity-100 hover:scale-[1.02]'">
         <img :src="image" :alt="`Image ${index + 1}`" loading="lazy" class="w-full h-full object-cover" />
-      </div>
+      </button>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
+import { ref, watch } from 'vue'
 import { Image as ImageIcon } from 'lucide-vue-next'
 
 const props = defineProps<{
@@ -34,6 +38,11 @@ const props = defineProps<{
 const emit = defineEmits<{
   'update:currentImage': [value: string]
 }>()
+
+const imageErrored = ref(false)
+watch(() => props.currentImage, () => {
+  imageErrored.value = false
+})
 
 // Image touch swipe
 let touchStartX = 0
@@ -56,3 +65,14 @@ const onImageTouchEnd = (e: TouchEvent) => {
   }
 }
 </script>
+
+<style scoped>
+.gallery-fade-enter-active,
+.gallery-fade-leave-active {
+  transition: opacity 220ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+.gallery-fade-enter-from,
+.gallery-fade-leave-to {
+  opacity: 0;
+}
+</style>

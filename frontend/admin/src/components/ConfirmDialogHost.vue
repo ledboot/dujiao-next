@@ -27,14 +27,14 @@ const segmentClass = (segment: ConfirmDialogDescriptionSegment) => {
   <Dialog :open="open" @update:open="confirmStore.setOpen">
     <DialogPortal>
       <DialogOverlay
-        class="fixed inset-0 z-[190] bg-black/80 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0"
+        class="fixed inset-0 z-[190] bg-black/45 backdrop-blur-xs data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0"
       />
       <DialogContent
-        class="fixed left-1/2 top-1/2 z-[191] grid w-full max-w-lg -translate-x-1/2 -translate-y-1/2 gap-4 border bg-background p-6 shadow-lg duration-200 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 sm:rounded-lg sm:max-w-md"
+        class="fixed left-1/2 top-1/2 z-[191] grid w-full max-w-lg -translate-x-1/2 -translate-y-1/2 gap-4 border border-border/85 bg-card/98 backdrop-blur-xl p-6 shadow-2xl duration-200 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 sm:rounded-2xl sm:max-w-md"
       >
         <DialogHeader>
           <DialogTitle>{{ options.title }}</DialogTitle>
-          <DialogDescription>
+          <DialogDescription class="leading-relaxed">
             <span
               v-for="(segment, index) in descriptionSegments"
               :key="index"
@@ -44,7 +44,7 @@ const segmentClass = (segment: ConfirmDialogDescriptionSegment) => {
             </span>
           </DialogDescription>
         </DialogHeader>
-        <DialogFooter>
+        <DialogFooter class="gap-2 sm:gap-2">
           <Button variant="outline" @click="confirmStore.cancel">{{ options.cancelText }}</Button>
           <Button :variant="confirmVariant" @click="confirmStore.confirm">{{ options.confirmText }}</Button>
         </DialogFooter>

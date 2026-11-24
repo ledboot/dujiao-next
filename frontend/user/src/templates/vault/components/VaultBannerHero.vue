@@ -1,7 +1,7 @@
 <template>
   <section v-if="showHeroSection" class="mx-auto w-full max-w-[1180px] px-4 pt-6 sm:px-6">
     <div
-      class="relative overflow-hidden rounded-lg border bg-card shadow-[var(--shadow)]"
+      class="relative overflow-hidden rounded-3xl border border-border/80 bg-card shadow-[var(--shadow)]"
       @touchstart="onBannerTouchStart"
       @touchend="onBannerTouchEnd"
     >

@@ -56,10 +56,10 @@ const changePageSize = (value: unknown) => {
 <template>
   <div
     v-if="shouldShow"
-    class="flex flex-wrap items-center justify-between gap-3 border-t border-border px-6 py-4"
+    class="flex flex-wrap items-center justify-between gap-3 border-t border-border/70 bg-muted/15 px-5 py-3.5"
   >
     <div class="flex items-center gap-3">
-      <span class="text-xs text-muted-foreground">
+      <span class="text-xs tabular-nums text-muted-foreground">
         {{ t('admin.common.pageInfo', { total, page, totalPage }) }}
       </span>
       <slot name="actions" />
@@ -68,7 +68,7 @@ const changePageSize = (value: unknown) => {
       <div v-if="normalizedPageSizeOptions.length > 0" class="flex items-center gap-2">
         <span class="text-xs text-muted-foreground">{{ t('admin.common.pageSize') }}</span>
         <Select :model-value="pageSizeValue" @update:modelValue="changePageSize">
-          <SelectTrigger class="h-8 w-[92px] text-xs">
+          <SelectTrigger class="h-8 w-[88px] text-xs">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
@@ -78,20 +78,21 @@ const changePageSize = (value: unknown) => {
           </SelectContent>
         </Select>
       </div>
-      <div class="flex items-center gap-2">
+      <div class="flex items-center gap-1.5">
         <Input
           v-model="jumpPage"
           type="number"
           min="1"
           :max="totalPage"
-          class="h-8 w-20"
+          class="h-8 w-18 text-xs tabular-nums"
           :placeholder="t('admin.common.jumpPlaceholder')"
+          @keydown.enter="jumpToPage"
         />
         <Button variant="outline" size="sm" class="h-8" @click="jumpToPage">
           {{ t('admin.common.jumpTo') }}
         </Button>
       </div>
-      <div class="flex items-center gap-2">
+      <div class="flex items-center gap-1.5">
         <Button
           variant="outline"
           size="sm"

@@ -5,57 +5,58 @@
 
 @layer base {
   :root {
-    --background: 0 0% 100%;
-    --foreground: 240 10% 3.9%;
+    --background: 225 25% 97.6%;
+    --foreground: 226 28% 8.5%;
     --card: 0 0% 100%;
-    --card-foreground: 240 10% 3.9%;
+    --card-foreground: 226 28% 8.5%;
     --popover: 0 0% 100%;
-    --popover-foreground: 240 10% 3.9%;
-    --primary: 240 5.9% 10%;
-    --primary-foreground: 0 0% 98%;
-    --secondary: 240 4.8% 95.9%;
-    --secondary-foreground: 240 5.9% 10%;
-    --muted: 240 4.8% 95.9%;
-    --muted-foreground: 240 3.8% 46.1%;
-    --accent: 240 4.8% 95.9%;
-    --accent-foreground: 240 5.9% 10%;
-    --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 0 0% 98%;
-    --border: 240 5.9% 90%;
-    --input: 240 5.9% 90%;
-    --ring: 240 5.9% 10%;
-    --radius: 0.5rem;
-    --chart-1: 176 72% 34%;
-    --chart-2: 32 94% 52%;
-    --chart-3: 215 25% 40%;
-    --chart-4: 45 86% 58%;
-    --chart-5: 195 65% 42%;
+    --popover-foreground: 226 28% 8.5%;
+    --primary: 225 76% 52%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 224 20% 94.8%;
+    --secondary-foreground: 226 25% 14%;
+    --muted: 224 20% 94.5%;
+    --muted-foreground: 224 11% 45%;
+    --accent: 224 24% 94%;
+    --accent-foreground: 226 28% 10%;
+    --destructive: 0 78% 56%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 224 16% 89.5%;
+    --input: 224 16% 88.5%;
+    --ring: 225 76% 52%;
+    --radius: 0.625rem;
+    --chart-1: 225 76% 52%;
+    --chart-2: 162 72% 38%;
+    --chart-3: 32 92% 50%;
+    --chart-4: 268 72% 58%;
+    --chart-5: 196 80% 44%;
   }
+
   .dark {
-    --background: 240 10% 3.9%;
-    --foreground: 0 0% 98%;
-    --card: 240 10% 3.9%;
-    --card-foreground: 0 0% 98%;
-    --popover: 240 10% 3.9%;
-    --popover-foreground: 0 0% 98%;
-    --primary: 0 0% 98%;
-    --primary-foreground: 240 5.9% 10%;
-    --secondary: 240 3.7% 15.9%;
-    --secondary-foreground: 0 0% 98%;
-    --muted: 240 3.7% 15.9%;
-    --muted-foreground: 240 5% 64.9%;
-    --accent: 240 3.7% 15.9%;
-    --accent-foreground: 0 0% 98%;
-    --destructive: 0 62.8% 30.6%;
-    --destructive-foreground: 0 0% 98%;
-    --border: 240 3.7% 15.9%;
-    --input: 240 3.7% 15.9%;
-    --ring: 240 4.9% 83.9%;
-    --chart-1: 176 72% 40%;
-    --chart-2: 32 94% 52%;
-    --chart-3: 195 65% 42%;
-    --chart-4: 45 86% 58%;
-    --chart-5: 215 25% 40%;
+    --background: 228 22% 5.5%;
+    --foreground: 224 24% 96%;
+    --card: 228 20% 8.2%;
+    --card-foreground: 224 24% 96%;
+    --popover: 228 20% 9.2%;
+    --popover-foreground: 224 24% 96%;
+    --primary: 222 86% 62%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 226 16% 13.5%;
+    --secondary-foreground: 224 20% 94%;
+    --muted: 226 16% 13.5%;
+    --muted-foreground: 224 12% 62%;
+    --accent: 226 18% 15%;
+    --accent-foreground: 224 24% 96%;
+    --destructive: 0 70% 54%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 226 15% 16%;
+    --input: 226 15% 17%;
+    --ring: 222 86% 62%;
+    --chart-1: 222 86% 62%;
+    --chart-2: 160 72% 45%;
+    --chart-3: 36 92% 56%;
+    --chart-4: 268 76% 65%;
+    --chart-5: 196 82% 52%;
   }
 }
 
@@ -95,8 +96,118 @@
   * {
     @apply border-border;
   }
+
+  html {
+    scroll-behavior: smooth;
+  }
+
   body {
     @apply bg-background text-foreground antialiased;
-    font-family: ui-sans-serif, system-ui, -apple-system, 'Segoe UI', 'Helvetica Neue', Arial, 'Noto Sans', sans-serif;
+    font-family: 'Inter', ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'PingFang SC', 'Segoe UI', sans-serif;
+    text-rendering: optimizeLegibility;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  h1,
+  h2,
+  h3 {
+    letter-spacing: -0.02em;
+  }
+}
+
+::selection {
+  background-color: hsl(var(--primary) / 0.16);
+  color: hsl(var(--primary));
+}
+
+/* Refined Scrollbar */
+::-webkit-scrollbar {
+  width: 7px;
+  height: 7px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background-color: hsl(var(--border));
+  border-radius: 999px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background-color: hsl(var(--muted-foreground) / 0.45);
+}
+
+/* Admin UX motion & surface utilities */
+.admin-page-enter-active {
+  transition: opacity 200ms cubic-bezier(0.16, 1, 0.3, 1), transform 220ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.admin-page-leave-active {
+  transition: opacity 120ms cubic-bezier(0.4, 0, 1, 1);
+}
+
+.admin-page-enter-from {
+  opacity: 0;
+  transform: translate3d(0, 5px, 0);
+}
+
+.admin-page-leave-to {
+  opacity: 0;
+}
+
+.admin-shimmer {
+  background: linear-gradient(
+    90deg,
+    hsl(var(--muted) / 0.55) 20%,
+    hsl(var(--muted)) 45%,
+    hsl(var(--muted) / 0.55) 70%
+  );
+  background-size: 300% 100%;
+  animation: admin-shimmer 1.6s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+}
+
+.admin-auth-bg {
+  background-color: hsl(var(--background));
+  background-image:
+    radial-gradient(ellipse 70% 50% at 50% -10%, hsl(var(--primary) / 0.12), transparent 70%),
+    radial-gradient(circle 360px at 85% 20%, hsl(var(--chart-2) / 0.06), transparent 70%),
+    linear-gradient(to right, hsl(var(--border) / 0.45) 1px, transparent 1px),
+    linear-gradient(to bottom, hsl(var(--border) / 0.45) 1px, transparent 1px);
+  background-size: 100% 100%, 100% 100%, 36px 36px, 36px 36px;
+}
+
+.admin-stagger-in {
+  animation: admin-stagger-up 0.38s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+@keyframes admin-shimmer {
+  0% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+@keyframes admin-stagger-up {
+  from {
+    opacity: 0;
+    transform: translate3d(0, 10px, 0);
+  }
+  to {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .admin-page-enter-active,
+  .admin-page-leave-active {
+    transition: opacity 100ms ease;
+  }
+  .admin-page-enter-from {
+    transform: none;
+  }
+  .admin-stagger-in {
+    animation: none !important;
   }
 }

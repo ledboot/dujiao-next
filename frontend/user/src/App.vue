@@ -90,13 +90,32 @@ watch(() => appStore.config?.storefront_template, (value) => rememberTemplate(va
 </script>
 
 <style>
-.page-fade-enter-active,
-.page-fade-leave-active {
-  transition: opacity 200ms ease;
+.page-fade-enter-active {
+  transition: opacity 240ms cubic-bezier(0.16, 1, 0.3, 1), transform 260ms cubic-bezier(0.16, 1, 0.3, 1);
 }
 
-.page-fade-enter-from,
+.page-fade-leave-active {
+  transition: opacity 150ms cubic-bezier(0.4, 0, 1, 1), transform 150ms cubic-bezier(0.4, 0, 1, 1);
+}
+
+.page-fade-enter-from {
+  opacity: 0;
+  transform: translate3d(0, 6px, 0);
+}
+
 .page-fade-leave-to {
   opacity: 0;
+  transform: translate3d(0, -3px, 0);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .page-fade-enter-active,
+  .page-fade-leave-active {
+    transition: opacity 120ms ease;
+  }
+  .page-fade-enter-from,
+  .page-fade-leave-to {
+    transform: none;
+  }
 }
 </style>

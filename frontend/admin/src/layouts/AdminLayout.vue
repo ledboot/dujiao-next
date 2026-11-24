@@ -29,7 +29,6 @@ import {
   SlidersHorizontal,
   ShieldCheck,
   ScrollText,
-  ChevronDown,
   ChevronRight,
   ChevronsLeft,
   ChevronsRight,
@@ -47,6 +46,7 @@ import {
   BadgeDollarSign,
   Bell,
   ImageIcon,
+  Search,
 } from 'lucide-vue-next'
 import { Menu } from 'lucide-vue-next'
 import { Button } from '@/components/ui/button'
@@ -765,66 +765,78 @@ onBeforeUnmount(() => {
     <div class="flex min-h-screen">
       <!-- Desktop sidebar -->
       <aside
-        class="hidden md:flex border-r border-border bg-card flex-col sticky top-0 h-screen overflow-y-auto transition-all duration-300"
+        class="hidden md:flex border-r border-border/80 bg-card/85 backdrop-blur-xl flex-col sticky top-0 h-screen overflow-y-auto transition-[width] duration-300 ease-[cubic-bezier(0.16,1,0.3,1)]"
         :class="sidebarCollapsed ? 'w-16' : 'w-64'"
       >
-        <div class="py-6" :class="sidebarCollapsed ? 'px-2' : 'px-6'">
-          <div v-if="!sidebarCollapsed" class="text-xl font-semibold tracking-tight">
-            {{ t('admin.brand') }}
+        <div class="py-5" :class="sidebarCollapsed ? 'px-2' : 'px-5'">
+          <div v-if="!sidebarCollapsed" class="flex items-center gap-3">
+            <div class="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-primary text-xs font-bold tracking-tight text-primary-foreground shadow-xs">
+              DJ
+            </div>
+            <div class="min-w-0">
+              <div class="truncate text-base font-semibold tracking-tight text-foreground">
+                {{ t('admin.brand') }}
+              </div>
+              <div class="truncate text-[11px] text-muted-foreground">{{ t('admin.layout.controlRoom') }}</div>
+            </div>
           </div>
-          <div v-if="!sidebarCollapsed" class="text-xs text-muted-foreground mt-1">{{ t('admin.layout.controlRoom') }}</div>
-          <div v-if="sidebarCollapsed" class="text-lg font-semibold tracking-tight text-center">D&J</div>
+          <div v-else class="mx-auto flex h-9 w-9 items-center justify-center rounded-xl bg-primary text-xs font-bold tracking-tight text-primary-foreground shadow-xs">
+            DJ
+          </div>
         </div>
-        <div v-if="!sidebarCollapsed" class="px-3 pb-2">
-          <Input
-            v-model="navSearch"
-            class="h-8 text-xs"
-            :placeholder="t('admin.navSearch.placeholder')"
-          />
+        <div v-if="!sidebarCollapsed" class="px-3.5 pb-3">
+          <div class="relative">
+            <Search class="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground/70" />
+            <Input
+              v-model="navSearch"
+              class="h-8 pl-8 text-xs bg-muted/45 border-transparent hover:border-border focus-visible:bg-card"
+              :placeholder="t('admin.navSearch.placeholder')"
+            />
+          </div>
         </div>
-        <nav class="pb-3 space-y-2 flex-1 overflow-y-auto" :class="sidebarCollapsed ? 'px-1.5' : 'px-3'">
+        <nav class="pb-4 space-y-1.5 flex-1 overflow-y-auto" :class="sidebarCollapsed ? 'px-2' : 'px-3'">
           <!-- Expanded mode -->
           <template v-if="!sidebarCollapsed">
             <RouterLink
               v-if="showDashboardNav"
               to="/"
-              class="flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-colors"
-              :class="isItemActive('/') ? 'bg-secondary text-foreground' : 'text-muted-foreground hover:text-foreground hover:bg-secondary/70'"
+              class="group relative flex items-center gap-2.5 rounded-xl px-3 py-2 text-[13px] font-medium transition-all duration-150"
+              :class="isItemActive('/') ? 'bg-primary/10 text-primary shadow-2xs' : 'text-muted-foreground hover:text-foreground hover:bg-muted/65'"
             >
-              <LayoutDashboard class="h-4 w-4 shrink-0" />
+              <LayoutDashboard class="h-4 w-4 shrink-0 transition-transform duration-150 group-hover:scale-105" />
               <span>{{ dashboardNavLabel }}</span>
             </RouterLink>
             <div
               v-if="!showDashboardNav && filteredNavGroups.length === 0"
-              class="rounded-lg border border-dashed border-border px-3 py-4 text-xs text-muted-foreground"
+              class="rounded-xl border border-dashed border-border px-3 py-4 text-center text-xs text-muted-foreground"
             >
               {{ t('admin.navSearch.empty') }}
             </div>
-            <div v-for="group in filteredNavGroups" :key="group.id" class="space-y-1">
+            <div v-for="group in filteredNavGroups" :key="group.id" class="space-y-0.5 pt-1">
               <button
                 type="button"
-                class="flex w-full items-center justify-between rounded-lg px-3 py-2 text-sm transition-colors hover:bg-secondary/70"
-                :class="isGroupExpanded(group.id) ? 'bg-secondary/40 text-foreground' : 'text-foreground'"
+                class="flex w-full items-center justify-between rounded-xl px-3 py-1.5 text-[13px] font-medium transition-colors hover:bg-muted/65"
+                :class="isGroupExpanded(group.id) ? 'text-foreground' : 'text-muted-foreground hover:text-foreground'"
                 @click="toggleGroup(group.id)"
               >
-                <div class="flex min-w-0 items-center gap-3">
-                  <component :is="group.icon" class="h-4 w-4 shrink-0" />
+                <div class="flex min-w-0 items-center gap-2.5">
+                  <component :is="group.icon" class="h-4 w-4 shrink-0 opacity-80" />
                   <span class="truncate">{{ group.label }}</span>
                 </div>
-                <component
-                  :is="isGroupExpanded(group.id) ? ChevronDown : ChevronRight"
-                  class="h-4 w-4 shrink-0 text-muted-foreground"
+                <ChevronRight
+                  class="h-3.5 w-3.5 shrink-0 text-muted-foreground/70 transition-transform duration-200 ease-out"
+                  :class="isGroupExpanded(group.id) ? 'rotate-90' : ''"
                 />
               </button>
-              <div v-show="isGroupExpanded(group.id)" class="space-y-1 pl-9">
+              <div v-show="isGroupExpanded(group.id)" class="ml-5 space-y-0.5 border-l border-border/65 pl-2.5 pt-0.5">
                 <RouterLink
                   v-for="item in group.items"
                   :key="`${group.id}-${item.to}`"
                   :to="item.to"
-                  class="flex items-center gap-2 rounded-lg px-3 py-2 text-sm transition-colors"
-                  :class="isItemActive(item.to) ? 'bg-secondary text-foreground' : 'text-muted-foreground hover:bg-secondary/70 hover:text-foreground'"
+                  class="group relative flex items-center gap-2 rounded-lg px-2.5 py-1.5 text-[13px] transition-all duration-150"
+                  :class="isItemActive(item.to) ? 'bg-primary/10 text-primary font-medium' : 'text-muted-foreground hover:bg-muted/65 hover:text-foreground'"
                 >
-                  <component v-if="item.icon" :is="item.icon" class="h-3.5 w-3.5 shrink-0" />
+                  <component v-if="item.icon" :is="item.icon" class="h-3.5 w-3.5 shrink-0 opacity-80" />
                   <span class="truncate">{{ item.label }}</span>
                 </RouterLink>
               </div>
@@ -834,20 +846,20 @@ onBeforeUnmount(() => {
           <template v-else>
             <RouterLink
               to="/"
-              class="flex items-center justify-center rounded-lg p-2 transition-colors"
-              :class="isItemActive('/') ? 'bg-secondary text-foreground' : 'text-muted-foreground hover:text-foreground hover:bg-secondary/70'"
+              class="flex items-center justify-center rounded-xl p-2.5 transition-all duration-150"
+              :class="isItemActive('/') ? 'bg-primary/10 text-primary' : 'text-muted-foreground hover:text-foreground hover:bg-muted/65'"
               :title="dashboardNavLabel"
             >
               <LayoutDashboard class="h-4 w-4 shrink-0" />
             </RouterLink>
             <template v-for="group in navGroups" :key="`collapsed-${group.id}`">
-              <div class="my-1 border-t border-border/50" />
+              <div class="mx-2 my-1.5 border-t border-border/60" />
               <RouterLink
                 v-for="item in group.items"
                 :key="`collapsed-${group.id}-${item.to}`"
                 :to="item.to"
-                class="flex items-center justify-center rounded-lg p-2 transition-colors"
-                :class="isItemActive(item.to) ? 'bg-secondary text-foreground' : 'text-muted-foreground hover:text-foreground hover:bg-secondary/70'"
+                class="flex items-center justify-center rounded-xl p-2.5 transition-all duration-150"
+                :class="isItemActive(item.to) ? 'bg-primary/10 text-primary' : 'text-muted-foreground hover:text-foreground hover:bg-muted/65'"
                 :title="item.label"
               >
                 <component v-if="item.icon" :is="item.icon" class="h-4 w-4 shrink-0" />
@@ -856,24 +868,27 @@ onBeforeUnmount(() => {
           </template>
         </nav>
         <!-- Collapse toggle button -->
-        <div class="border-t border-border">
-          <div v-if="!sidebarCollapsed" class="px-6 py-3 text-[11px] text-muted-foreground space-y-1">
-            <p>© {{ new Date().getFullYear() }} Dujiao-Next <span v-if="appVersion" class="text-muted-foreground/70">{{ appVersion }}</span></p>
+        <div class="border-t border-border/75">
+          <div v-if="!sidebarCollapsed" class="px-5 py-3 text-[11px] text-muted-foreground space-y-1">
+            <p class="flex items-center justify-between gap-2">
+              <span>© {{ new Date().getFullYear() }} Dujiao-Next</span>
+              <span v-if="appVersion" class="rounded-full bg-muted px-2 py-0.5 font-mono text-[10px] text-muted-foreground">{{ appVersion }}</span>
+            </p>
             <a
               href="https://github.com/dujiao-next"
               target="_blank"
               rel="noopener noreferrer"
-              class="inline-flex items-center gap-1 underline-offset-2 hover:underline"
+              class="inline-flex items-center gap-1.5 text-muted-foreground/80 transition-colors hover:text-foreground"
             >
               <svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
                 <path d="M12 .5C5.648.5.5 5.648.5 12c0 5.084 3.292 9.4 7.86 10.922.575.106.784-.25.784-.556 0-.273-.01-1-.016-1.962-3.197.694-3.872-1.54-3.872-1.54-.522-1.326-1.274-1.678-1.274-1.678-1.042-.713.079-.699.079-.699 1.152.081 1.758 1.183 1.758 1.183 1.024 1.755 2.688 1.248 3.343.954.104-.742.401-1.248.73-1.535-2.552-.29-5.236-1.276-5.236-5.678 0-1.254.448-2.28 1.182-3.084-.118-.29-.512-1.457.112-3.04 0 0 .964-.308 3.158 1.178a10.98 10.98 0 0 1 2.876-.387c.976.004 1.96.132 2.878.387 2.192-1.486 3.154-1.178 3.154-1.178.626 1.583.232 2.75.114 3.04.736.804 1.18 1.83 1.18 3.084 0 4.413-2.688 5.384-5.248 5.668.412.354.78 1.052.78 2.12 0 1.53-.014 2.764-.014 3.14 0 .31.206.668.79.554C20.212 21.396 23.5 17.083 23.5 12 23.5 5.648 18.352.5 12 .5Z" />
               </svg>
-              <span>https://github.com/dujiao-next</span>
+              <span class="truncate">github.com/dujiao-next</span>
             </a>
           </div>
           <button
             type="button"
-            class="flex w-full items-center justify-center py-3 text-muted-foreground hover:text-foreground hover:bg-secondary/70 transition-colors"
+            class="flex w-full items-center justify-center py-2.5 text-muted-foreground hover:text-foreground hover:bg-muted/65 transition-colors"
             @click="toggleSidebar"
             :title="sidebarCollapsed ? t('admin.layout.expandSidebar') : t('admin.layout.collapseSidebar')"
           >
@@ -885,97 +900,106 @@ onBeforeUnmount(() => {
 
       <!-- Mobile sidebar (Sheet) -->
       <Sheet v-model:open="mobileNavOpen">
-        <SheetContent side="left" class="w-72 p-0 flex flex-col">
+        <SheetContent side="left" class="w-72 p-0 flex flex-col border-border/80 bg-card/98 backdrop-blur-xl">
           <SheetTitle class="sr-only">{{ t('admin.layout.navigation') }}</SheetTitle>
-          <div class="px-6 py-6">
-            <div class="text-xl font-semibold tracking-tight">
-              {{ t('admin.brand') }}
+          <div class="px-5 py-5 flex items-center gap-3">
+            <div class="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-primary text-xs font-bold tracking-tight text-primary-foreground shadow-xs">
+              DJ
             </div>
-            <div class="text-xs text-muted-foreground mt-1">{{ t('admin.layout.controlRoom') }}</div>
+            <div class="min-w-0">
+              <div class="truncate text-base font-semibold tracking-tight">
+                {{ t('admin.brand') }}
+              </div>
+              <div class="truncate text-[11px] text-muted-foreground">{{ t('admin.layout.controlRoom') }}</div>
+            </div>
           </div>
-          <div class="px-3 pb-2">
-            <Input
-              v-model="navSearch"
-              class="h-8 text-xs"
-              :placeholder="t('admin.navSearch.placeholder')"
-            />
+          <div class="px-3.5 pb-3">
+            <div class="relative">
+              <Search class="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground/70" />
+              <Input
+                v-model="navSearch"
+                class="h-8 pl-8 text-xs bg-muted/45 border-transparent focus-visible:bg-card"
+                :placeholder="t('admin.navSearch.placeholder')"
+              />
+            </div>
           </div>
-          <nav class="px-3 pb-3 space-y-2 flex-1 overflow-y-auto">
+          <nav class="px-3 pb-4 space-y-1.5 flex-1 overflow-y-auto">
             <RouterLink
               v-if="showDashboardNav"
               to="/"
-              class="flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-colors"
-              :class="isItemActive('/') ? 'bg-secondary text-foreground' : 'text-muted-foreground hover:text-foreground hover:bg-secondary/70'"
+              class="flex items-center gap-2.5 rounded-xl px-3 py-2 text-[13px] font-medium transition-colors"
+              :class="isItemActive('/') ? 'bg-primary/10 text-primary' : 'text-muted-foreground hover:text-foreground hover:bg-muted/65'"
             >
               <LayoutDashboard class="h-4 w-4 shrink-0" />
               <span>{{ dashboardNavLabel }}</span>
             </RouterLink>
             <div
               v-if="!showDashboardNav && filteredNavGroups.length === 0"
-              class="rounded-lg border border-dashed border-border px-3 py-4 text-xs text-muted-foreground"
+              class="rounded-xl border border-dashed border-border px-3 py-4 text-center text-xs text-muted-foreground"
             >
               {{ t('admin.navSearch.empty') }}
             </div>
-            <div v-for="group in filteredNavGroups" :key="`mobile-${group.id}`" class="space-y-1">
+            <div v-for="group in filteredNavGroups" :key="`mobile-${group.id}`" class="space-y-0.5 pt-1">
               <button
                 type="button"
-                class="flex w-full items-center justify-between rounded-lg px-3 py-2 text-sm transition-colors hover:bg-secondary/70"
-                :class="isGroupExpanded(group.id) ? 'bg-secondary/40 text-foreground' : 'text-foreground'"
+                class="flex w-full items-center justify-between rounded-xl px-3 py-1.5 text-[13px] font-medium transition-colors hover:bg-muted/65"
+                :class="isGroupExpanded(group.id) ? 'text-foreground' : 'text-muted-foreground'"
                 @click="toggleGroup(group.id)"
               >
-                <div class="flex min-w-0 items-center gap-3">
-                  <component :is="group.icon" class="h-4 w-4 shrink-0" />
+                <div class="flex min-w-0 items-center gap-2.5">
+                  <component :is="group.icon" class="h-4 w-4 shrink-0 opacity-80" />
                   <span class="truncate">{{ group.label }}</span>
                 </div>
-                <component
-                  :is="isGroupExpanded(group.id) ? ChevronDown : ChevronRight"
-                  class="h-4 w-4 shrink-0 text-muted-foreground"
+                <ChevronRight
+                  class="h-3.5 w-3.5 shrink-0 text-muted-foreground/70 transition-transform duration-200"
+                  :class="isGroupExpanded(group.id) ? 'rotate-90' : ''"
                 />
               </button>
-              <div v-show="isGroupExpanded(group.id)" class="space-y-1 pl-9">
+              <div v-show="isGroupExpanded(group.id)" class="ml-5 space-y-0.5 border-l border-border/65 pl-2.5 pt-0.5">
                 <RouterLink
                   v-for="item in group.items"
                   :key="`mobile-${group.id}-${item.to}`"
                   :to="item.to"
-                  class="flex items-center gap-2 rounded-lg px-3 py-2 text-sm transition-colors"
-                  :class="isItemActive(item.to) ? 'bg-secondary text-foreground' : 'text-muted-foreground hover:bg-secondary/70 hover:text-foreground'"
+                  class="flex items-center gap-2 rounded-lg px-2.5 py-1.5 text-[13px] transition-colors"
+                  :class="isItemActive(item.to) ? 'bg-primary/10 text-primary font-medium' : 'text-muted-foreground hover:bg-muted/65 hover:text-foreground'"
                 >
-                  <component v-if="item.icon" :is="item.icon" class="h-3.5 w-3.5 shrink-0" />
+                  <component v-if="item.icon" :is="item.icon" class="h-3.5 w-3.5 shrink-0 opacity-80" />
                   <span class="truncate">{{ item.label }}</span>
                 </RouterLink>
               </div>
             </div>
           </nav>
-          <div class="px-6 py-4 border-t border-border text-[11px] text-muted-foreground space-y-1">
+          <div class="px-5 py-3.5 border-t border-border/75 text-[11px] text-muted-foreground">
             <p>© {{ new Date().getFullYear() }} Dujiao-Next <span v-if="appVersion" class="text-muted-foreground/70">{{ appVersion }}</span></p>
           </div>
         </SheetContent>
       </Sheet>
 
       <div class="flex-1 flex flex-col min-w-0">
-        <header class="flex items-center justify-between border-b border-border bg-background px-4 md:px-8 py-3 md:py-4 gap-2">
-          <div class="flex items-center gap-3">
+        <header class="sticky top-0 z-30 flex h-14 items-center justify-between border-b border-border/75 bg-background/80 backdrop-blur-xl px-4 md:px-8 gap-2">
+          <div class="flex items-center gap-2.5">
             <Button size="icon-sm" variant="ghost" class="md:hidden" @click="mobileNavOpen = true">
               <Menu class="h-5 w-5" />
             </Button>
             <Button
               size="icon-sm"
               variant="ghost"
-              class="hidden md:inline-flex"
+              class="hidden md:inline-flex text-muted-foreground hover:text-foreground"
               @click="toggleSidebar"
               :title="sidebarCollapsed ? t('admin.layout.expandSidebar') : t('admin.layout.collapseSidebar')"
             >
               <ChevronsRight v-if="sidebarCollapsed" class="h-4 w-4" />
               <ChevronsLeft v-else class="h-4 w-4" />
             </Button>
-            <div class="text-sm text-muted-foreground hidden sm:block">{{ t('admin.layout.workspace') }}</div>
+            <span class="hidden h-4 w-px bg-border/80 sm:block" />
+            <div class="text-xs font-medium text-muted-foreground hidden sm:block">{{ t('admin.layout.workspace') }}</div>
           </div>
-          <div class="flex items-center gap-2">
+          <div class="flex items-center gap-1.5 sm:gap-2">
             <Select
               :model-value="locale"
               @update:modelValue="(value) => { if (value) applyLocale(String(value)) }"
             >
-              <SelectTrigger class="h-8 w-[100px] md:w-[140px] text-xs">
+              <SelectTrigger class="h-8 w-[100px] md:w-[132px] text-xs bg-card/70">
                 <SelectValue :placeholder="t('admin.common.lang.zhCN')" />
               </SelectTrigger>
               <SelectContent>
@@ -987,29 +1011,34 @@ onBeforeUnmount(() => {
             <Button
               size="icon-sm"
               variant="outline"
+              class="text-muted-foreground hover:text-foreground"
               :title="t('admin.updateCheck.button')"
               @click="updateCheckOpen = true"
             >
-              <RefreshCw class="h-4 w-4" />
+              <RefreshCw class="h-3.5 w-3.5" />
             </Button>
-            <Button size="icon-sm" variant="outline" @click="toggleTheme">
-              <Sun v-if="isDark" class="h-4 w-4" />
-              <Moon v-else class="h-4 w-4" />
+            <Button size="icon-sm" variant="outline" class="text-muted-foreground hover:text-foreground" @click="toggleTheme">
+              <Sun v-if="isDark" class="h-3.5 w-3.5" />
+              <Moon v-else class="h-3.5 w-3.5" />
             </Button>
             <a v-if="siteUrl" :href="siteUrl" target="_blank" rel="noopener noreferrer">
-              <Button size="icon-sm" variant="outline" :title="t('admin.layout.homePage')">
-                <Home class="h-4 w-4" />
+              <Button size="icon-sm" variant="outline" class="text-muted-foreground hover:text-foreground" :title="t('admin.layout.homePage')">
+                <Home class="h-3.5 w-3.5" />
               </Button>
             </a>
-            <Button variant="outline" size="sm" class="gap-2" @click="handleLogout">
-              <LogOut class="h-4 w-4" />
+            <Button variant="outline" size="sm" class="h-8 gap-1.5 text-xs" @click="handleLogout">
+              <LogOut class="h-3.5 w-3.5" />
               <span class="hidden sm:inline">{{ t('admin.common.logout') }}</span>
             </Button>
           </div>
         </header>
-        <main class="min-w-0 flex-1 overflow-x-hidden px-4 py-4 md:px-8 md:py-6">
-          <div class="min-w-0">
-            <RouterView />
+        <main class="min-w-0 flex-1 overflow-x-hidden px-4 py-5 md:px-8 md:py-7">
+          <div class="mx-auto max-w-[1600px] min-w-0">
+            <RouterView v-slot="{ Component }">
+              <Transition name="admin-page" mode="out-in">
+                <component :is="Component" />
+              </Transition>
+            </RouterView>
           </div>
         </main>
       </div>

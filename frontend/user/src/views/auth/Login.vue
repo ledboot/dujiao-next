@@ -13,7 +13,7 @@
         </Badge>
       </div>
 
-      <Card class="rounded-3xl p-7 shadow-lg backdrop-blur-sm sm:p-9">
+      <Card class="rounded-3xl border-border/85 bg-card/92 p-7 shadow-xl backdrop-blur-xl sm:p-9 theme-fade-scale">
         <div class="mb-8 text-center">
           <p class="text-xs font-semibold uppercase tracking-[0.22em] text-primary">{{ brandSiteName }}</p>
           <h1 class="mt-3 text-3xl font-black text-foreground">

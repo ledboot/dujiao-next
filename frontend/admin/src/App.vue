@@ -5,7 +5,11 @@ import ConfirmDialogHost from '@/components/ConfirmDialogHost.vue'
 </script>
 
 <template>
-  <RouterView />
+  <RouterView v-slot="{ Component }">
+    <Transition name="admin-page" mode="out-in">
+      <component :is="Component" />
+    </Transition>
+  </RouterView>
   <NoticeHost />
   <ConfirmDialogHost />
 </template>

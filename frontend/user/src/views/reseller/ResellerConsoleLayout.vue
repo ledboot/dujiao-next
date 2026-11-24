@@ -4,7 +4,7 @@
 
     <div class="mx-auto flex w-full max-w-7xl flex-1 gap-6 px-0 lg:px-6 lg:py-6">
       <aside class="hidden w-60 shrink-0 lg:block">
-        <div class="sticky top-20 rounded-xl border bg-card p-3 shadow-sm">
+        <div class="sticky top-20 rounded-2xl border border-border/80 bg-card/90 backdrop-blur-xl p-3 shadow-sm">
           <nav class="space-y-4">
             <div v-for="group in navGroups" :key="group.key">
               <p class="px-3 pb-1.5 text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
@@ -15,16 +15,16 @@
                   v-for="item in group.items"
                   :key="item.to"
                   :to="item.to"
-                  class="group relative flex items-center gap-2.5 rounded-lg py-2.5 pl-4 pr-3 text-sm font-semibold transition-colors"
+                  class="group relative flex items-center gap-2.5 rounded-xl py-2 pl-4 pr-3 text-sm font-medium transition-all duration-150"
                   :class="isActive(item.to)
-                    ? 'bg-accent text-foreground'
-                    : 'text-muted-foreground hover:bg-accent hover:text-foreground'"
+                    ? 'bg-primary/10 text-primary font-semibold'
+                    : 'text-muted-foreground hover:bg-secondary/80 hover:text-foreground'"
                 >
                   <span
-                    class="absolute left-0 top-1/2 h-5 w-1 -translate-y-1/2 rounded-r-full transition-all"
+                    class="absolute left-0 top-1/2 h-4 w-1 -translate-y-1/2 rounded-r-full transition-all"
                     :class="isActive(item.to) ? 'bg-primary' : 'bg-transparent'"
                   ></span>
-                  <component :is="item.icon" class="h-5 w-5 shrink-0" />
+                  <component :is="item.icon" class="h-4.5 w-4.5 shrink-0" />
                   <span class="truncate">{{ item.label }}</span>
                 </RouterLink>
               </div>

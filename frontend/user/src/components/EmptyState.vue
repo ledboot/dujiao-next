@@ -7,9 +7,11 @@
     ]"
   >
     <div class="flex justify-center" :class="iconWrapperClass">
-      <slot name="icon">
-        <component :is="resolvedIcon" :class="iconClass" aria-hidden="true" />
-      </slot>
+      <div class="flex items-center justify-center rounded-2xl bg-secondary/80 p-4 ring-1 ring-border/70">
+        <slot name="icon">
+          <component :is="resolvedIcon" :class="iconClass" aria-hidden="true" />
+        </slot>
+      </div>
     </div>
 
     <p v-if="title" class="font-medium text-foreground" :class="titleClass">{{ title }}</p>

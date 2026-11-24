@@ -1,17 +1,17 @@
 <template>
   <div class="relative min-h-screen overflow-hidden bg-background text-foreground pt-24 pb-16">
     <div class="container relative z-10 mx-auto px-4">
-      <header class="relative mb-8 overflow-hidden rounded-3xl border bg-card shadow-sm">
+      <header class="relative mb-8 overflow-hidden rounded-3xl border border-border/80 bg-gradient-to-br from-primary/[0.06] via-card to-card shadow-sm theme-fade-scale">
         <div class="relative flex flex-col gap-6 p-6 lg:flex-row lg:items-center lg:justify-between lg:p-8">
           <div class="flex min-w-0 items-center gap-4">
-            <div class="flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl bg-primary/10 text-2xl font-black text-primary">
+            <div class="flex h-15 w-15 shrink-0 items-center justify-center rounded-2xl bg-primary/12 text-2xl font-bold text-primary ring-1 ring-primary/20">
               {{ displayInitial }}
             </div>
             <div class="min-w-0">
-              <p class="text-xs font-semibold uppercase tracking-[0.24em] text-primary">
+              <p class="text-xs font-semibold uppercase tracking-[0.2em] text-primary">
                 {{ t('personalCenter.title') }}
               </p>
-              <h1 class="mt-1.5 truncate text-2xl font-black text-foreground lg:text-[2rem]">{{ userProfileStore.displayName }}</h1>
+              <h1 class="mt-1 truncate text-2xl font-bold tracking-tight text-foreground lg:text-[1.85rem]">{{ userProfileStore.displayName }}</h1>
               <p class="mt-1 truncate text-sm text-muted-foreground">{{ userProfileStore.profile?.email || t('personalCenter.subtitle') }}</p>
             </div>
           </div>

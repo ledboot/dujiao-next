@@ -13,7 +13,7 @@
         </Badge>
       </div>
 
-      <Card class="rounded-3xl p-7 shadow-lg backdrop-blur-sm sm:p-9">
+      <Card class="rounded-3xl border-border/85 bg-card/92 p-7 shadow-xl backdrop-blur-xl sm:p-9 theme-fade-scale">
         <div v-if="!registrationEnabled" class="py-8 text-center">
           <p class="text-sm text-muted-foreground">{{ t('auth.register.registrationDisabled') }}</p>
           <router-link to="/auth/login" class="mt-4 inline-block text-primary hover:underline text-sm font-semibold">

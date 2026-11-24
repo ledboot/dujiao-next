@@ -1,33 +1,35 @@
 <template>
   <ol
-    class="rounded-2xl border bg-card/80 p-4 backdrop-blur flex items-center list-none"
+    class="rounded-2xl border border-border/80 bg-card/85 px-5 py-4 shadow-sm backdrop-blur-xl flex items-center list-none"
     :aria-label="t('checkoutSteps.label')"
   >
     <template v-for="(step, idx) in steps" :key="step.key">
       <li
-        class="flex items-center gap-2"
+        class="flex items-center gap-2.5"
         :class="idx === 0 ? '' : 'flex-1'"
         :aria-current="step.status === 'current' ? 'step' : undefined"
       >
         <div
           v-if="idx > 0"
           aria-hidden="true"
-          class="flex-1 h-0.5 rounded-full transition-colors"
+          class="flex-1 h-0.5 rounded-full transition-colors duration-500"
           :class="step.status !== 'upcoming' ? 'bg-primary' : 'bg-muted'"
         ></div>
-        <div class="flex items-center gap-2 shrink-0">
+        <div class="flex items-center gap-2.5 shrink-0">
           <span
-            class="w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold border-2 transition-colors"
-            :class="step.status !== 'upcoming'
-              ? 'bg-primary text-primary-foreground border-transparent'
-              : 'border-border text-muted-foreground'"
+            class="w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold border transition-all duration-300 tabular-nums"
+            :class="step.status === 'current'
+              ? 'bg-primary text-primary-foreground border-transparent ring-4 ring-primary/15'
+              : step.status === 'done'
+                ? 'bg-primary text-primary-foreground border-transparent'
+                : 'border-border bg-secondary/60 text-muted-foreground'"
           >
             <Check v-if="step.status === 'done'" class="w-3.5 h-3.5" :stroke-width="3" />
             <span v-else>{{ idx + 1 }}</span>
           </span>
           <span
-            class="text-sm font-medium hidden sm:inline"
-            :class="step.status !== 'upcoming' ? 'text-foreground' : 'text-muted-foreground'"
+            class="text-sm font-medium hidden sm:inline transition-colors"
+            :class="step.status === 'current' ? 'text-foreground font-semibold' : step.status === 'done' ? 'text-foreground' : 'text-muted-foreground'"
           >
             {{ step.label }}
           </span>

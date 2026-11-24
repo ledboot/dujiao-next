@@ -380,15 +380,15 @@ onMounted(() => {
 
 <template>
   <div class="space-y-6">
-    <div class="flex flex-col gap-3 xl:flex-row xl:items-start xl:justify-between">
+    <div class="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
       <div>
-        <h1 class="text-2xl font-semibold tracking-tight">{{ t('admin.dashboard.title') }}</h1>
+        <h1 class="text-2xl font-bold tracking-tight text-foreground">{{ t('admin.dashboard.title') }}</h1>
         <p class="mt-1 text-sm text-muted-foreground">{{ t('admin.dashboard.subtitle') }}</p>
       </div>
       <div class="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">
-        <div class="w-full sm:w-[150px]">
+        <div class="w-full sm:w-[156px]">
           <Select v-model="filters.range" @update:modelValue="handleRangeChange">
-            <SelectTrigger class="h-9">
+            <SelectTrigger class="h-9 bg-card">
               <SelectValue :placeholder="t('admin.dashboard.filters.range')" />
             </SelectTrigger>
             <SelectContent>
@@ -402,7 +402,7 @@ onMounted(() => {
           v-if="isCustomRange"
           v-model="filters.from"
           type="date"
-          class="h-9 w-full sm:w-[150px]"
+          class="h-9 w-full sm:w-[150px] bg-card"
           :placeholder="t('admin.dashboard.filters.from')"
           @update:modelValue="handleCustomRangeChange"
         />
@@ -410,7 +410,7 @@ onMounted(() => {
           v-if="isCustomRange"
           v-model="filters.to"
           type="date"
-          class="h-9 w-full sm:w-[150px]"
+          class="h-9 w-full sm:w-[150px] bg-card"
           :placeholder="t('admin.dashboard.filters.to')"
           @update:modelValue="handleCustomRangeChange"
         />
@@ -420,126 +420,126 @@ onMounted(() => {
       </div>
     </div>
 
-    <div v-if="dashboardError" class="rounded-xl border border-destructive/40 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+    <div v-if="dashboardError" class="rounded-2xl border border-destructive/35 bg-destructive/10 px-4 py-3 text-sm text-destructive">
       {{ dashboardError }}
     </div>
 
     <div class="grid gap-4 sm:grid-cols-2 xl:grid-cols-4 [&>*]:min-w-0">
-      <Card class="min-w-0">
-        <CardHeader class="pb-2">
+      <Card class="min-w-0 hover:-translate-y-0.5 hover:border-primary/25 hover:shadow-md admin-stagger-in" style="animation-delay: 0ms">
+        <CardHeader class="pb-1.5">
           <CardTitle class="text-xs font-medium text-muted-foreground">{{ t('admin.dashboard.kpi.ordersTotal') }}</CardTitle>
         </CardHeader>
         <CardContent>
-          <div class="text-2xl font-semibold">{{ overview?.kpi.orders_total ?? 0 }}</div>
-          <div class="mt-1 text-xs text-muted-foreground">{{ t('admin.dashboard.kpi.paidOrders') }}: {{ overview?.kpi.paid_orders ?? 0 }}</div>
+          <div class="text-2xl font-bold tracking-tight tabular-nums">{{ overview?.kpi.orders_total ?? 0 }}</div>
+          <div class="mt-1.5 text-xs text-muted-foreground tabular-nums">{{ t('admin.dashboard.kpi.paidOrders') }}: {{ overview?.kpi.paid_orders ?? 0 }}</div>
         </CardContent>
       </Card>
 
-      <Card class="min-w-0">
-        <CardHeader class="pb-2">
+      <Card class="min-w-0 hover:-translate-y-0.5 hover:border-primary/25 hover:shadow-md admin-stagger-in" style="animation-delay: 25ms">
+        <CardHeader class="pb-1.5">
           <CardTitle class="text-xs font-medium text-muted-foreground">{{ t('admin.dashboard.kpi.gmvPaid') }}</CardTitle>
         </CardHeader>
         <CardContent>
-          <div class="text-2xl font-semibold">{{ formatMoney(overview?.kpi.gmv_paid, overview?.currency) }}</div>
-          <div class="mt-1 text-xs text-muted-foreground">{{ t('admin.dashboard.kpi.paymentSuccessRate') }}: {{ overview?.kpi.payment_success_rate ?? '0.00' }}%</div>
+          <div class="text-2xl font-bold tracking-tight tabular-nums text-primary">{{ formatMoney(overview?.kpi.gmv_paid, overview?.currency) }}</div>
+          <div class="mt-1.5 text-xs text-muted-foreground tabular-nums">{{ t('admin.dashboard.kpi.paymentSuccessRate') }}: {{ overview?.kpi.payment_success_rate ?? '0.00' }}%</div>
         </CardContent>
       </Card>
 
-      <Card class="min-w-0">
-        <CardHeader class="pb-2">
+      <Card class="min-w-0 hover:-translate-y-0.5 hover:border-primary/25 hover:shadow-md admin-stagger-in" style="animation-delay: 50ms">
+        <CardHeader class="pb-1.5">
           <CardTitle class="text-xs font-medium text-muted-foreground">{{ t('admin.dashboard.kpi.totalCost') }}</CardTitle>
         </CardHeader>
         <CardContent>
-          <div class="text-2xl font-semibold">{{ formatMoney(overview?.kpi.total_cost, overview?.currency) }}</div>
-          <div class="mt-1 text-xs text-muted-foreground">{{ t('admin.dashboard.kpi.paymentFee') }}: {{ formatMoney(overview?.kpi.payment_fee, overview?.currency) }}</div>
+          <div class="text-2xl font-bold tracking-tight tabular-nums">{{ formatMoney(overview?.kpi.total_cost, overview?.currency) }}</div>
+          <div class="mt-1.5 text-xs text-muted-foreground tabular-nums">{{ t('admin.dashboard.kpi.paymentFee') }}: {{ formatMoney(overview?.kpi.payment_fee, overview?.currency) }}</div>
         </CardContent>
       </Card>
 
-      <Card class="min-w-0">
-        <CardHeader class="pb-2">
+      <Card class="min-w-0 hover:-translate-y-0.5 hover:border-primary/25 hover:shadow-md admin-stagger-in" style="animation-delay: 75ms">
+        <CardHeader class="pb-1.5">
           <CardTitle class="text-xs font-medium text-muted-foreground">{{ t('admin.dashboard.kpi.totalProfit') }}</CardTitle>
         </CardHeader>
         <CardContent>
-          <div class="text-2xl font-semibold">{{ formatMoney(overview?.kpi.total_profit, overview?.currency) }}</div>
+          <div class="text-2xl font-bold tracking-tight tabular-nums text-emerald-600 dark:text-emerald-400">{{ formatMoney(overview?.kpi.total_profit, overview?.currency) }}</div>
         </CardContent>
       </Card>
 
-      <Card class="min-w-0">
-        <CardHeader class="pb-2">
+      <Card class="min-w-0 hover:-translate-y-0.5 hover:border-primary/25 hover:shadow-md admin-stagger-in" style="animation-delay: 100ms">
+        <CardHeader class="pb-1.5">
           <CardTitle class="text-xs font-medium text-muted-foreground">{{ t('admin.dashboard.kpi.profitMargin') }}</CardTitle>
         </CardHeader>
         <CardContent>
-          <div class="text-2xl font-semibold">{{ overview?.kpi.profit_margin ?? '0.00' }}%</div>
+          <div class="text-2xl font-bold tracking-tight tabular-nums">{{ overview?.kpi.profit_margin ?? '0.00' }}%</div>
         </CardContent>
       </Card>
 
-      <Card class="min-w-0">
-        <CardHeader class="pb-2">
+      <Card class="min-w-0 hover:-translate-y-0.5 hover:border-primary/25 hover:shadow-md admin-stagger-in" style="animation-delay: 125ms">
+        <CardHeader class="pb-1.5">
           <CardTitle class="text-xs font-medium text-muted-foreground">{{ t('admin.dashboard.kpi.pendingOrders') }}</CardTitle>
         </CardHeader>
         <CardContent>
-          <div class="text-2xl font-semibold">{{ overview?.kpi.pending_payment_orders ?? 0 }}</div>
-          <div class="mt-1 text-xs text-muted-foreground">{{ t('admin.dashboard.kpi.processingOrders') }}: {{ overview?.kpi.processing_orders ?? 0 }}</div>
+          <div class="text-2xl font-bold tracking-tight tabular-nums">{{ overview?.kpi.pending_payment_orders ?? 0 }}</div>
+          <div class="mt-1.5 text-xs text-muted-foreground tabular-nums">{{ t('admin.dashboard.kpi.processingOrders') }}: {{ overview?.kpi.processing_orders ?? 0 }}</div>
         </CardContent>
       </Card>
 
-      <Card class="min-w-0">
-        <CardHeader class="pb-2">
+      <Card class="min-w-0 hover:-translate-y-0.5 hover:border-primary/25 hover:shadow-md admin-stagger-in" style="animation-delay: 150ms">
+        <CardHeader class="pb-1.5">
           <CardTitle class="text-xs font-medium text-muted-foreground">{{ t('admin.dashboard.kpi.newUsers') }}</CardTitle>
         </CardHeader>
         <CardContent>
-          <div class="text-2xl font-semibold">{{ overview?.kpi.new_users ?? 0 }}</div>
-          <div class="mt-1 text-xs text-muted-foreground">{{ t('admin.dashboard.kpi.activeProducts') }}: {{ overview?.kpi.active_products ?? 0 }}</div>
+          <div class="text-2xl font-bold tracking-tight tabular-nums">{{ overview?.kpi.new_users ?? 0 }}</div>
+          <div class="mt-1.5 text-xs text-muted-foreground tabular-nums">{{ t('admin.dashboard.kpi.activeProducts') }}: {{ overview?.kpi.active_products ?? 0 }}</div>
         </CardContent>
       </Card>
 
-      <Card class="min-w-0">
-        <CardHeader class="pb-2">
+      <Card class="min-w-0 hover:-translate-y-0.5 hover:border-primary/25 hover:shadow-md admin-stagger-in" style="animation-delay: 175ms">
+        <CardHeader class="pb-1.5">
           <CardTitle class="text-xs font-medium text-muted-foreground">{{ t('admin.dashboard.kpi.totalUserBalance') }}</CardTitle>
         </CardHeader>
         <CardContent>
-          <div class="text-2xl font-semibold">{{ formatMoney(overview?.kpi.total_user_balance, overview?.currency) }}</div>
+          <div class="text-2xl font-bold tracking-tight tabular-nums">{{ formatMoney(overview?.kpi.total_user_balance, overview?.currency) }}</div>
         </CardContent>
       </Card>
 
-      <Card class="min-w-0">
-        <CardHeader class="pb-2">
+      <Card class="min-w-0 hover:-translate-y-0.5 hover:border-primary/25 hover:shadow-md admin-stagger-in" style="animation-delay: 200ms">
+        <CardHeader class="pb-1.5">
           <CardTitle class="text-xs font-medium text-muted-foreground">{{ t('admin.dashboard.kpi.lowStockProducts') }}</CardTitle>
         </CardHeader>
         <CardContent>
-          <div class="text-2xl font-semibold">{{ overview?.kpi.low_stock_products ?? 0 }}</div>
-          <div class="mt-1 text-xs text-muted-foreground">{{ t('admin.dashboard.kpi.outOfStockProducts') }}: {{ overview?.kpi.out_of_stock_products ?? 0 }}</div>
-          <div class="mt-1 text-xs text-muted-foreground">{{ t('admin.dashboard.kpi.outOfStockSKUs') }}: {{ overview?.kpi.out_of_stock_skus ?? 0 }} / {{ t('admin.dashboard.kpi.lowStockSKUs') }}: {{ overview?.kpi.low_stock_skus ?? 0 }}</div>
+          <div class="text-2xl font-bold tracking-tight tabular-nums">{{ overview?.kpi.low_stock_products ?? 0 }}</div>
+          <div class="mt-1.5 text-xs text-muted-foreground tabular-nums">{{ t('admin.dashboard.kpi.outOfStockProducts') }}: {{ overview?.kpi.out_of_stock_products ?? 0 }}</div>
+          <div class="mt-1 text-xs text-muted-foreground tabular-nums">{{ t('admin.dashboard.kpi.outOfStockSKUs') }}: {{ overview?.kpi.out_of_stock_skus ?? 0 }} / {{ t('admin.dashboard.kpi.lowStockSKUs') }}: {{ overview?.kpi.low_stock_skus ?? 0 }}</div>
         </CardContent>
       </Card>
 
-      <Card class="min-w-0">
-        <CardHeader class="pb-2">
+      <Card class="min-w-0 hover:-translate-y-0.5 hover:border-primary/25 hover:shadow-md admin-stagger-in" style="animation-delay: 225ms">
+        <CardHeader class="pb-1.5">
           <CardTitle class="text-xs font-medium text-muted-foreground">{{ t('admin.dashboard.kpi.autoAvailableSecrets') }}</CardTitle>
         </CardHeader>
         <CardContent>
-          <div class="text-2xl font-semibold">{{ overview?.kpi.auto_available_secrets ?? 0 }}</div>
-          <div class="mt-1 text-xs text-muted-foreground">{{ t('admin.dashboard.kpi.manualAvailableUnits') }}: {{ overview?.kpi.manual_available_units ?? 0 }}</div>
+          <div class="text-2xl font-bold tracking-tight tabular-nums">{{ overview?.kpi.auto_available_secrets ?? 0 }}</div>
+          <div class="mt-1.5 text-xs text-muted-foreground tabular-nums">{{ t('admin.dashboard.kpi.manualAvailableUnits') }}: {{ overview?.kpi.manual_available_units ?? 0 }}</div>
         </CardContent>
       </Card>
 
-      <Card class="min-w-0">
-        <CardHeader class="pb-2">
+      <Card class="min-w-0 hover:-translate-y-0.5 hover:border-primary/25 hover:shadow-md admin-stagger-in" style="animation-delay: 250ms">
+        <CardHeader class="pb-1.5">
           <CardTitle class="text-xs font-medium text-muted-foreground">{{ t('admin.dashboard.kpi.paymentsSuccess') }}</CardTitle>
         </CardHeader>
         <CardContent>
-          <div class="text-2xl font-semibold">{{ overview?.kpi.payments_success ?? 0 }}</div>
-          <div class="mt-1 text-xs text-muted-foreground">{{ t('admin.dashboard.kpi.paymentsFailed') }}: {{ overview?.kpi.payments_failed ?? 0 }}</div>
+          <div class="text-2xl font-bold tracking-tight tabular-nums">{{ overview?.kpi.payments_success ?? 0 }}</div>
+          <div class="mt-1.5 text-xs text-muted-foreground tabular-nums">{{ t('admin.dashboard.kpi.paymentsFailed') }}: {{ overview?.kpi.payments_failed ?? 0 }}</div>
         </CardContent>
       </Card>
 
-      <Card class="min-w-0">
-        <CardHeader class="pb-2">
+      <Card class="min-w-0 hover:-translate-y-0.5 hover:border-primary/25 hover:shadow-md admin-stagger-in" style="animation-delay: 275ms">
+        <CardHeader class="pb-1.5">
           <CardTitle class="text-xs font-medium text-muted-foreground">{{ t('admin.dashboard.period') }}</CardTitle>
         </CardHeader>
         <CardContent>
-          <div class="text-sm font-medium">{{ shortDate(overview?.from) }} - {{ shortDate(overview?.to) }}</div>
-          <div class="mt-1 text-xs text-muted-foreground">{{ overview?.timezone || '-' }}</div>
+          <div class="text-sm font-semibold tabular-nums">{{ shortDate(overview?.from) }} - {{ shortDate(overview?.to) }}</div>
+          <div class="mt-1.5 text-xs text-muted-foreground">{{ overview?.timezone || '-' }}</div>
         </CardContent>
       </Card>
     </div>
@@ -547,25 +547,25 @@ onMounted(() => {
     <div class="grid gap-4 xl:grid-cols-2 [&>*]:min-w-0">
       <Card class="min-w-0">
         <CardHeader class="pb-2">
-          <CardTitle class="text-sm">{{ t('admin.dashboard.trends.orderTitle') }}</CardTitle>
+          <CardTitle class="text-sm font-semibold">{{ t('admin.dashboard.trends.orderTitle') }}</CardTitle>
         </CardHeader>
         <CardContent>
-          <div v-if="loadingTrends" class="text-sm text-muted-foreground">{{ t('admin.common.loading') }}</div>
-          <div v-else-if="trendPoints.length === 0" class="text-sm text-muted-foreground">{{ t('admin.dashboard.emptyTrend') }}</div>
+          <div v-if="loadingTrends" class="h-44 rounded-xl admin-shimmer"></div>
+          <div v-else-if="trendPoints.length === 0" class="py-10 text-center text-sm text-muted-foreground">{{ t('admin.dashboard.emptyTrend') }}</div>
           <div v-else class="space-y-3">
-            <div class="flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
-              <span class="inline-flex items-center gap-1"><span class="h-2 w-2 rounded-full bg-primary"></span>{{ t('admin.dashboard.trends.ordersTotal') }}</span>
-              <span class="inline-flex items-center gap-1"><span class="h-2 w-2 rounded-full bg-emerald-500"></span>{{ t('admin.dashboard.trends.ordersPaid') }}</span>
+            <div class="flex flex-wrap items-center gap-4 text-xs text-muted-foreground">
+              <span class="inline-flex items-center gap-1.5"><span class="h-2.5 w-2.5 rounded-full bg-primary"></span>{{ t('admin.dashboard.trends.ordersTotal') }}</span>
+              <span class="inline-flex items-center gap-1.5"><span class="h-2.5 w-2.5 rounded-full bg-emerald-500"></span>{{ t('admin.dashboard.trends.ordersPaid') }}</span>
             </div>
             <div class="overflow-x-auto">
-              <div class="inline-flex items-end gap-2 rounded-lg bg-muted/20 px-2 py-3">
-                <div v-for="point in trendPoints" :key="point.date" class="flex shrink-0 flex-col items-center gap-1">
-                  <div class="flex h-32 items-end gap-0.5">
-                    <div class="w-2 rounded-t bg-primary/80" :style="{ height: orderTotalHeight(point.orders_total) }" :title="`${t('admin.dashboard.trends.ordersTotal')}: ${point.orders_total}`"></div>
-                    <div class="w-2 rounded-t bg-emerald-500/80" :style="{ height: orderPaidHeight(point.orders_paid) }" :title="`${t('admin.dashboard.trends.ordersPaid')}: ${point.orders_paid}`"></div>
+              <div class="flex min-w-max items-end gap-2.5 rounded-xl border border-border/60 bg-muted/25 px-3.5 py-4">
+                <div v-for="point in trendPoints" :key="point.date" class="group flex shrink-0 flex-col items-center gap-1.5 rounded-lg px-1.5 py-1 transition-colors hover:bg-card/80">
+                  <div class="flex h-32 items-end gap-1">
+                    <div class="w-2.5 rounded-t-sm bg-primary/85 transition-all duration-500 ease-out group-hover:bg-primary" :style="{ height: orderTotalHeight(point.orders_total) }" :title="`${t('admin.dashboard.trends.ordersTotal')}: ${point.orders_total}`"></div>
+                    <div class="w-2.5 rounded-t-sm bg-emerald-500/85 transition-all duration-500 ease-out group-hover:bg-emerald-500" :style="{ height: orderPaidHeight(point.orders_paid) }" :title="`${t('admin.dashboard.trends.ordersPaid')}: ${point.orders_paid}`"></div>
                   </div>
-                  <div class="whitespace-nowrap text-[10px] text-muted-foreground">{{ shortDate(point.date) }}</div>
-                  <div class="whitespace-nowrap text-[10px] font-medium text-emerald-600 dark:text-emerald-400">{{ formatMoney(point.profit, overview?.currency) }}</div>
+                  <div class="whitespace-nowrap text-[10px] tabular-nums text-muted-foreground">{{ shortDate(point.date) }}</div>
+                  <div class="whitespace-nowrap text-[10px] font-medium tabular-nums text-emerald-600 dark:text-emerald-400">{{ formatMoney(point.profit, overview?.currency) }}</div>
                 </div>
               </div>
             </div>
@@ -575,24 +575,24 @@ onMounted(() => {
 
       <Card class="min-w-0">
         <CardHeader class="pb-2">
-          <CardTitle class="text-sm">{{ t('admin.dashboard.trends.paymentTitle') }}</CardTitle>
+          <CardTitle class="text-sm font-semibold">{{ t('admin.dashboard.trends.paymentTitle') }}</CardTitle>
         </CardHeader>
         <CardContent>
-          <div v-if="loadingTrends" class="text-sm text-muted-foreground">{{ t('admin.common.loading') }}</div>
-          <div v-else-if="trendPoints.length === 0" class="text-sm text-muted-foreground">{{ t('admin.dashboard.emptyTrend') }}</div>
+          <div v-if="loadingTrends" class="h-44 rounded-xl admin-shimmer"></div>
+          <div v-else-if="trendPoints.length === 0" class="py-10 text-center text-sm text-muted-foreground">{{ t('admin.dashboard.emptyTrend') }}</div>
           <div v-else class="space-y-3">
-            <div class="flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
-              <span class="inline-flex items-center gap-1"><span class="h-2 w-2 rounded-full bg-sky-500"></span>{{ t('admin.dashboard.trends.paymentsSuccess') }}</span>
-              <span class="inline-flex items-center gap-1"><span class="h-2 w-2 rounded-full bg-rose-500"></span>{{ t('admin.dashboard.trends.paymentsFailed') }}</span>
+            <div class="flex flex-wrap items-center gap-4 text-xs text-muted-foreground">
+              <span class="inline-flex items-center gap-1.5"><span class="h-2.5 w-2.5 rounded-full bg-sky-500"></span>{{ t('admin.dashboard.trends.paymentsSuccess') }}</span>
+              <span class="inline-flex items-center gap-1.5"><span class="h-2.5 w-2.5 rounded-full bg-rose-500"></span>{{ t('admin.dashboard.trends.paymentsFailed') }}</span>
             </div>
             <div class="overflow-x-auto">
-              <div class="inline-flex items-end gap-2 rounded-lg bg-muted/20 px-2 py-3">
-                <div v-for="point in trendPoints" :key="`${point.date}-payment`" class="flex shrink-0 flex-col items-center gap-1">
-                  <div class="flex h-32 items-end gap-0.5">
-                    <div class="w-2 rounded-t bg-sky-500/80" :style="{ height: paymentSuccessHeight(point.payments_success) }" :title="`${t('admin.dashboard.trends.paymentsSuccess')}: ${point.payments_success}`"></div>
-                    <div class="w-2 rounded-t bg-rose-500/80" :style="{ height: paymentFailedHeight(point.payments_failed) }" :title="`${t('admin.dashboard.trends.paymentsFailed')}: ${point.payments_failed}`"></div>
+              <div class="flex min-w-max items-end gap-2.5 rounded-xl border border-border/60 bg-muted/25 px-3.5 py-4">
+                <div v-for="point in trendPoints" :key="`${point.date}-payment`" class="group flex shrink-0 flex-col items-center gap-1.5 rounded-lg px-1.5 py-1 transition-colors hover:bg-card/80">
+                  <div class="flex h-32 items-end gap-1">
+                    <div class="w-2.5 rounded-t-sm bg-sky-500/85 transition-all duration-500 ease-out group-hover:bg-sky-500" :style="{ height: paymentSuccessHeight(point.payments_success) }" :title="`${t('admin.dashboard.trends.paymentsSuccess')}: ${point.payments_success}`"></div>
+                    <div class="w-2.5 rounded-t-sm bg-rose-500/85 transition-all duration-500 ease-out group-hover:bg-rose-500" :style="{ height: paymentFailedHeight(point.payments_failed) }" :title="`${t('admin.dashboard.trends.paymentsFailed')}: ${point.payments_failed}`"></div>
                   </div>
-                  <div class="whitespace-nowrap text-[10px] text-muted-foreground">{{ shortDate(point.date) }}</div>
+                  <div class="whitespace-nowrap text-[10px] tabular-nums text-muted-foreground">{{ shortDate(point.date) }}</div>
                 </div>
               </div>
             </div>
@@ -604,28 +604,30 @@ onMounted(() => {
     <div class="grid gap-4 xl:grid-cols-3 [&>*]:min-w-0">
       <Card class="min-w-0">
         <CardHeader class="pb-2">
-          <CardTitle class="text-sm">{{ t('admin.dashboard.funnel.title') }}</CardTitle>
+          <CardTitle class="text-sm font-semibold">{{ t('admin.dashboard.funnel.title') }}</CardTitle>
         </CardHeader>
         <CardContent>
-          <div v-if="!overview" class="text-sm text-muted-foreground">{{ t('admin.common.loading') }}</div>
-          <div v-else class="space-y-3">
-            <div v-for="item in funnelSteps" :key="item.key" class="space-y-1">
+          <div v-if="!overview" class="space-y-3">
+            <div v-for="i in 5" :key="i" class="h-6 rounded-lg admin-shimmer"></div>
+          </div>
+          <div v-else class="space-y-3.5">
+            <div v-for="item in funnelSteps" :key="item.key" class="space-y-1.5">
               <div class="flex items-center justify-between text-xs text-muted-foreground">
                 <span>{{ item.label }}</span>
-                <span class="font-mono text-foreground">{{ item.value }}</span>
+                <span class="font-mono font-medium tabular-nums text-foreground">{{ item.value }}</span>
               </div>
-              <div class="h-2 rounded-full bg-muted">
-                <div class="h-2 rounded-full bg-primary/70" :style="{ width: funnelWidth(item.value) }"></div>
+              <div class="h-2 overflow-hidden rounded-full bg-muted/80">
+                <div class="h-full rounded-full bg-gradient-to-r from-primary/75 to-primary transition-all duration-700 ease-out" :style="{ width: funnelWidth(item.value) }"></div>
               </div>
             </div>
-            <div class="grid grid-cols-2 gap-2 border-t border-border pt-3 text-xs">
-              <div class="rounded-md border border-border bg-muted/30 px-2 py-1">
+            <div class="grid grid-cols-2 gap-2.5 border-t border-border/70 pt-3.5 text-xs">
+              <div class="rounded-xl border border-border/70 bg-muted/25 px-3 py-2">
                 <div class="text-muted-foreground">{{ t('admin.dashboard.funnel.paymentConversionRate') }}</div>
-                <div class="font-semibold">{{ overview.funnel.payment_conversion_rate }}%</div>
+                <div class="mt-0.5 text-sm font-bold tabular-nums">{{ overview.funnel.payment_conversion_rate }}%</div>
               </div>
-              <div class="rounded-md border border-border bg-muted/30 px-2 py-1">
+              <div class="rounded-xl border border-border/70 bg-muted/25 px-3 py-2">
                 <div class="text-muted-foreground">{{ t('admin.dashboard.funnel.completionRate') }}</div>
-                <div class="font-semibold">{{ overview.funnel.completion_rate }}%</div>
+                <div class="mt-0.5 text-sm font-bold tabular-nums">{{ overview.funnel.completion_rate }}%</div>
               </div>
             </div>
           </div>
@@ -634,24 +636,29 @@ onMounted(() => {
 
       <Card class="min-w-0">
         <CardHeader class="pb-2">
-          <CardTitle class="text-sm">{{ t('admin.dashboard.rankings.topProductsTitle') }}</CardTitle>
+          <CardTitle class="text-sm font-semibold">{{ t('admin.dashboard.rankings.topProductsTitle') }}</CardTitle>
         </CardHeader>
         <CardContent>
-          <div v-if="loadingRankings" class="text-sm text-muted-foreground">{{ t('admin.common.loading') }}</div>
-          <div v-else-if="!rankings || rankings.top_products.length === 0" class="text-sm text-muted-foreground">{{ t('admin.dashboard.rankings.empty') }}</div>
-          <div v-else class="space-y-2">
-            <div v-for="item in rankings.top_products" :key="`${item.product_id}-${item.sku_id || 0}`" class="min-w-0 rounded-lg border border-border px-3 py-2">
-              <div class="line-clamp-1 min-w-0 text-sm font-medium">{{ item.title }}</div>
-              <div v-if="rankingSkuLabel(item)" class="mt-0.5 line-clamp-1 text-xs text-muted-foreground">
+          <div v-if="loadingRankings" class="space-y-2.5">
+            <div v-for="i in 4" :key="i" class="h-16 rounded-xl admin-shimmer"></div>
+          </div>
+          <div v-else-if="!rankings || rankings.top_products.length === 0" class="py-8 text-center text-sm text-muted-foreground">{{ t('admin.dashboard.rankings.empty') }}</div>
+          <div v-else class="space-y-2.5">
+            <div v-for="(item, idx) in rankings.top_products" :key="`${item.product_id}-${item.sku_id || 0}`" class="min-w-0 rounded-xl border border-border/75 bg-muted/15 px-3.5 py-2.5 transition-colors hover:border-border hover:bg-muted/35">
+              <div class="flex items-center gap-2">
+                <span class="inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-md bg-primary/10 text-[11px] font-bold tabular-nums text-primary">{{ idx + 1 }}</span>
+                <div class="line-clamp-1 min-w-0 text-sm font-medium">{{ item.title }}</div>
+              </div>
+              <div v-if="rankingSkuLabel(item)" class="mt-0.5 line-clamp-1 pl-7 text-xs text-muted-foreground">
                 {{ t('admin.dashboard.rankings.skuLabel') }}: {{ rankingSkuLabel(item) }}
               </div>
-              <div class="mt-1 flex flex-col gap-1 text-xs text-muted-foreground sm:flex-row sm:items-center sm:justify-between">
+              <div class="mt-1.5 flex flex-col gap-1 pl-7 text-xs text-muted-foreground tabular-nums sm:flex-row sm:items-center sm:justify-between">
                 <span>{{ t('admin.dashboard.rankings.paidOrders') }}: {{ item.paid_orders }}</span>
                 <span>{{ t('admin.dashboard.rankings.quantity') }}: {{ item.quantity }}</span>
               </div>
-              <div class="mt-1 flex flex-col gap-1 text-xs font-semibold text-foreground sm:flex-row sm:items-center sm:justify-between">
+              <div class="mt-1 flex flex-col gap-1 pl-7 text-xs font-semibold text-foreground tabular-nums sm:flex-row sm:items-center sm:justify-between">
                 <span>{{ t('admin.dashboard.rankings.paidAmount') }}: {{ formatMoney(item.paid_amount, overview?.currency) }}</span>
-                <span>{{ t('admin.dashboard.rankings.profit') }}: {{ formatMoney(item.profit, overview?.currency) }}</span>
+                <span class="text-emerald-600 dark:text-emerald-400">{{ t('admin.dashboard.rankings.profit') }}: {{ formatMoney(item.profit, overview?.currency) }}</span>
               </div>
             </div>
           </div>
@@ -660,19 +667,24 @@ onMounted(() => {
 
       <Card class="min-w-0">
         <CardHeader class="pb-2">
-          <CardTitle class="text-sm">{{ t('admin.dashboard.rankings.topChannelsTitle') }}</CardTitle>
+          <CardTitle class="text-sm font-semibold">{{ t('admin.dashboard.rankings.topChannelsTitle') }}</CardTitle>
         </CardHeader>
         <CardContent>
-          <div v-if="loadingRankings" class="text-sm text-muted-foreground">{{ t('admin.common.loading') }}</div>
-          <div v-else-if="!rankings || rankings.top_channels.length === 0" class="text-sm text-muted-foreground">{{ t('admin.dashboard.rankings.empty') }}</div>
-          <div v-else class="space-y-2">
-            <div v-for="item in rankings.top_channels" :key="`${item.channel_id}-${item.channel_type}`" class="min-w-0 rounded-lg border border-border px-3 py-2">
-              <div class="line-clamp-1 min-w-0 text-sm font-medium">{{ channelLabel(item) }}</div>
-              <div class="mt-1 flex flex-col gap-1 text-xs text-muted-foreground sm:flex-row sm:items-center sm:justify-between">
+          <div v-if="loadingRankings" class="space-y-2.5">
+            <div v-for="i in 4" :key="i" class="h-16 rounded-xl admin-shimmer"></div>
+          </div>
+          <div v-else-if="!rankings || rankings.top_channels.length === 0" class="py-8 text-center text-sm text-muted-foreground">{{ t('admin.dashboard.rankings.empty') }}</div>
+          <div v-else class="space-y-2.5">
+            <div v-for="(item, idx) in rankings.top_channels" :key="`${item.channel_id}-${item.channel_type}`" class="min-w-0 rounded-xl border border-border/75 bg-muted/15 px-3.5 py-2.5 transition-colors hover:border-border hover:bg-muted/35">
+              <div class="flex items-center gap-2">
+                <span class="inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-md bg-primary/10 text-[11px] font-bold tabular-nums text-primary">{{ idx + 1 }}</span>
+                <div class="line-clamp-1 min-w-0 text-sm font-medium">{{ channelLabel(item) }}</div>
+              </div>
+              <div class="mt-1.5 flex flex-col gap-1 pl-7 text-xs text-muted-foreground tabular-nums sm:flex-row sm:items-center sm:justify-between">
                 <span>{{ t('admin.dashboard.rankings.successCount') }}: {{ item.success_count }}</span>
                 <span>{{ t('admin.dashboard.rankings.failedCount') }}: {{ item.failed_count }}</span>
               </div>
-              <div class="mt-1 flex flex-col gap-1 text-xs sm:flex-row sm:items-center sm:justify-between">
+              <div class="mt-1 flex flex-col gap-1 pl-7 text-xs tabular-nums sm:flex-row sm:items-center sm:justify-between">
                 <span class="font-semibold text-foreground">{{ t('admin.dashboard.rankings.successAmount') }}: {{ formatMoney(item.success_amount, overview?.currency) }}</span>
                 <span class="text-muted-foreground">{{ t('admin.dashboard.rankings.successRate') }}: {{ item.success_rate }}%</span>
               </div>
@@ -685,7 +697,7 @@ onMounted(() => {
     <div class="grid gap-4 xl:grid-cols-2 [&>*]:min-w-0">
       <Card class="min-w-0">
         <CardHeader class="pb-2">
-          <CardTitle class="text-sm">{{ t('admin.dashboard.alerts.title') }}</CardTitle>
+          <CardTitle class="text-sm font-semibold">{{ t('admin.dashboard.alerts.title') }}</CardTitle>
         </CardHeader>
         <CardContent>
           <!-- 通用告警（待支付订单、失败支付等） -->
@@ -693,22 +705,22 @@ onMounted(() => {
             <div
               v-for="alert in overview.alerts.filter(a => a.type !== 'out_of_stock_products' && a.type !== 'low_stock_products')"
               :key="`${alert.type}-${alert.value}`"
-              class="rounded-lg border px-3 py-2 text-sm"
+              class="rounded-xl border px-3.5 py-2.5 text-sm"
               :class="alertClass(alert.level)"
             >
               <div class="flex items-center justify-between gap-2">
                 <span class="font-medium">{{ alertLabel(alert.type) }}</span>
-                <span class="font-mono text-xs">{{ alert.value }}</span>
+                <span class="font-mono text-xs font-semibold tabular-nums">{{ alert.value }}</span>
               </div>
             </div>
           </div>
           <!-- SKU 级别库存告警 -->
           <div v-if="inventoryAlerts.length > 0" class="space-y-2">
-            <div class="text-xs font-medium text-muted-foreground mb-1">{{ t('admin.dashboard.inventoryAlerts.title') }}</div>
+            <div class="text-xs font-medium text-muted-foreground mb-1.5">{{ t('admin.dashboard.inventoryAlerts.title') }}</div>
             <div
               v-for="(item, idx) in displayedInventoryAlerts"
               :key="`inv-${item.product_id}-${item.sku_id || 0}-${idx}`"
-              class="rounded-lg border border-border px-3 py-2 text-sm"
+              class="rounded-xl border border-border/75 bg-muted/15 px-3.5 py-2.5 text-sm transition-colors hover:bg-muted/30"
             >
               <div class="flex items-center justify-between gap-2">
                 <div class="min-w-0 flex-1">
@@ -721,8 +733,8 @@ onMounted(() => {
                   </div>
                 </div>
                 <div class="flex shrink-0 items-center gap-2">
-                  <span class="font-mono text-xs text-muted-foreground">{{ item.available_stock }}</span>
-                  <span class="inline-flex rounded-full px-2 py-0.5 text-[10px] font-medium" :class="inventoryAlertBadgeClass(item)">
+                  <span class="font-mono text-xs tabular-nums text-muted-foreground">{{ item.available_stock }}</span>
+                  <span class="inline-flex rounded-full px-2.5 py-0.5 text-[10.5px] font-medium" :class="inventoryAlertBadgeClass(item)">
                     {{ inventoryAlertLabel(item) }}
                   </span>
                 </div>
@@ -738,7 +750,7 @@ onMounted(() => {
               {{ t('admin.dashboard.inventoryAlerts.loadMore', { count: inventoryAlerts.length - inventoryAlertsDisplayLimit }) }}
             </Button>
           </div>
-          <div v-if="(!overview || overview.alerts.length === 0) && inventoryAlerts.length === 0" class="text-sm text-muted-foreground">
+          <div v-if="(!overview || overview.alerts.length === 0) && inventoryAlerts.length === 0" class="py-6 text-center text-sm text-muted-foreground">
             {{ t('admin.dashboard.alerts.empty') }}
           </div>
         </CardContent>
@@ -746,19 +758,22 @@ onMounted(() => {
 
       <Card class="min-w-0">
         <CardHeader class="pb-2">
-          <CardTitle class="text-sm">{{ t('admin.dashboard.quickActions.title') }}</CardTitle>
+          <CardTitle class="text-sm font-semibold">{{ t('admin.dashboard.quickActions.title') }}</CardTitle>
         </CardHeader>
         <CardContent>
-          <div class="grid grid-cols-2 gap-2 md:grid-cols-3">
+          <div class="grid grid-cols-2 gap-2.5 md:grid-cols-3">
             <Button
               v-for="action in quickActions"
               :key="action.path"
               variant="outline"
               size="sm"
-              class="justify-start"
+              class="h-10 justify-between rounded-xl px-3.5 hover:border-primary/35 hover:bg-primary/5 hover:text-primary"
               as-child
             >
-              <router-link :to="action.path">{{ action.label }}</router-link>
+              <router-link :to="action.path">
+                <span>{{ action.label }}</span>
+                <span aria-hidden="true" class="text-xs opacity-50">→</span>
+              </router-link>
             </Button>
           </div>
         </CardContent>

@@ -1,14 +1,15 @@
 <template>
   <div v-if="totalPages > 1" class="flex justify-center" :class="compact ? 'mt-8' : 'mt-12'">
     <nav
-      class="flex items-center gap-2 rounded-2xl border bg-card/80 p-2 backdrop-blur-md"
+      class="flex items-center gap-1.5 rounded-full border border-border/80 bg-card/85 px-2 py-1.5 shadow-sm backdrop-blur-xl"
       :aria-label="t('pagination.label')"
     >
       <Button
         type="button"
-        variant="outline"
+        variant="ghost"
         size="icon"
-        :class="compact ? 'h-10 w-10' : 'h-12 w-12'"
+        class="rounded-full"
+        :class="compact ? 'h-9 w-9' : 'h-10 w-10'"
         :aria-label="t('pagination.previous')"
         :disabled="currentPage === 1 || loading"
         @click="handlePage(currentPage - 1)"
@@ -17,8 +18,8 @@
       </Button>
 
       <span
-        class="flex items-center font-mono text-muted-foreground"
-        :class="compact ? 'px-3 py-1.5 text-sm' : 'px-4 py-2'"
+        class="flex items-center tabular-nums text-muted-foreground"
+        :class="compact ? 'px-3 py-1 text-xs' : 'px-4 py-1.5 text-sm'"
         aria-live="polite"
       >
         <Loader2
@@ -28,15 +29,16 @@
           aria-hidden="true"
         />
         <span class="font-bold text-foreground">{{ currentPage }}</span>
-        <span :class="compact ? 'mx-1.5' : 'mx-2'" class="opacity-50">/</span>
+        <span :class="compact ? 'mx-1.5' : 'mx-2'" class="opacity-40">/</span>
         <span>{{ totalPages }}</span>
       </span>
 
       <Button
         type="button"
-        variant="outline"
+        variant="ghost"
         size="icon"
-        :class="compact ? 'h-10 w-10' : 'h-12 w-12'"
+        class="rounded-full"
+        :class="compact ? 'h-9 w-9' : 'h-10 w-10'"
         :aria-label="t('pagination.next')"
         :disabled="currentPage === totalPages || loading"
         @click="handlePage(currentPage + 1)"

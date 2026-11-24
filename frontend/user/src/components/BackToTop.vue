@@ -1,18 +1,18 @@
 <template>
   <Transition
-    enter-active-class="transition duration-300 ease-out"
-    enter-from-class="opacity-0 scale-90"
-    enter-to-class="opacity-100 scale-100"
+    enter-active-class="transition duration-300 ease-[cubic-bezier(0.16,1,0.3,1)]"
+    enter-from-class="opacity-0 scale-90 translate-y-2"
+    enter-to-class="opacity-100 scale-100 translate-y-0"
     leave-active-class="transition duration-200 ease-in"
-    leave-from-class="opacity-100 scale-100"
-    leave-to-class="opacity-0 scale-90"
+    leave-from-class="opacity-100 scale-100 translate-y-0"
+    leave-to-class="opacity-0 scale-90 translate-y-2"
   >
     <Button
       v-if="visible"
-      variant="secondary"
+      variant="outline"
       size="icon"
       @click="scrollToTop"
-      class="back-to-top fixed right-4 md:right-6 z-30 lg:z-40 h-11 w-11 rounded-full border shadow-lg transition-all hover:shadow-xl hover:-translate-y-0.5 [&_svg]:size-5"
+      class="back-to-top fixed right-4 md:right-6 z-30 lg:z-40 h-10 w-10 rounded-full bg-card/88 backdrop-blur-xl border-border/85 shadow-lg transition-all duration-200 hover:border-primary/40 hover:text-primary hover:shadow-xl hover:-translate-y-0.5 [&_svg]:size-4.5"
       :aria-label="t('common.backToTop')"
     >
       <ChevronUp />

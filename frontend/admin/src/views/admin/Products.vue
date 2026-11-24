@@ -206,33 +206,33 @@ const formatAutoStockSummary = (product: AdminProduct) => {
 
 const purchaseTypeBadgeClass = (product: AdminProduct) => {
   return product?.purchase_type === 'guest'
-    ? 'border-sky-200 bg-sky-50 text-sky-700'
-    : 'border-indigo-200 bg-indigo-50 text-indigo-700'
+    ? 'border-sky-500/25 bg-sky-500/10 text-sky-700 dark:text-sky-300'
+    : 'border-indigo-500/25 bg-indigo-500/10 text-indigo-700 dark:text-indigo-300'
 }
 
 const fulfillmentTypeBadgeClass = (product: AdminProduct) => {
   return product?.fulfillment_type === 'auto'
-    ? 'border-violet-200 bg-violet-50 text-violet-700'
-    : 'border-amber-200 bg-amber-50 text-amber-700'
+    ? 'border-violet-500/25 bg-violet-500/10 text-violet-700 dark:text-violet-300'
+    : 'border-amber-500/25 bg-amber-500/10 text-amber-700 dark:text-amber-300'
 }
 
 const manualStockBadgeClass = (product: AdminProduct) => {
   const total = resolveManualStockMetrics(product).total
   if (total === -1) {
-    return 'border-zinc-200 bg-zinc-50 text-zinc-700'
+    return 'border-border bg-muted/60 text-muted-foreground'
   }
   if (total <= 0) {
-    return 'border-rose-200 bg-rose-50 text-rose-700'
+    return 'border-rose-500/25 bg-rose-500/10 text-rose-700 dark:text-rose-300'
   }
-  return 'border-emerald-200 bg-emerald-50 text-emerald-700'
+  return 'border-emerald-500/25 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300'
 }
 
 const autoStockBadgeClass = (product: AdminProduct) => {
   const available = toSafeInt(product?.auto_stock_available)
   if (available <= 0) {
-    return 'border-rose-200 bg-rose-50 text-rose-700'
+    return 'border-rose-500/25 bg-rose-500/10 text-rose-700 dark:text-rose-300'
   }
-  return 'border-emerald-200 bg-emerald-50 text-emerald-700'
+  return 'border-emerald-500/25 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300'
 }
 
 const fetchProducts = async (options: ListFetchOptions = {}) => {

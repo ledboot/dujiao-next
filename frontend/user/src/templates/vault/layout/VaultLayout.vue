@@ -1,7 +1,7 @@
 <template>
   <div class="vault-scope">
     <!-- 顶栏 -->
-    <header class="sticky top-0 z-50 border-b bg-[color:var(--bg)]">
+    <header class="sticky top-0 z-50 border-b border-border/80 bg-[color:var(--bg)]/82 backdrop-blur-xl">
       <div class="mx-auto flex h-[70px] w-full max-w-[1180px] items-center gap-3 px-4 sm:gap-5 sm:px-6">
         <RouterLink class="inline-flex min-w-0 items-center gap-2.5 text-[19px] font-extrabold tracking-[-0.02em] text-foreground" to="/" :title="brandName">
           <img v-if="brandLogo" :src="brandLogo" :alt="brandName" class="h-8 max-w-[120px] object-contain sm:max-w-[160px]" />
