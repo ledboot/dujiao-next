@@ -99,7 +99,7 @@ const fetchOrders = async (page = 1, options: ListFetchOptions = {}) => {
       status: normalizeFilterValue(filters.status) || undefined,
       user_id: filters.userId || undefined,
       user_keyword: filters.userKeyword || undefined,
-      order_no: filters.orderNo || undefined,
+      order_no: filters.orderNo.trim() || undefined,
       guest_email: filters.guestEmail || undefined,
       product_keyword: filters.productKeyword || undefined,
       created_from: toRFC3339(filters.createdFrom),
@@ -284,7 +284,7 @@ watch(
           <Input v-model="filters.userKeyword" :placeholder="t('admin.orders.filterUserKeyword')" @update:modelValue="debouncedSearch" />
         </div>
         <div class="col-span-2 sm:col-span-1 w-full md:w-48">
-          <Input v-model="filters.orderNo" :placeholder="t('admin.orders.filterOrderNo')" @update:modelValue="debouncedSearch" />
+          <Input v-model="filters.orderNo" :placeholder="t('admin.orders.filterOrderNo')" @update:modelValue="debouncedSearch" @keydown.enter="handleSearch" />
         </div>
         <div class="w-full md:w-48">
           <Input v-model="filters.guestEmail" :placeholder="t('admin.orders.filterGuestEmail')" @update:modelValue="debouncedSearch" />

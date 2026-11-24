@@ -122,3 +122,87 @@ func TestOrderRepositoryListAdminSupportsUserKeyword(t *testing.T) {
 		t.Fatalf("unexpected result by provider user id: total=%d rows=%+v", total, rows)
 	}
 }
+
+func TestOrderRepositoryListAdminSupportsFuzzyOrderNo(t *testing.T) {
+	_, orderRepo, db := setupAdminSearchRepositoryTest(t)
+	now := time.Now().UTC()
+
+	order1 := orderdomain.Order{
+		OrderNo:   "DJ-20261124-ABCD9876",
+		Status:    "paid",
+		Currency:  "CNY",
+		CreatedAt: now,
+		UpdatedAt: now,
+	}
+	order2 := orderdomain.Order{
+		OrderNo:   "DJ-20261124-EFGH5566",
+		Status:    "paid",
+		Currency:  "CNY",
+		CreatedAt: now,
+		UpdatedAt: now,
+	}
+	if err := db.Create(&order1).Error; err != nil {
+		t.Fatalf("create order1 failed: %v", err)
+	}
+	if err := db.Create(&order2).Error; err != nil {
+		t.Fatalf("create order2 failed: %v", err)
+	}
+
+	parentID := order2.ID
+	childOrder := orderdomain.Order{
+		ParentID:  &parentID,
+		OrderNo:   "DJ-20261124-EFGH5566-SUB99",
+		Status:    "delivered",
+		Currency:  "CNY",
+		CreatedAt: now,
+		UpdatedAt: now,
+	}
+	if err := db.Create(&childOrder).Error; err != nil {
+		t.Fatalf("create childOrder failed: %v", err)
+	}
+
+	// Suffix fuzzy match
+	rows, total, err := orderRepo.ListAdmin(ordercontract.ListFilter{Page: 1, PageSize: 20, OrderNo: "9876"})
+	if err != nil {
+		t.Fatalf("list orders by suffix failed: %v", err)
+	}
+	if total != 1 || len(rows) != 1 || rows[0].ID != order1.ID {
+		t.Fatalf("unexpected result by suffix: total=%d rows=%+v", total, rows)
+	}
+
+	// Case-insensitive substring match
+	rows, total, err = orderRepo.ListAdmin(ordercontract.ListFilter{Page: 1, PageSize: 20, OrderNo: "abcd"})
+	if err != nil {
+		t.Fatalf("list orders by lowercase substring failed: %v", err)
+	}
+	if total != 1 || len(rows) != 1 || rows[0].ID != order1.ID {
+		t.Fatalf("unexpected result by lowercase substring: total=%d rows=%+v", total, rows)
+	}
+
+	// Shared prefix match returns both parent orders
+	rows, total, err = orderRepo.ListAdmin(ordercontract.ListFilter{Page: 1, PageSize: 20, OrderNo: "20261124"})
+	if err != nil {
+		t.Fatalf("list orders by shared prefix failed: %v", err)
+	}
+	if total != 2 || len(rows) != 2 {
+		t.Fatalf("unexpected result by shared prefix: total=%d len=%d", total, len(rows))
+	}
+
+	// Child order number fuzzy match returns parent order once
+	rows, total, err = orderRepo.ListAdmin(ordercontract.ListFilter{Page: 1, PageSize: 20, OrderNo: "sub99"})
+	if err != nil {
+		t.Fatalf("list orders by child order_no failed: %v", err)
+	}
+	if total != 1 || len(rows) != 1 || rows[0].ID != order2.ID {
+		t.Fatalf("unexpected result by child order_no: total=%d rows=%+v", total, rows)
+	}
+
+	// Non-matching keyword returns empty
+	rows, total, err = orderRepo.ListAdmin(ordercontract.ListFilter{Page: 1, PageSize: 20, OrderNo: "NO-SUCH-ORDER"})
+	if err != nil {
+		t.Fatalf("list orders by non-matching order_no failed: %v", err)
+	}
+	if total != 0 || len(rows) != 0 {
+		t.Fatalf("expected empty result, got total=%d rows=%+v", total, rows)
+	}
+}

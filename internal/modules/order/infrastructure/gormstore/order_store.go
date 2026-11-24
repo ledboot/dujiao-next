@@ -454,8 +454,12 @@ func (r *Store) ListAdmin(filter ordercontract.ListFilter) ([]orderdomain.Order,
 	if filter.Status != "" {
 		query = query.Where("status = ?", filter.Status)
 	}
-	if filter.OrderNo != "" {
-		query = query.Where("order_no = ?", filter.OrderNo)
+	if orderNo := strings.TrimSpace(filter.OrderNo); orderNo != "" {
+		like := "%" + strings.ToLower(orderNo) + "%"
+		query = query.Where(
+			"(LOWER(orders.order_no) LIKE ? OR EXISTS (SELECT 1 FROM orders child_orders WHERE child_orders.deleted_at IS NULL AND child_orders.parent_id = orders.id AND LOWER(child_orders.order_no) LIKE ?))",
+			like, like,
+		)
 	}
 	if filter.GuestEmail != "" {
 		query = query.Where("guest_email = ?", filter.GuestEmail)
