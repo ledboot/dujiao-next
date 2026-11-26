@@ -114,6 +114,7 @@ const siteUrl = ref('')
 // 版本检测与一键升级的完整交互都在 SystemUpdateDialog 内，这里只负责开关
 const updateCheckOpen = ref(false)
 
+const showNavSearch = ref(false)
 const navSearch = ref('')
 const expandedGroups = ref<Record<string, boolean>>(readExpandedGroups())
 const mobileNavOpen = ref(false)
@@ -798,7 +799,7 @@ onBeforeUnmount(() => {
             DJ
           </div>
         </div>
-        <div v-if="!sidebarCollapsed" class="px-3.5 pb-3">
+        <div v-if="showNavSearch && !sidebarCollapsed" class="px-3.5 pb-3">
           <div class="relative">
             <Search class="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground/70" />
             <Input
@@ -927,7 +928,7 @@ onBeforeUnmount(() => {
               <div class="truncate text-[11px] text-muted-foreground">{{ t('admin.layout.controlRoom') }}</div>
             </div>
           </div>
-          <div class="px-3.5 pb-3">
+          <div v-if="showNavSearch" class="px-3.5 pb-3">
             <div class="relative">
               <Search class="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground/70" />
               <Input
